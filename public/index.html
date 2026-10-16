@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Okta Health Insights</title>
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#f5f6f8; --surface:#ffffff; --surface2:#eef0f4; --border:#dfe2e8;
+  --text:#1b1f2a; --muted:#667085; --accent:#3b5bdb; --accent-soft:#e6ebff;
+  --ok:#168a4a; --ok-soft:#e2f5ea; --warn:#b26a00; --warn-soft:#fff1d6;
+  --bad:#c92a2a; --bad-soft:#fde8e8; --bar:#3b5bdb; --barfail:#e03131;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1218; --surface:#171b24; --surface2:#1f2430; --border:#2b3140;
+    --text:#e8ebf2; --muted:#9aa3b5; --accent:#7c93ff; --accent-soft:#222a4d;
+    --ok:#4cc38a; --ok-soft:#14301f; --warn:#f0b04a; --warn-soft:#3a2c10;
+    --bad:#ff7b7b; --bad-soft:#3a1717; --bar:#7c93ff; --barfail:#ff6b6b;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --surface2:#1f2430; --border:#2b3140;
+  --text:#e8ebf2; --muted:#9aa3b5; --accent:#7c93ff; --accent-soft:#222a4d;
+  --ok:#4cc38a; --ok-soft:#14301f; --warn:#f0b04a; --warn-soft:#3a2c10;
+  --bad:#ff7b7b; --bad-soft:#3a1717; --bar:#7c93ff; --barfail:#ff6b6b;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+header .sub{color:var(--muted);font-size:12px}
+.spacer{flex:1}
+.ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
+select,button,input[type=text]{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.ghost{background:transparent}
+main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16px 20px;max-width:1700px;margin:0 auto}
+@media (max-width:1100px){main{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0}
+.card h2{font-size:13px;margin:0 0 2px;font-weight:650;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.card .hint{font-size:12px;color:var(--muted);margin:0 0 10px}
+.banner{background:var(--warn-soft);color:var(--warn);border:1px solid var(--warn);border-radius:10px;padding:8px 12px;font-size:12.5px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em;margin-top:2px}
+.kpi .d{font-size:11.5px;color:var(--muted)}
+.kpi.bad .v{color:var(--bad)} .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--border);border-radius:10px;padding:10px 11px;background:var(--surface2);text-align:left;cursor:pointer;display:block;width:100%}
+.tile .n{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tile .s{font-size:11.5px;margin-top:4px}
+.tile.silent{background:var(--bad-soft);border-color:var(--bad)} .tile.silent .s{color:var(--bad);font-weight:600}
+.tile.slow{background:var(--warn-soft);border-color:var(--warn)} .tile.slow .s{color:var(--warn);font-weight:600}
+.tile.ok .s{color:var(--ok)}
+.legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:baseline}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:grid;grid-template-columns:minmax(90px,170px) 1fr auto;gap:10px;align-items:center;cursor:pointer;padding:3px 4px;border-radius:6px}
+.row:hover{background:var(--surface2)}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.track{height:9px;background:var(--surface2);border-radius:5px;overflow:hidden}
+.fill{height:100%;background:var(--barfail);border-radius:5px}
+.row .ct{font-size:12px;color:var(--muted);white-space:nowrap}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:760px){.two{grid-template-columns:minmax(0,1fr)}}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
+.pill.f{background:var(--bad-soft);color:var(--bad)} .pill.s{background:var(--ok-soft);color:var(--ok)} .pill.o{background:var(--surface2);color:var(--muted)}
+.chip{display:inline-flex;gap:6px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:3px 6px 3px 10px;font-size:12px}
+.chip button{border:none;background:transparent;color:inherit;padding:0 4px;font-size:14px;line-height:1}
+.empty{color:var(--muted);font-size:13px;padding:8px 0}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
+/* assistant */
+.chat{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);display:flex;flex-direction:column;height:calc(100vh - 90px);min-height:420px}
+@media (max-width:1100px){.chat{position:static;height:560px}}
+.chat .msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px 8px}
+.msg{padding:9px 12px;border-radius:12px;max-width:94%;font-size:13px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
+.msg.u{align-self:flex-end;background:var(--accent);color:#fff}
+.msg.a{align-self:flex-start;background:var(--surface2)}
+.msg code{background:var(--surface);padding:0 4px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.msg.a .tool{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+.sugg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.sugg button{font-size:12px;padding:4px 9px;border-radius:99px}
+.inp{display:flex;gap:8px;margin-top:6px}
+.inp input{flex:1}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Okta Health Insights</h1>
+    <div class="sub" id="asof">Loading…</div>
+  </div>
+  <div class="spacer"></div>
+  <label class="ctl">Window
+    <select id="win">
+      <option value="86400000">Last 24h</option>
+      <option value="259200000">Last 3 days</option>
+      <option value="604800000" selected>Last 7 days</option>
+      <option value="2592000000">Last 30 days</option>
+      <option value="0">All loaded</option>
+    </select>
+  </label>
+  <label class="ctl">App silent after
+    <select id="sil">
+      <option value="3600000">1 hour</option>
+      <option value="21600000">6 hours</option>
+      <option value="86400000">24 hours</option>
+      <option value="259200000" selected>3 days</option>
+      <option value="604800000">7 days</option>
+    </select>
+  </label>
+  <button id="btnLive" class="primary" hidden>Live data</button>
+  <button id="btnLog" class="ghost">Load export file</button>
+  <button id="btnApps" class="ghost">Load app list (optional)</button>
+  <button id="btnDemo" class="ghost">Sample data</button>
+  <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.txt" hidden>
+  <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
+</header>
+
+<main>
+  <div class="col">
+    <div id="banner"></div>
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2>App activity — silent integrations</h2>
+      <p class="hint">Tiles go red when an app has had no events for longer than your silence threshold. Amber means it's past half the threshold. Click a tile to see its events.</p>
+      <div class="tiles" id="tiles"></div>
+    </div>
+
+    <div class="card">
+      <h2>Event volume &amp; failures</h2>
+      <div class="legend"><span><i class="dot" style="background:var(--bar)"></i>All events</span><span><i class="dot" style="background:var(--barfail)"></i>Failures</span></div>
+      <div class="scroll"><div id="timeline"></div></div>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h2>Apps with the most errors</h2>
+        <p class="hint">Failures, denies and errors in the window.</p>
+        <div class="rows" id="topApps"></div>
+      </div>
+      <div class="card">
+        <h2>Top error reasons</h2>
+        <p class="hint">From the event's outcome reason.</p>
+        <div class="rows" id="topReasons"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Users with assignment / provisioning errors</h2>
+      <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user.</p>
+      <div class="scroll"><table id="userTbl"></table></div>
+    </div>
+
+    <div class="card" id="drill">
+      <h2>Drill-down</h2>
+      <div id="drillBody"><div class="empty">Click an app tile, bar, user or reason above to see the underlying events.</div></div>
+    </div>
+  </div>
+
+  <aside class="col">
+    <div class="card chat" id="chatCard">
+      <h2>Okta expert assistant</h2>
+      <p class="hint">Knows your loaded data and can query it. Ask why something is failing.</p>
+      <div class="msgs" id="msgs"></div>
+      <div class="sugg" id="sugg"></div>
+      <div class="inp"><input type="text" id="q" placeholder="Ask about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const FAIL = new Set(["FAILURE","DENY","ERROR"]);
+const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_management|app\.user|group\.user_membership/i;
+
+const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:259200000, filter:null, demo:false, history:[], sample:null, busy:false };
+
+/* ---------- helpers ---------- */
+function appOf(e){ const t=(e.target||[]).find(x=>x.type==="AppInstance"); return t? (t.displayName||t.alternateId||t.id) : null; }
+function userOf(e){
+  const t=(e.target||[]).find(x=>x.type==="User");
+  if(t) return t.alternateId||t.displayName;
+  if(e.actor && e.actor.type==="User") return e.actor.alternateId||e.actor.displayName;
+  return null;
+}
+function isFail(e){ return FAIL.has(e.outcome && e.outcome.result); }
+function isAssign(e){ return ASSIGN_RE.test(e.eventType||""); }
+function reasonOf(e){ return (e.outcome && e.outcome.reason) || e.displayMessage || "(no reason given)"; }
+function ts(e){ return new Date(e.published).getTime(); }
+function ago(ms){
+  if(ms<0) ms=0; const m=Math.floor(ms/60000);
+  if(m<1) return "just now"; if(m<60) return m+"m ago";
+  const h=Math.floor(m/60); if(h<48) return h+"h ago";
+  return Math.floor(h/24)+"d ago";
+}
+function countBy(arr,fn){ const m=new Map(); for(const x of arr){ const k=fn(x); if(k==null) continue; m.set(k,(m.get(k)||0)+1);} return m; }
+function top(m,n){ return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n); }
+function fmtN(n){ return n.toLocaleString(); }
+
+/* ---------- demo data (generated, deterministic) ---------- */
+function makeDemo(){
+  let seed=42; const rnd=()=>{ seed=(seed*1664525+1013904223)%4294967296; return seed/4294967296; };
+  const pick=a=>a[Math.floor(rnd()*a.length)];
+  const now=Date.now();
+  const apps=[
+    {n:"Salesforce",w:9,silent:0,fail:.10,assign:true},{n:"Slack",w:12,silent:0,fail:.04,assign:true},
+    {n:"Workday",w:6,silent:0,fail:.02},{n:"ServiceNow",w:5,silent:0,fail:.18,assign:true},
+    {n:"GitHub Enterprise",w:7,silent:0,fail:.03,assign:true},{n:"Zoom",w:4,silent:9*864e5,fail:.02},
+    {n:"Box",w:4,silent:0,fail:.03},{n:"Jira Cloud",w:6,silent:0,fail:.05,assign:true},
+    {n:"Confluence",w:5,silent:0,fail:.03},{n:"AWS IAM Identity Center",w:3,silent:0,fail:.07},
+    {n:"Zendesk",w:3,silent:4.5*864e5,fail:.02},{n:"Expensify",w:2,silent:0,fail:.02},
+    {n:"DocuSign",w:2,silent:20*36e5,fail:.01},{n:"HubSpot",w:3,silent:0,fail:.06,assign:true},
+    {n:"Legacy HR Portal",w:1,silent:13*864e5,fail:.01}
+  ];
+  const users=[]; for(let i=0;i<48;i++) users.push("user"+String(i+1).padStart(2,"0")+"@example.com");
+  const badUsers=["user07@example.com","user19@example.com","user33@example.com"];
+  const assignReasons=["Automatic provisioning of user to app failed: Error while creating user: email already exists in target app",
+    "Automatic provisioning of user to app failed: Insufficient licenses available","User is not assigned to the application",
+    "Group rule could not be applied: attribute 'department' is missing on the user profile",
+    "Automatic provisioning of user to app failed: 401 Unauthorized — API token expired"];
+  const authReasons=["INVALID_CREDENTIALS","VERIFICATION_ERROR","Policy evaluation: DENY by sign-on policy rule 'Require managed device'","User is locked out"];
+  const ev=[]; const total=9000; const span=14*864e5;
+  const totalW=apps.reduce((a,x)=>a+x.w,0);
+  for(let i=0;i<total;i++){
+    let r=rnd()*totalW, app=apps[0]; for(const a of apps){ if((r-=a.w)<0){app=a;break;} }
+    const dayFrac=rnd(); let t=now-dayFrac*span;
+    const hr=new Date(t).getHours(); if(rnd()<.35 && (hr<7||hr>19)){ t+= (8-hr)*36e5; if(t>now) t-=864e5; }
+    if(app.silent && t>now-app.silent) t=now-app.silent-rnd()*3*864e5;
+    if(t>now) t=now-rnd()*36e5;
+    const kind=rnd();
+    let e;
+    const spike=(app.n==="ServiceNow"&&t>now-2*864e5)?2.2:1;
+    if(app.assign && kind<.22){
+      const bad=rnd()<(app.fail*spike*2.6);
+      const u=bad&&rnd()<.55?pick(badUsers):pick(users);
+      e={eventType:pick(["application.user_membership.add","application.provision.user.push","app.user_management.push_profile_update"]),
+         displayMessage:"Automatic provisioning event", outcome:{result:bad?"FAILURE":"SUCCESS",reason:bad?pick(assignReasons):null},
+         actor:{type:"SystemPrincipal",alternateId:"system@okta.com"},target:[{type:"User",alternateId:u},{type:"AppInstance",displayName:app.n}]};
+    } else if(kind<.30){
+      const u=pick(users);
+      e={eventType:"application.user_membership.add",displayMessage:"Add user to application membership",outcome:{result:"SUCCESS"},
+         actor:{type:"User",alternateId:"admin@example.com"},target:[{type:"User",alternateId:u},{type:"AppInstance",displayName:app.n}]};
+    } else {
+      const bad=rnd()<app.fail*spike; const u=pick(users);
+      e={eventType:"user.authentication.sso",displayMessage:"User single sign on to app",
+         outcome:{result:bad?pick(["FAILURE","DENY"]):"SUCCESS",reason:bad?pick(authReasons):null},
+         actor:{type:"User",alternateId:u},target:[{type:"AppInstance",displayName:app.n}]};
+    }
+    e.published=new Date(t).toISOString(); ev.push(e);
+  }
+  return {events:ev.sort((a,b)=>a.published<b.published?-1:1), inventory:apps.map(a=>a.n).concat(["Okta Workflows Connector","Old Wiki (decommissioned?)"])};
+}
+
+/* ---------- parsing ---------- */
+function parseLog(text){
+  let data; text=text.trim();
+  try{ data=JSON.parse(text); }catch(_){
+    data=text.split(/\r?\n/).filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(_){return null}}).filter(Boolean);
+  }
+  if(!Array.isArray(data)){ data=data.events||data.items||data.data||[]; }
+  return data.filter(e=>e && e.published && !isNaN(new Date(e.published)));
+}
+function parseApps(text){
+  text=text.trim();
+  try{ const d=JSON.parse(text); const a=Array.isArray(d)?d:(d.apps||d.items||[]);
+    return a.map(x=>typeof x==="string"?x:(x.label||x.name||x.displayName)).filter(Boolean);
+  }catch(_){ return text.split(/\r?\n/).map(l=>l.split(",")[0].replace(/^"|"$/g,"").trim()).filter(Boolean); }
+}
+
+/* ---------- compute ---------- */
+function compute(){
+  const all=S.events; const ref=S.ref;
+  const win=S.win? all.filter(e=>ts(e)>=ref-S.win) : all;
+  const fails=win.filter(isFail);
+  // app stats
+  const appNames=new Set(); all.forEach(e=>{const a=appOf(e); if(a) appNames.add(a);}); S.inventory.forEach(a=>appNames.add(a));
+  const lastSeen=new Map(); for(const e of all){ const a=appOf(e); if(!a) continue; const t=ts(e); if(!lastSeen.has(a)||t>lastSeen.get(a)) lastSeen.set(a,t); }
+  const winCount=countBy(win,appOf), failCount=countBy(fails,appOf);
+  const tiles=[...appNames].map(name=>{
+    const ls=lastSeen.get(name); const gap=ls==null?Infinity:ref-ls;
+    const status = gap>S.sil?"silent":(gap>S.sil/2?"slow":"ok");
+    return {name,ls,gap,status,count:winCount.get(name)||0,fails:failCount.get(name)||0};
+  }).sort((a,b)=>({silent:0,slow:1,ok:2}[a.status]-{silent:0,slow:1,ok:2}[b.status])||b.gap-a.gap||a.name.localeCompare(b.name));
+  // assignment errors by user
+  const assignFails=fails.filter(isAssign);
+  const byUser=new Map();
+  for(const e of assignFails){ const u=userOf(e)||"(unknown)"; let o=byUser.get(u); if(!o){o={user:u,n:0,apps:new Map(),reasons:new Map(),last:0};byUser.set(u,o);}
+    o.n++; const a=appOf(e); if(a) o.apps.set(a,(o.apps.get(a)||0)+1); const r=reasonOf(e); o.reasons.set(r,(o.reasons.get(r)||0)+1); o.last=Math.max(o.last,ts(e)); }
+  const users=[...byUser.values()].sort((a,b)=>b.n-a.n);
+  return {win,fails,tiles,assignFails,users,
+    topApps:top(failCount,8), topReasons:top(countBy(fails,reasonOf),8), topTypes:top(countBy(fails,e=>e.eventType),6),
+    uniqueUsers:new Set(win.map(userOf).filter(Boolean)).size};
+}
+
+/* ---------- render ---------- */
+function render(){
+  const C=compute(); S.C=C;
+  const asof=S.events.length? new Date(S.ref).toLocaleString():"—";
+  $("#asof").textContent = S.events.length? `${fmtN(S.events.length)} events loaded · as of ${asof}` : "No data loaded";
+  $("#banner").innerHTML = S.demo? '<div class="banner">Showing <b>generated sample data</b> so you can see how the dashboard behaves. Use “Load System Log export” to analyze your real tenant.</div>' : "";
+
+  const rate = C.win.length? (C.fails.length/C.win.length*100):0;
+  const silentN=C.tiles.filter(t=>t.status==="silent").length;
+  $("#kpis").innerHTML = [
+    ["Events in window",fmtN(C.win.length),"",""],
+    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied", rate>8?"bad":rate>4?"warn":"ok"],
+    ["Silent apps",silentN,"of "+C.tiles.length+" apps", silentN?"bad":"ok"],
+    ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected", C.assignFails.length?"warn":"ok"],
+    ["Active users",fmtN(C.uniqueUsers),"in window",""]
+  ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
+
+  $("#tiles").innerHTML = C.tiles.length? C.tiles.map(t=>
+    `<button class="tile ${t.status}" data-k="app" data-v="${esc(t.name)}"><div class="n" title="${esc(t.name)}">${esc(t.name)}</div>
+     <div class="s">${t.ls==null?"No events in export":(t.status==="ok"?"Active · ":"Silent · ")+"last "+ago(t.gap)}</div></button>`).join("")
+    : '<div class="empty">No apps found in the loaded events.</div>';
+
+  renderTimeline(C);
+  bars("#topApps",C.topApps,"app");
+  bars("#topReasons",C.topReasons,"reason");
+
+  $("#userTbl").innerHTML = C.users.length? `<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>`+
+    C.users.slice(0,12).map(u=>{
+      const apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—"; const r=top(u.reasons,1)[0];
+      return `<tr class="click" data-k="user" data-v="${esc(u.user)}"><td>${esc(u.user)}</td><td><span class="pill f">${u.n}</span></td><td>${apps}</td><td>${esc(r?r[0]:"")}</td><td>${ago(S.ref-u.last)}</td></tr>`;}).join("")
+    : '<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>';
+  renderDrill();
+}
+
+function bars(sel,list,kind){
+  const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
+  const max=list[0][1];
+  el.innerHTML=list.map(([k,v])=>`<div class="row" data-k="${kind}" data-v="${esc(k)}" title="${esc(k)}"><div class="nm">${esc(k)}</div><div class="track"><div class="fill" style="width:${Math.max(3,v/max*100)}%"></div></div><div class="ct">${fmtN(v)}</div></div>`).join("");
+}
+
+function renderTimeline(C){
+  const el=$("#timeline"); if(!C.win.length){ el.innerHTML='<div class="empty">No events.</div>'; return; }
+  const t0=Math.min(...C.win.map(ts)), t1=S.ref;
+  const hourly=(t1-t0)<=3*864e5+36e5; const step=hourly?36e5:864e5;
+  const start=Math.floor(t0/step)*step, n=Math.max(1,Math.ceil((t1-start)/step)+1);
+  const tot=new Array(n).fill(0), bad=new Array(n).fill(0);
+  for(const e of C.win){ const i=Math.min(n-1,Math.floor((ts(e)-start)/step)); tot[i]++; if(isFail(e)) bad[i]++; }
+  const max=Math.max(...tot,1), W=Math.max(640,n*(hourly?14:34)), H=170, pad=22, bw=(W-8)/n;
+  let g="";
+  for(let i=0;i<n;i++){
+    const h=(tot[i]/max)*(H-pad-8), fh=(bad[i]/max)*(H-pad-8), x=4+i*bw;
+    g+=`<rect x="${x+1}" y="${H-pad-h}" width="${Math.max(2,bw-2)}" height="${h}" rx="2" fill="var(--bar)" opacity=".85"><title>${new Date(start+i*step).toLocaleString()} — ${tot[i]} events, ${bad[i]} failed</title></rect>`;
+    if(bad[i]) g+=`<rect x="${x+1}" y="${H-pad-fh}" width="${Math.max(2,bw-2)}" height="${fh}" rx="2" fill="var(--barfail)"/>`;
+    const lbl=(hourly? (i%6===0) : (n<=16||i%Math.ceil(n/12)===0));
+    if(lbl){ const d=new Date(start+i*step); g+=`<text x="${x}" y="${H-6}" font-size="10" fill="var(--muted)">${hourly?d.getHours()+":00":(d.getMonth()+1)+"/"+d.getDate()}</text>`; }
+  }
+  el.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Events and failures over time">${g}</svg>`;
+}
+
+/* ---------- drill-down ---------- */
+function matches(e,f){
+  if(f.k==="app") return appOf(e)===f.v;
+  if(f.k==="user") return userOf(e)===f.v && isAssign(e);
+  if(f.k==="reason") return reasonOf(e)===f.v;
+  return false;
+}
+function renderDrill(){
+  const b=$("#drillBody"); const f=S.filter;
+  if(!f){ b.innerHTML='<div class="empty">Click an app tile, bar, user or reason above to see the underlying events.</div>'; return; }
+  const pool=(S.win? S.events.filter(e=>ts(e)>=S.ref-S.win):S.events);
+  const failedOnly=$("#failOnly")? $("#failOnly").checked : (f.k!=="app" || false);
+  let rows = f.k==="app"? S.events.filter(e=>matches(e,f)) : pool.filter(e=>matches(e,f));
+  if(failedOnly) rows=rows.filter(isFail);
+  rows=rows.sort((a,b)=>ts(b)-ts(a));
+  b.innerHTML=`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+    <span class="chip">${esc(f.k)}: ${esc(f.v.length>60?f.v.slice(0,60)+"…":f.v)}<button id="clr" aria-label="Clear">×</button></span>
+    <label class="ctl"><input type="checkbox" id="failOnly" ${failedOnly?"checked":""}> failures only</label>
+    <span class="ctl">${fmtN(rows.length)} events</span><span class="spacer"></span>
+    <button id="askAbout" class="ghost">Ask the assistant about this</button>
+    <button id="exportCsv" class="ghost">Export CSV</button></div>
+    <div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>User</th><th>Reason</th></tr>`+
+    (rows.slice(0,60).map(e=>`<tr><td class="mono">${esc(new Date(e.published).toLocaleString())}</td>
+      <td><span class="pill ${isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o")}">${esc(e.outcome&&e.outcome.result||"—")}</span></td>
+      <td class="mono">${esc(e.eventType)}</td><td>${esc(appOf(e)||"—")}</td><td>${esc(userOf(e)||"—")}</td><td>${esc(e.outcome&&e.outcome.reason||"")}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
+    `</table></div>${rows.length>60?'<div class="empty">Showing the 60 most recent.</div>':""}`;
+  $("#clr").onclick=()=>{S.filter=null;renderDrill();};
+  $("#failOnly").onchange=renderDrill;
+  $("#askAbout").onclick=()=>ask(`Help me troubleshoot the ${f.k} “${f.v}”. What's going wrong and what should I check in Okta?`);
+  $("#exportCsv").onclick=()=>exportCsv(rows);
+}
+async function exportCsv(rows){
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
+  const csv=["time,result,eventType,app,user,reason"].concat(rows.map(e=>[e.published,e.outcome&&e.outcome.result,e.eventType,appOf(e),userOf(e),e.outcome&&e.outcome.reason].map(q).join(","))).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"})); a.download="okta-events.csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+document.addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-k]"); if(!t) return;
+  S.filter={k:t.dataset.k,v:t.dataset.v}; renderDrill(); $("#drill").scrollIntoView({behavior:"smooth",block:"nearest"});
+});
+
+/* ---------- loading ---------- */
+function setData(events,inv,demo){
+  S.live=false; clearTimeout(S.liveTimer);
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null;
+  S.ref = demo? Date.now() : (events.length? Math.max(...events.map(ts)) : Date.now());
+  render();
+}
+$("#btnLog").onclick=()=>$("#fileLog").click();
+$("#btnApps").onclick=()=>$("#fileApps").click();
+$("#btnDemo").onclick=()=>{const d=makeDemo(); setData(d.events,d.inventory,true);};
+$("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const ev=parseLog(await f.text());
+  if(!ev.length){ alert("Couldn't find any System Log events in that file. Expected a JSON array or newline-delimited JSON from the /api/v1/logs endpoint."); return; }
+  setData(ev,S.demo?[]:S.inventory,false); e.target.value=""; };
+$("#fileApps").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.inventory=parseApps(await f.text()); render(); e.target.value=""; };
+$("#win").onchange=e=>{S.win=+e.target.value;render();};
+$("#sil").onchange=e=>{S.sil=+e.target.value;render();};
+
+/* ---------- assistant ---------- */
+function summary(){
+  const C=S.C||compute();
+  return {asOf:new Date(S.ref).toISOString(),windowDays:S.win?S.win/864e5:"all",silenceThresholdHours:S.sil/36e5,
+    eventsInWindow:C.win.length,failures:C.fails.length,assignmentErrors:C.assignFails.length,
+    silentApps:C.tiles.filter(t=>t.status==="silent").map(t=>({app:t.name,lastEvent:t.ls?new Date(t.ls).toISOString():"never in export"})),
+    topFailingApps:C.topApps.map(([app,n])=>({app,failures:n,totalEvents:C.tiles.find(t=>t.name===app)?.count})),
+    topErrorReasons:C.topReasons.map(([reason,n])=>({reason,n})),
+    topFailingEventTypes:C.topTypes.map(([type,n])=>({type,n})),
+    usersWithAssignmentErrors:C.users.slice(0,8).map(u=>({user:u.user,errors:u.n,apps:top(u.apps,3).map(x=>x[0]),topReason:(top(u.reasons,1)[0]||[])[0]})),
+    usingSampleData:S.demo};
+}
+function md(t){
+  return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
+}
+function addMsg(cls,html){ const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; $("#msgs").appendChild(d); $("#msgs").scrollTop=1e9; return d; }
+async function ask(text){
+  text=(text||"").trim(); if(!text||S.busy) return;
+  if(!S.assistant){ addMsg("a","The assistant is only available when the dashboard is connected to its backend with an Anthropic API key configured."); return; }
+  S.busy=true; $("#send").disabled=true; $("#sugg").style.display="none";
+  addMsg("u",esc(text)); S.history.push({role:"user",content:text});
+  const out=addMsg("a","<span class='tool'>Looking at your data…</span>");
+  try{
+    const r=await fetch("api/chat",{method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({messages:S.history.slice(-12),summary:summary(),windowMs:S.win})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+    out.innerHTML=md(j.text); S.history.push({role:"assistant",content:j.text});
+  }catch(err){
+    out.innerHTML="Something went wrong reaching the assistant: "+esc(err.message||err); S.history.pop();
+  }
+  S.busy=false; $("#send").disabled=false; $("#q").focus();
+}
+$("#send").onclick=()=>{const v=$("#q").value; $("#q").value=""; ask(v);};
+$("#q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#send").click(); }});
+
+function intro(){
+  addMsg("a","Hi — I'm your Okta troubleshooting assistant. I can see a summary of what's loaded here and can search the events. Try one of these, or ask your own question.");
+  $("#sugg").innerHTML=["Which silent apps should I worry about?","Why are provisioning pushes failing?","What's going on with the users who keep hitting assignment errors?","Give me a health summary for this week"]
+    .map(s=>`<button>${esc(s)}</button>`).join("");
+  $("#sugg").onclick=e=>{ if(e.target.tagName==="BUTTON") ask(e.target.textContent); };
+}
+
+/* ---------- live mode ---------- */
+const seen=new Set();
+function setAssistantUI(on){
+  S.assistant=on; $("#q").disabled=!on; $("#send").disabled=!on;
+  $("#chatCard").querySelector(".hint").textContent = on? "Knows your live data and can query it. Ask why something is failing." : "Assistant unavailable (needs the backend and an Anthropic API key).";
+}
+async function refreshLive(first){
+  try{
+    const since=S.lastTs? S.lastTs-60000 : 0;
+    const [er,ar]=await Promise.all([fetch("api/events?since="+since),fetch("api/apps")]);
+    if(!er.ok) throw new Error("events "+er.status);
+    const ej=await er.json(), aj=ar.ok? await ar.json():{apps:[]};
+    for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
+    const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
+    S.inventory=aj.apps||[]; S.ref=Date.now(); S.demo=false; S.live=true;
+    render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
+  }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
+  clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(()=>refreshLive(false),60000);
+}
+async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; S.filter=null; await refreshLive(true); }
+$("#btnLive").onclick=goLive;
+
+(async function init(){
+  intro(); let st=null;
+  try{ const r=await fetch("api/status"); if(r.ok) st=await r.json(); }catch(_){}
+  if(st&&st.live){ $("#btnLive").hidden=false; setAssistantUI(!!st.assistant); await goLive(); }
+  else { const d=makeDemo(); setData(d.events,d.inventory,true); setAssistantUI(false); }
+})();
+})();
+</script>
+</body>
+</html>
