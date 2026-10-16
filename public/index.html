@@ -100,6 +100,14 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .sugg button{font-size:12px;padding:4px 9px;border-radius:99px}
 .inp{display:flex;gap:8px;margin-top:6px}
 .inp input{flex:1}
+#map{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+#map[hidden]{display:none}
+#map .mbody{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;width:min(640px,100%);max-height:90vh;overflow:auto}
+#map h3{margin:0 0 4px;font-size:16px}
+.mrow{display:grid;grid-template-columns:150px minmax(0,1fr);gap:4px 10px;align-items:center;margin:8px 0;font-size:13px}
+.mrow .sample{grid-column:2;font-style:normal;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow select{width:100%}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 </style>
 </head>
 <body>
@@ -126,11 +134,12 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     </select>
   </label>
   <button id="btnLive" class="primary" hidden>Live data</button>
-  <button id="btnLog" class="ghost">Load export file</button>
+  <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
   <button id="btnApps" class="ghost">Load app list (optional)</button>
   <button id="btnDemo" class="ghost">Sample data</button>
-  <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.txt" hidden>
+  <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.csv,.tsv,.txt" hidden>
   <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
+  <div id="map" hidden><div class="mbody"></div></div>
 </header>
 
 <main>
@@ -141,6 +150,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     <div class="card">
       <h2>App activity — silent integrations</h2>
       <p class="hint">Tiles go red when an app has had no events for longer than your silence threshold. Amber means it's past half the threshold. Click a tile to see its events.</p>
+      <div class="ctl" style="gap:10px;margin-bottom:10px;flex-wrap:wrap"><select id="tview"><option value="attn" selected>Needs attention</option><option value="all">All apps</option></select><input type="text" id="tsearch" placeholder="Search apps…" autocomplete="off"><span id="tcount"></span></div>
       <div class="tiles" id="tiles"></div>
     </div>
 
@@ -214,7 +224,7 @@ function userOf(e){
 function isFail(e){ return FAIL.has(e.outcome && e.outcome.result); }
 function isAssign(e){ return ASSIGN_RE.test(e.eventType||""); }
 function reasonOf(e){ return (e.outcome && e.outcome.reason) || e.displayMessage || "(no reason given)"; }
-function ts(e){ return new Date(e.published).getTime(); }
+function ts(e){ return e._t!==undefined? e._t : (e._t=new Date(e.published).getTime()); }
 function ago(ms){
   if(ms<0) ms=0; const m=Math.floor(ms/60000);
   if(m<1) return "just now"; if(m<60) return m+"m ago";
@@ -295,6 +305,169 @@ function parseApps(text){
   }catch(_){ return text.split(/\r?\n/).map(l=>l.split(",")[0].replace(/^"|"$/g,"").trim()).filter(Boolean); }
 }
 
+/* ---------- CSV import ---------- */
+function parseCSV(t,d){
+  const rows=[]; let row=[],f="",q=false;
+  for(let i=0;i<t.length;i++){ const c=t[i];
+    if(q){ if(c==='"'){ if(t[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===d){ row.push(f); f=""; }
+    else if(c==="\n"||c==="\r"){ if(c==="\r"&&t[i+1]==="\n") i++; row.push(f); f=""; if(row.length>1||row[0]!=="") rows.push(row); row=[]; }
+    else f+=c; }
+  if(f!==""||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+const CSV_FIELDS=[
+  {k:"time",label:"Time",req:1,alias:["published","time","timestamp","date","datetime","when","eventtime"]},
+  {k:"eventType",label:"Event / event type",alias:["eventtype","event","eventinfo","action","eventname"]},
+  {k:"result",label:"Outcome / result",alias:["result","outcome","outcomeresult","status"]},
+  {k:"reason",label:"Failure reason / message",alias:["reason","outcomereason","failurereason","displaymessage","message","description"]},
+  {k:"app",label:"App",alias:["app","application","appinstance","appname","applicationname"]},
+  {k:"user",label:"User affected",alias:["user","targetuser","username","login","useralternateid"]},
+  {k:"actor",label:"Actor (who did it)",alias:["actor","actoralternateid","actorname","actordisplayname","actorid"]},
+  {k:"targets",label:"Targets (combined column)",alias:["target","targets","targetinfo"]}
+];
+const nrm=h=>String(h||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function autoMap(H){
+  const map={}, used=new Set(), N=H.map(nrm);
+  for(const f of CSV_FIELDS){
+    let i=N.findIndex((h,ix)=>!used.has(ix)&&f.alias.includes(h));
+    if(i<0) i=N.findIndex((h,ix)=>!used.has(ix)&&h&&f.alias.some(a=>a.length>3&&h.includes(a)));
+    map[f.k]=i; if(i>=0) used.add(i);
+  }
+  return map;
+}
+function parseTime(s){
+  s=String(s||"").trim(); if(!s) return null;
+  if(/^\d{10,13}$/.test(s)){ const n=+s; const d=new Date(s.length===10?n*1000:n); return isNaN(d)?null:d; }
+  let d=new Date(s);
+  if(isNaN(d)){ d=new Date(s.replace(" ","T").replace(/ ?UTC$/i,"Z").replace(/ ([+-]\d{2}:?\d{2})$/,"$1")); }
+  return isNaN(d)?null:d;
+}
+function normResult(s){
+  s=String(s||"").trim().toLowerCase(); if(!s) return null;
+  if(/^(success|succeed|allow|ok)/.test(s)) return "SUCCESS";
+  if(/fail/.test(s)) return "FAILURE"; if(/den(y|ied)/.test(s)) return "DENY";
+  if(/error/.test(s)) return "ERROR"; if(/skip/.test(s)) return "SKIPPED";
+  return s.toUpperCase();
+}
+function parseTargets(b){
+  if(!b) return []; const out=[];
+  const typ=t=>/app/i.test(t)?"AppInstance":(/user/i.test(t)?"User":t);
+  try{ const j=JSON.parse(b); if(Array.isArray(j)) return j.map(x=>({type:typ(x.type||""),displayName:x.displayName||x.alternateId,alternateId:x.alternateId||x.displayName})); }catch(_){}
+  let m; const r1=/([^,;|\n(]+?)\s*\(\s*(AppInstance|App|User|Group)\s*\)/gi;
+  while((m=r1.exec(b))) out.push({type:typ(m[2]),displayName:m[1].trim(),alternateId:m[1].trim()});
+  const r2=/\b(AppInstance|App|User)\s*[:=]\s*([^,;|\n]+)/gi;
+  while((m=r2.exec(b))) out.push({type:typ(m[1]),displayName:m[2].trim(),alternateId:m[2].trim()});
+  return out;
+}
+function buildFromCsv(rows,map){
+  const out=[]; let skipped=0, inferred=0;
+  for(const r of rows.slice(1)){
+    const g=k=>map[k]>=0? String(r[map[k]]||"").trim() : "";
+    const t=parseTime(g("time")); if(!t){ skipped++; continue; }
+    const ev=g("eventType"), reason=g("reason"); let res=normResult(g("result"));
+    if(!res){ res=/fail|denied|deny|error|invalid|locked|unable/i.test(ev+" "+reason)?"FAILURE":"SUCCESS"; inferred++; }
+    const app=g("app"), user=g("user"), target=[];
+    if(app) target.push({type:"AppInstance",displayName:app});
+    if(user) target.push({type:"User",alternateId:user,displayName:user});
+    if(!app||!user) for(const x of parseTargets(g("targets"))){ if(x.type==="AppInstance"&&!app) target.push(x); else if(x.type==="User"&&!user) target.push(x); }
+    const actor=g("actor");
+    out.push({published:t.toISOString(),eventType:ev||"unknown",displayMessage:reason||ev,outcome:{result:res,reason:reason||null},actor:{type:"User",alternateId:actor,displayName:actor},target});
+  }
+  return {events:out,skipped,inferred};
+}
+/* ---------- streaming CSV (large exports) ---------- */
+function flatBuilder(){
+  let ix={}, tg=[];
+  return {inferred:0, init(h){ ix={}; h.forEach((x,i)=>ix[x]=i); tg=[]; for(let k=0;k<20&&ix["target"+k+".type"]!=null;k++) tg.push(k); },
+    row(r){
+      const p=r[ix["timestamp"]]; if(!p) return null; const ms=Date.parse(p); if(isNaN(ms)) return null;
+      const v=n=>{ const i=ix[n]; return i==null? "" : (r[i]||""); };
+      const target=[]; for(const k of tg){ const ty=v("target"+k+".type"); if(!ty) continue; target.push({type:ty,id:v("target"+k+".id"),alternateId:v("target"+k+".alternate_id"),displayName:v("target"+k+".display_name")}); }
+      return {published:p,_t:ms,eventType:v("event_type"),displayMessage:v("display_message"),severity:v("severity"),ip:v("client.ip_address"),city:v("client.geographical_context.city"),
+        outcome:{result:(v("outcome.result")||"").toUpperCase()||null,reason:v("outcome.reason")||null},
+        actor:{type:v("actor.type"),alternateId:v("actor.alternate_id"),displayName:v("actor.display_name")},target};
+    }};
+}
+function genericBuilder(m){
+  const b={inferred:0, init(){},
+    row(r){
+      const g=k=>m[k]>=0? String(r[m[k]]||"").trim() : "";
+      const d=parseTime(g("time")); if(!d) return null;
+      const ev=g("eventType"), reason=g("reason"); let res=normResult(g("result"));
+      if(!res){ res=/fail|denied|deny|error|invalid|locked|unable/i.test(ev+" "+reason)?"FAILURE":"SUCCESS"; b.inferred++; }
+      const app=g("app"), user=g("user"), target=[];
+      if(app) target.push({type:"AppInstance",displayName:app});
+      if(user) target.push({type:"User",alternateId:user,displayName:user});
+      if(!app||!user) for(const x of parseTargets(g("targets"))){ if(x.type==="AppInstance"&&!app) target.push(x); else if(x.type==="User"&&!user) target.push(x); }
+      const actor=g("actor");
+      return {published:d.toISOString(),_t:d.getTime(),eventType:ev||"unknown",displayMessage:reason||ev,outcome:{result:res,reason:reason||null},actor:{type:"User",alternateId:actor,displayName:actor},target};
+    }};
+  return b;
+}
+async function loadCsvStream(f,delim,mk){
+  const events=[]; let skipped=0, first=true, read=0, lastUI=0;
+  const say=m=>{ $("#banner").innerHTML='<div class="banner">'+esc(m)+'</div>'; };
+  const dec=new TextDecoder(), reader=f.stream().getReader();
+  const re=new RegExp('["'+(delim==="\t"?"\\t":delim)+'\\r\\n]',"g");
+  let field="", row=[], q=false, pq=false, pcr=false;
+  const endField=()=>{ row.push(field); field=""; };
+  const endRow=()=>{ endField(); if(row.length>1||row[0]!==""){ if(first){ first=false; mk.init(row); } else { const ev=mk.row(row); if(ev) events.push(ev); else skipped++; } } row=[]; };
+  try{
+    for(;;){
+      const {done,value}=await reader.read(); if(done) break; read+=value.length;
+      const t=dec.decode(value,{stream:true}), L=t.length; let pos=0;
+      while(pos<L){
+        if(pcr){ pcr=false; if(t[pos]==="\n"){ pos++; continue; } }
+        if(pq){ pq=false; if(t[pos]==='"'){ field+='"'; pos++; continue; } q=false; }
+        if(q){ const i=t.indexOf('"',pos); if(i<0){ field+=t.slice(pos); pos=L; } else { field+=t.slice(pos,i); pos=i+1; pq=true; } continue; }
+        re.lastIndex=pos; const mt=re.exec(t);
+        if(!mt){ field+=t.slice(pos); pos=L; break; }
+        field+=t.slice(pos,mt.index); pos=mt.index+1; const c=mt[0];
+        if(c==='"') q=true; else if(c===delim) endField(); else { if(c==="\r") pcr=true; endRow(); }
+      }
+      const now=Date.now(); if(now-lastUI>250){ lastUI=now; say("Reading "+f.name+"… "+Math.round(read/f.size*100)+"% · "+fmtN(events.length)+" events"); }
+    }
+    if(field!==""||row.length) endRow();
+  }catch(err){ alert("Couldn't read that file: "+(err&&err.message||err)); render(); return; }
+  if(!events.length){ alert("No rows had a readable time, so nothing was loaded."); render(); return; }
+  const notes=["Loaded "+fmtN(events.length)+" events from "+f.name];
+  if(skipped) notes.push(fmtN(skipped)+" rows skipped (unreadable time)");
+  if(mk.inferred) notes.push("outcome guessed from text for "+fmtN(mk.inferred)+" rows");
+  S.note=notes.join(" · "); setData(events,S.demo?[]:S.inventory,false);
+}
+async function handleCsv(f,head){
+  head=head.replace(/^\uFEFF/,"");
+  const first=head.split(/\r?\n/,1)[0], delim=[",",";","\t"].map(d=>[d,first.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  let rows=parseCSV(head,delim); if(f.size>262144) rows=rows.slice(0,-1);
+  if(rows.length<2){ alert("That file doesn't look like JSON or a CSV with a header row."); return; }
+  const H=rows[0];
+  if(H.includes("event_type")&&H.includes("timestamp")&&H.includes("outcome.result")){ loadCsvStream(f,delim,flatBuilder()); return; }
+  openMapper(rows,f.name,f,delim);
+}
+function openMapper(rows,fname,file,delim){
+  const H=rows[0].map((h,i)=>h||("column "+(i+1))), map=autoMap(H), el=$("#map"), body=el.querySelector(".mbody");
+  const sampleRow=rows[1]||[];
+  body.innerHTML='<h3>Match the columns — '+esc(fname)+'</h3><p class="hint">'+fmtN(rows.length-1)+' rows found. Check which column holds each field. Only Time is required, but outcome and app give much better insights.</p>'+
+    CSV_FIELDS.map(f=>'<label class="mrow"><span>'+f.label+(f.req?" *":"")+'</span><select data-f="'+f.k+'"><option value="-1">(none)</option>'+H.map((h,i)=>'<option value="'+i+'"'+(map[f.k]===i?" selected":"")+'>'+esc(h)+'</option>').join("")+'</select><em class="sample"></em></label>').join("")+
+    '<div class="mact"><button id="mCancel">Cancel</button><button class="primary" id="mGo">Load events</button></div>';
+  const upd=()=>body.querySelectorAll("select").forEach(s=>{ const v=+s.value; s.parentNode.querySelector(".sample").textContent= v>=0? "e.g. "+String(sampleRow[v]||"").slice(0,90) : ""; });
+  body.querySelectorAll("select").forEach(s=>s.onchange=upd); upd(); el.hidden=false;
+  $("#mCancel").onclick=()=>{ el.hidden=true; };
+  $("#mGo").onclick=()=>{
+    const m={}; body.querySelectorAll("select").forEach(s=>m[s.dataset.f]=+s.value);
+    if(m.time<0){ alert("Please choose the column that holds the event time."); return; }
+    el.hidden=true; loadCsvStream(file,delim,genericBuilder(m)); return;
+    const r=buildFromCsv(rows,m);
+    if(!r.events.length){ alert("No rows had a readable time in that column. Try a different Time column."); return; }
+    el.hidden=true;
+    const notes=[]; if(r.skipped) notes.push(r.skipped+" rows skipped (unreadable time)"); if(r.inferred) notes.push("outcome guessed from text for "+r.inferred+" rows (no outcome column mapped or it was blank)"); if(m.app<0&&m.targets<0) notes.push("no app column mapped, so app tiles and per-app errors will be empty");
+    S.note=notes.length? "CSV import: "+notes.join("; ")+"." : "";
+    setData(r.events,S.demo?[]:S.inventory,false);
+  };
+}
+
 /* ---------- compute ---------- */
 function compute(){
   const all=S.events; const ref=S.ref;
@@ -325,7 +498,7 @@ function render(){
   const C=compute(); S.C=C;
   const asof=S.events.length? new Date(S.ref).toLocaleString():"—";
   $("#asof").textContent = S.events.length? `${fmtN(S.events.length)} events loaded · as of ${asof}` : "No data loaded";
-  $("#banner").innerHTML = S.demo? '<div class="banner">Showing <b>generated sample data</b> so you can see how the dashboard behaves. Use “Load System Log export” to analyze your real tenant.</div>' : "";
+  $("#banner").innerHTML = S.demo? '<div class="banner">Showing <b>generated sample data</b> so you can see how the dashboard behaves. Use “Load System Log” to analyze your real tenant.</div>' : (S.note? '<div class="banner">'+esc(S.note)+'</div>' : "");
 
   const rate = C.win.length? (C.fails.length/C.win.length*100):0;
   const silentN=C.tiles.filter(t=>t.status==="silent").length;
@@ -337,10 +510,7 @@ function render(){
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
   ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
 
-  $("#tiles").innerHTML = C.tiles.length? C.tiles.map(t=>
-    `<button class="tile ${t.status}" data-k="app" data-v="${esc(t.name)}"><div class="n" title="${esc(t.name)}">${esc(t.name)}</div>
-     <div class="s">${t.ls==null?"No events in export":(t.status==="ok"?"Active · ":"Silent · ")+"last "+ago(t.gap)}</div></button>`).join("")
-    : '<div class="empty">No apps found in the loaded events.</div>';
+  renderTiles();
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app");
@@ -354,6 +524,19 @@ function render(){
   renderDrill();
 }
 
+function renderTiles(){
+  const C=S.C; if(!C) return;
+  const view=$("#tview").value, q=($("#tsearch").value||"").trim().toLowerCase();
+  const all=C.tiles, nS=all.filter(t=>t.status==="silent").length, nQ=all.filter(t=>t.status==="slow").length;
+  const list=all.filter(t=>(view==="all"||t.status!=="ok")&&(!q||t.name.toLowerCase().includes(q)));
+  $("#tcount").textContent=all.length+" apps · "+nS+" silent · "+nQ+" quiet · showing "+list.length;
+  $("#tiles").innerHTML = list.length? list.map(t=>
+    `<button class="tile ${t.status}" data-k="app" data-v="${esc(t.name)}"><div class="n" title="${esc(t.name)}">${esc(t.name)}</div>
+     <div class="s">${t.ls==null?"No events in export":(t.status==="ok"?"Active · ":(t.status==="slow"?"Quiet · ":"Silent · "))+"last "+ago(t.gap)}</div></button>`).join("")
+    : '<div class="empty">'+(all.length? "No apps match these filters. Switch to All apps to see everything." : "No apps found in the loaded events.")+'</div>';
+}
+$("#tview").onchange=renderTiles; $("#tsearch").oninput=renderTiles;
+
 function bars(sel,list,kind){
   const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
   const max=list[0][1];
@@ -362,7 +545,7 @@ function bars(sel,list,kind){
 
 function renderTimeline(C){
   const el=$("#timeline"); if(!C.win.length){ el.innerHTML='<div class="empty">No events.</div>'; return; }
-  const t0=Math.min(...C.win.map(ts)), t1=S.ref;
+  let t0=Infinity; for(const e of C.win){ const t=ts(e); if(t<t0) t0=t; } const t1=S.ref;
   const hourly=(t1-t0)<=3*864e5+36e5; const step=hourly?36e5:864e5;
   const start=Math.floor(t0/step)*step, n=Math.max(1,Math.ceil((t1-start)/step)+1);
   const tot=new Array(n).fill(0), bad=new Array(n).fill(0);
@@ -400,10 +583,10 @@ function renderDrill(){
     <span class="ctl">${fmtN(rows.length)} events</span><span class="spacer"></span>
     <button id="askAbout" class="ghost">Ask the assistant about this</button>
     <button id="exportCsv" class="ghost">Export CSV</button></div>
-    <div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>User</th><th>Reason</th></tr>`+
+    <div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>User</th><th>Source</th><th>Reason</th></tr>`+
     (rows.slice(0,60).map(e=>`<tr><td class="mono">${esc(new Date(e.published).toLocaleString())}</td>
       <td><span class="pill ${isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o")}">${esc(e.outcome&&e.outcome.result||"—")}</span></td>
-      <td class="mono">${esc(e.eventType)}</td><td>${esc(appOf(e)||"—")}</td><td>${esc(userOf(e)||"—")}</td><td>${esc(e.outcome&&e.outcome.reason||"")}</td></tr>`).join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
+      <td class="mono">${esc(e.eventType)}</td><td>${esc(appOf(e)||"—")}</td><td>${esc(userOf(e)||"—")}</td><td class="mono">${esc(e.ip? (e.ip+(e.city&&e.city!=="null"?" · "+e.city:"")) : "—")}</td><td>${esc(e.outcome&&e.outcome.reason||"")}</td></tr>`).join("")||'<tr><td colspan="7" class="empty">No matching events.</td></tr>')+
     `</table></div>${rows.length>60?'<div class="empty">Showing the 60 most recent.</div>':""}`;
   $("#clr").onclick=()=>{S.filter=null;renderDrill();};
   $("#failOnly").onchange=renderDrill;
@@ -424,15 +607,22 @@ document.addEventListener("click",ev=>{
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer);
   S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null;
-  S.ref = demo? Date.now() : (events.length? Math.max(...events.map(ts)) : Date.now());
+  S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }
 $("#btnLog").onclick=()=>$("#fileLog").click();
 $("#btnApps").onclick=()=>$("#fileApps").click();
 $("#btnDemo").onclick=()=>{const d=makeDemo(); setData(d.events,d.inventory,true);};
-$("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; const ev=parseLog(await f.text());
-  if(!ev.length){ alert("Couldn't find any System Log events in that file. Expected a JSON array or newline-delimited JSON from the /api/v1/logs endpoint."); return; }
-  setData(ev,S.demo?[]:S.inventory,false); e.target.value=""; };
+$("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; e.target.value=""; const head=await f.slice(0,262144).text(); if(!/^\s*[\[{]/.test(head.replace(/^\uFEFF/,""))){ handleCsv(f,head); return; } const text=(await f.text()).replace(/^\uFEFF/,"");
+  if(/^\s*[\[{]/.test(text)){
+    const ev=parseLog(text);
+    if(!ev.length){ alert("Couldn't find any System Log events in that file. Expected a JSON array or newline-delimited JSON from the /api/v1/logs endpoint."); return; }
+    S.note=""; setData(ev,S.demo?[]:S.inventory,false); return;
+  }
+  const first=text.split(/\r?\n/,1)[0], delim=[",",";","\t"].map(d=>[d,first.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=parseCSV(text,delim);
+  if(rows.length<2){ alert("That file doesn't look like JSON or a CSV with a header row."); return; }
+  openMapper(rows,f.name); };
 $("#fileApps").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.inventory=parseApps(await f.text()); render(); e.target.value=""; };
 $("#win").onchange=e=>{S.win=+e.target.value;render();};
 $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
@@ -486,7 +676,7 @@ function setAssistantUI(on){
   S.assistant=on; $("#q").disabled=!on; $("#send").disabled=!on;
   $("#chatCard").querySelector(".hint").textContent = on? "Knows your live data and can query it. Ask why something is failing." : "Assistant unavailable (needs the backend and an Anthropic API key).";
 }
-async function refreshLive(first){
+async function refreshLive(){
   try{
     const since=S.lastTs? S.lastTs-60000 : 0;
     const [er,ar]=await Promise.all([fetch("api/events?since="+since),fetch("api/apps")]);
@@ -494,12 +684,12 @@ async function refreshLive(first){
     const ej=await er.json(), aj=ar.ok? await ar.json():{apps:[]};
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
-    S.inventory=aj.apps||[]; S.ref=Date.now(); S.demo=false; S.live=true;
+    S.inventory=aj.apps||[]; S.ref=Date.now(); S.demo=false; S.live=true; S.note="";
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
-  clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(()=>refreshLive(false),60000);
+  clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,60000);
 }
-async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; S.filter=null; await refreshLive(true); }
+async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; S.filter=null; await refreshLive(); }
 $("#btnLive").onclick=goLive;
 
 (async function init(){

@@ -95,6 +95,7 @@ async function oktaGet(url, attempt = 0) {
 function slim(e) {
   return {
     id: e.uuid, published: e.published, eventType: e.eventType, displayMessage: e.displayMessage, severity: e.severity,
+    ip: (e.client && e.client.ipAddress) || null, city: (e.client && e.client.geographicalContext && e.client.geographicalContext.city) || null,
     outcome: e.outcome ? { result: e.outcome.result, reason: e.outcome.reason || null } : null,
     actor: e.actor ? { type: e.actor.type, alternateId: e.actor.alternateId, displayName: e.actor.displayName } : null,
     target: (e.target || []).map(t => ({ type: t.type, id: t.id, alternateId: t.alternateId, displayName: t.displayName }))
