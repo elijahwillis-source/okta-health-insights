@@ -147,7 +147,10 @@ async function refreshApps() {
     let url = `${cfg.orgUrl}/api/v1/apps?limit=200`, out = [], pages = 0;
     while (url && pages++ < 50) {
       const { json, next } = await oktaGet(url);
-      for (const a of json) out.push({ id: a.id, label: a.label, status: a.status });
+      for (const a of json) {
+        const label = (a.label || "").trim();
+        if (label) out.push({ id: a.id, label, status: a.status });
+      }
       url = next;
     }
     state.apps = out; state.lastAppsRefresh = new Date().toISOString();
