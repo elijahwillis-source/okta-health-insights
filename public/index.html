@@ -65,6 +65,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16p
 .tile.silent{background:var(--bad-soft);border-color:var(--bad)} .tile.silent .s{color:var(--bad);font-weight:600}
 .tile.slow{background:var(--warn-soft);border-color:var(--warn)} .tile.slow .s{color:var(--warn);font-weight:600}
 .tile.ok .s{color:var(--ok)}
+.tile.pending{background:var(--surface2);border-style:dashed} .tile.pending .s{color:var(--muted)}
 .legend{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:baseline}
 .rows{display:flex;flex-direction:column;gap:6px}
@@ -483,9 +484,10 @@ function compute(){
   const winCount=countBy(win,appOf), failCount=countBy(fails,appOf);
   const tiles=[...appNames].map(name=>{
     const ls=lastSeen.get(name); const gap=ls==null?Infinity:ref-ls;
-    const status = gap>S.sil?"silent":(gap>S.sil/2?"slow":"ok");
+    let status = gap>S.sil?"silent":(gap>S.sil/2?"slow":"ok");
+    if(S.catchingUp && status!=="ok") status="pending";   // history still loading: we cannot know yet
     return {name,ls,gap,status,count:winCount.get(name)||0,fails:failCount.get(name)||0};
-  }).sort((a,b)=>({silent:0,slow:1,ok:2}[a.status]-{silent:0,slow:1,ok:2}[b.status])||b.gap-a.gap||a.name.localeCompare(b.name));
+  }).sort((a,b)=>({silent:0,slow:1,pending:2,ok:3}[a.status]-{silent:0,slow:1,pending:2,ok:3}[b.status])||b.gap-a.gap||a.name.localeCompare(b.name));
   // assignment errors by user
   const assignFails=fails.filter(isAssign);
   const byUser=new Map();
@@ -509,7 +511,7 @@ function render(){
   $("#kpis").innerHTML = [
     ["Events in window",fmtN(C.win.length),"",""],
     ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied", rate>8?"bad":rate>4?"warn":"ok"],
-    ["Silent apps",silentN,"of "+C.tiles.length+" apps", silentN?"bad":"ok"],
+    ["Silent apps",S.catchingUp?"…":silentN,S.catchingUp?"waiting for history":"of "+C.tiles.length+" apps", S.catchingUp?"warn":(silentN?"bad":"ok")],
     ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected", C.assignFails.length?"warn":"ok"],
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
   ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
@@ -531,12 +533,12 @@ function render(){
 function renderTiles(){
   const C=S.C; if(!C) return;
   const view=$("#tview").value, q=($("#tsearch").value||"").trim().toLowerCase();
-  const all=C.tiles, nS=all.filter(t=>t.status==="silent").length, nQ=all.filter(t=>t.status==="slow").length;
-  const list=all.filter(t=>(view==="all"||t.status!=="ok")&&(!q||t.name.toLowerCase().includes(q)));
-  $("#tcount").textContent=all.length+" apps · "+nS+" silent · "+nQ+" quiet · showing "+list.length;
+  const all=C.tiles, nS=all.filter(t=>t.status==="silent").length, nQ=all.filter(t=>t.status==="slow").length, nP=all.filter(t=>t.status==="pending").length;
+  const list=all.filter(t=>(view==="all"||t.status==="silent"||t.status==="slow")&&(!q||t.name.toLowerCase().includes(q)));
+  $("#tcount").textContent=all.length+" apps · "+nS+" silent · "+nQ+" quiet"+(nP?" · "+nP+" waiting for history":"")+" · showing "+list.length;
   $("#tiles").innerHTML = list.length? list.map(t=>
     `<button class="tile ${t.status}" data-k="app" data-v="${esc(t.name)}"><div class="n" title="${esc(t.name)}">${esc(t.name)}</div>
-     <div class="s">${t.ls==null?"No events in export":(t.status==="ok"?"Active · ":(t.status==="slow"?"Quiet · ":"Silent · "))+"last "+ago(t.gap)}</div></button>`).join("")
+     <div class="s">${t.status==="pending"?(t.ls==null?"Waiting for history…":"Last seen "+ago(t.gap)+" · still loading"):(t.ls==null?"No events in export":(t.status==="ok"?"Active · ":(t.status==="slow"?"Quiet · ":"Silent · "))+"last "+ago(t.gap))}</div></button>`).join("")
     : '<div class="empty">'+(all.length? "No apps match these filters. Switch to All apps to see everything." : "No apps found in the loaded events.")+'</div>';
 }
 $("#tview").onchange=renderTiles; $("#tsearch").oninput=renderTiles;
@@ -609,7 +611,7 @@ document.addEventListener("click",ev=>{
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
-  S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null;
+  S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
   S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null;
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
@@ -641,7 +643,7 @@ function summary(){
     topErrorReasons:C.topReasons.map(([reason,n])=>({reason,n})),
     topFailingEventTypes:C.topTypes.map(([type,n])=>({type,n})),
     usersWithAssignmentErrors:C.users.slice(0,8).map(u=>({user:u.user,errors:u.n,apps:top(u.apps,3).map(x=>x[0]),topReason:(top(u.reasons,1)[0]||[])[0]})),
-    usingSampleData:S.demo};
+    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp};
 }
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
@@ -689,14 +691,17 @@ async function refreshLive(){
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
     const st=sr.ok? await sr.json():null;
+    const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
+    const cu=st&&st.catchUp;
     S.note = st&&st.lastError ? "Okta polling problem: "+st.lastError
-           : st&&st.catchingUp ? "Still loading history from Okta ("+fmtN(st.eventCount)+" events so far). Silent and quiet results may be incomplete until this finishes."
+           : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
+    if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
-  clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,60000);
+  clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);
 }
 async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; S.filter=null; await refreshLive(); }
 $("#btnLive").onclick=goLive;

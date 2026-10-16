@@ -27,7 +27,9 @@ const cfg = {
   pollSec: Math.max(15, +env.POLL_INTERVAL_SECONDS || 60),
   lookbackDays: +env.LOOKBACK_DAYS || 7,
   maxEvents: +env.MAX_EVENTS || 100000,
-  maxPagesPerPoll: +env.MAX_PAGES_PER_POLL || 50,
+  maxPagesPerPoll: Math.max(2, +env.MAX_PAGES_PER_POLL || 50),
+  headHours: +env.HEAD_HOURS || 6,                 // newest window loaded first, so the dashboard is current within minutes
+  backfillChunkHours: +env.BACKFILL_CHUNK_HOURS || 12,   // older history is then filled in newest-chunk-first
   appsRefreshMin: +env.APPS_REFRESH_MINUTES || 15,
   anthropicKey: env.ANTHROPIC_API_KEY || "",
   model: env.ANTHROPIC_MODEL || "claude-sonnet-5-5",
@@ -46,7 +48,7 @@ const state = {
   apps: [],              // [{id,label,status}]
   appSeen: new Map(),    // appId (or name) -> {id,name,last}; never trimmed with the event buffer
   lastPoll: null, lastPollOk: null, lastError: null,
-  lastAppsRefresh: null, catchingUp: true, polls: 0
+  lastAppsRefresh: null, catchingUp: true, headCaughtUp: false, polls: 0
 };
 
 /* -------------------------------------------------------------- okta auth */
@@ -113,35 +115,93 @@ function trim() {
 }
 
 let polling = false;
+const byPublished = (a, b) => (a.published < b.published ? -1 : a.published > b.published ? 1 : 0);
+
+// Backfill state: history older than the "head" window, loaded newest chunk first.
+const bf = { floor: null, until: null, active: null, done: false };
+
+// Fetch one range of the System Log (ascending) and ingest it. `finished` means the range is exhausted.
+async function fetchRange(sinceIso, untilIso) {
+  let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(sinceIso)}` + (untilIso ? `&until=${encodeURIComponent(untilIso)}` : "") +
+    `&limit=1000&sortOrder=ASCENDING` + (cfg.logFilter ? `&filter=${encodeURIComponent(cfg.logFilter)}` : "");
+  let pages = 0, last = null, finished = false, outOfOrder = false;
+  while (url) {
+    const { json, next } = await oktaGet(url); pages++;
+    if (!json.length) { finished = true; break; }                // an empty page means we are caught up with this range
+    for (const raw of json) {
+      if (!last || raw.published > last) last = raw.published;   // resume point, even if every event was a duplicate
+      const e = slim(raw);
+      if (!e.id || state.ids.has(e.id)) continue;
+      state.ids.add(e.id);
+      const tail = state.events[state.events.length - 1];
+      if (tail && e.published < tail.published) outOfOrder = true;
+      state.events.push(e); noteApp(e);
+    }
+    if (pages >= cfg.maxPagesPerPoll) break;                      // yield; resume from `last` next cycle
+    url = next;
+    if (!url) finished = true;                                    // bounded ranges end without a next link
+  }
+  if (outOfOrder) state.events.sort(byPublished);                 // older backfill lands before newer events
+  return { pages, last, finished };
+}
+
+async function pollHead() {
+  const r = await fetchRange(state.cursor, null);
+  if (r.last && r.last > state.cursor) state.cursor = r.last;
+  state.headCaughtUp = r.finished;
+}
+
+async function stepBackfill() {
+  if (bf.done) return;
+  if (!bf.active) {
+    const sinceMs = Math.max(Date.parse(bf.floor), Date.parse(bf.until) - cfg.backfillChunkHours * 36e5);
+    const since = new Date(sinceMs).toISOString();
+    bf.active = { since, until: bf.until, cursor: since };
+  }
+  const a = bf.active;
+  const r = await fetchRange(a.cursor, a.until);
+  if (r.last && r.last > a.cursor) a.cursor = r.last;
+  if (r.finished) {                                               // chunk done: move the boundary back
+    bf.until = a.since; bf.active = null;
+    if (Date.parse(bf.until) <= Date.parse(bf.floor)) bf.done = true;
+  }
+}
+
+function initIngest() {
+  const now = Date.now();
+  const headMs = Math.min(cfg.headHours, cfg.lookbackDays * 24) * 36e5;
+  state.cursor = new Date(now - headMs).toISOString();
+  bf.floor = new Date(now - cfg.lookbackDays * 864e5).toISOString();
+  bf.until = state.cursor; bf.active = null;
+  bf.done = Date.parse(bf.until) <= Date.parse(bf.floor);
+}
+
+function catchUpInfo() {
+  const now = Date.now(), floor = Date.parse(bf.floor), until = bf.done ? floor : Date.parse(bf.until);
+  const span = Math.max(1, now - floor);
+  return {
+    headCaughtUp: state.headCaughtUp, historyDone: bf.done,
+    loadedBack: new Date(until).toISOString(), lookbackStart: bf.floor,
+    pct: bf.done ? 100 : Math.max(0, Math.min(99, Math.floor(100 * (now - until) / span)))
+  };
+}
+
 async function pollLogs() {
   if (polling) return; polling = true;
   state.lastPoll = new Date().toISOString();
-  let hitCap = false;
+  let again = false;
   try {
-    const since = state.cursor || new Date(Date.now() - cfg.lookbackDays * 864e5).toISOString();
-    let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(since)}&limit=1000&sortOrder=ASCENDING` +
-      (cfg.logFilter ? `&filter=${encodeURIComponent(cfg.logFilter)}` : "");
-    let pages = 0;
-    while (url) {
-      const { json, next } = await oktaGet(url); pages++;
-      if (!json.length) break;                       // polling: stop on an empty page
-      for (const raw of json) {
-        const e = slim(raw);
-        if (!e.id || state.ids.has(e.id)) continue;
-        state.ids.add(e.id); state.events.push(e); noteApp(e);
-        if (!state.cursor || e.published > state.cursor) state.cursor = e.published;
-      }
-      if (pages >= cfg.maxPagesPerPoll) { hitCap = true; break; }
-      url = next;
-    }
+    await pollHead();                       // 1) stay current: the newest events first
+    await stepBackfill();                   // 2) then fill in older history, newest chunk first
     trim();
     state.lastPollOk = new Date().toISOString(); state.lastError = null; state.polls++;
-    state.catchingUp = hitCap;
+    state.catchingUp = !state.headCaughtUp || !bf.done;
+    again = state.catchingUp;
   } catch (err) {
     state.lastError = String(err.message || err); log("poll error:", state.lastError);
   } finally {
     polling = false;
-    setTimeout(pollLogs, hitCap ? 1000 : cfg.pollSec * 1000);   // keep going quickly while backfilling
+    setTimeout(pollLogs, again ? 1000 : cfg.pollSec * 1000);     // keep going quickly while catching up
   }
 }
 
@@ -271,7 +331,7 @@ function diagnostics() {
   const noEvents = active.filter(a => !seenIds.has(a.id));
   const first = state.events[0], last = state.events[state.events.length - 1];
   return {
-    poll: { cursor: state.cursor, catchingUp: state.catchingUp, lastPollOk: state.lastPollOk, lastError: state.lastError, lastAppsRefresh: state.lastAppsRefresh },
+    poll: { cursor: state.cursor, catchingUp: state.catchingUp, catchUp: catchUpInfo(), lastPollOk: state.lastPollOk, lastError: state.lastError, lastAppsRefresh: state.lastAppsRefresh },
     events: { held: state.events.length, cap: cfg.maxEvents, oldest: first && first.published, newest: last && last.published, lookbackDays: cfg.lookbackDays },
     inventory: {
       activeApps: active.length, withEvents: active.length - noEvents.length, withoutEvents: noEvents.length,
@@ -332,7 +392,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/status")
       return send(req, res, 200, {
         live: true, assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
-        cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays
+        cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
+        catchUp: catchUpInfo()
       });
 
     if (req.method === "GET" && url.pathname === "/api/events") {
@@ -369,7 +430,7 @@ function start() {
   if (!cfg.dashPass) log("NOTE: DASHBOARD_PASSWORD is not set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Okta Health Insights listening on :${cfg.port} for ${cfg.orgUrl}`));
-  pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
+  initIngest(); pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
 }
 if (require.main === module) start();
 module.exports = { server, queryEvents, state };

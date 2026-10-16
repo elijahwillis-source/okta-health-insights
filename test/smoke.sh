@@ -8,18 +8,26 @@ trap cleanup EXIT
 
 node test/mock-okta.js >/tmp/smoke-okta.log 2>&1 & PIDS+=($!)
 node test/fake-anthropic.js >/tmp/smoke-anthropic.log 2>&1 & PIDS+=($!)
-OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8099 POLL_INTERVAL_SECONDS=15 \
+OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8099 POLL_INTERVAL_SECONDS=15 BACKFILL_CHUNK_HOURS=72 \
 ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=http://localhost:4020 DASHBOARD_PASSWORD=secret \
 node server.js >/tmp/smoke-server.log 2>&1 & PIDS+=($!)
 sleep 3
 
 pass=0; fail=0
+wait_done() { # port [curl args]
+  local port=$1; shift
+  for _ in $(seq 1 90); do
+    [ "$(curl -s "$@" localhost:$port/api/status | node -pe 'JSON.parse(require("fs").readFileSync(0)).catchingUp')" = "false" ] && return 0
+    sleep 1
+  done; return 1; }
 check() { # name expected actual
   if [[ "$3" == *"$2"* ]]; then echo "PASS  $1"; pass=$((pass+1)); else echo "FAIL  $1  (expected '$2', got '$3')"; fail=$((fail+1)); fi
 }
 code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
 jq_() { node -pe "const j=JSON.parse(require('fs').readFileSync(0));$1"; }
 A="-u admin:secret"
+
+wait_done 8099 -u admin:secret
 
 check "healthz is open"            200 "$(code localhost:8099/healthz)"
 check "no password -> 401"         401 "$(code localhost:8099/api/status)"
@@ -54,13 +62,33 @@ check "diagnostics: only the unused app lacks events" 1 "$(echo "$D" | jq_ 'j.in
 check "diagnostics: unused app is named" "Legacy HR Portal" "$D"
 
 # Small buffer: the server must still remember every app's last activity (the 'No events in export' bug)
-OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8098 POLL_INTERVAL_SECONDS=15 MAX_EVENTS=300 \
+OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8098 POLL_INTERVAL_SECONDS=15 MAX_EVENTS=300 BACKFILL_CHUNK_HOURS=72 \
 node server.js >/tmp/smoke-server-small.log 2>&1 & PIDS+=($!)
-sleep 4
+sleep 2
+wait_done 8098
 SM=$(curl -s localhost:8098/api/diagnostics)
 check "small buffer: events capped"            true "$(echo "$SM" | jq_ 'j.events.held<=300')"
 check "small buffer: all apps still have last-seen" 1 "$(echo "$SM" | jq_ 'j.inventory.withoutEvents')"
 check "small buffer: old-only app (Zoom) still seen" true "$(curl -s localhost:8098/api/apps | jq_ 'j.seen.some(s=>s.name==="Zoom")')"
+
+# --- recent events first, older history after, then everything consistent ---
+OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8095 POLL_INTERVAL_SECONDS=15 MAX_PAGES_PER_POLL=2 \
+HEAD_HOURS=6 BACKFILL_CHUNK_HOURS=24 node server.js >/tmp/smoke-server-catchup.log 2>&1 & PIDS+=($!)
+sleep 2
+EARLY=$(curl -s localhost:8095/api/status)
+check "catch-up: newest events load first"        true "$(echo "$EARLY" | jq_ 'j.catchUp.headCaughtUp===true')"
+check "catch-up: history still loading at first"  true "$(echo "$EARLY" | jq_ 'j.catchingUp===true&&j.catchUp.pct<100')"
+NEWEST=$(curl -s localhost:8095/api/diagnostics | jq_ 'j.events.newest')
+check "catch-up: newest event is recent"          true "$(node -pe "(Date.now()-Date.parse('$NEWEST'))<5*60000")"
+for i in $(seq 1 60); do
+  [ "$(curl -s localhost:8095/api/status | jq_ 'j.catchingUp')" = "false" ] && break; sleep 1
+done
+FIN=$(curl -s localhost:8095/api/status)
+check "catch-up: history finishes"                false "$(echo "$FIN" | jq_ 'j.catchingUp')"
+check "catch-up: reports 100%"                    100 "$(echo "$FIN" | jq_ 'j.catchUp.pct')"
+check "catch-up: all events loaded"               true "$(echo "$FIN" | jq_ 'j.eventCount>=3000')"
+check "catch-up: events are in time order"        true "$(curl -s localhost:8095/api/events | jq_ 'j.events.every((e,i)=>i===0||e.published>=j.events[i-1].published)')"
+check "catch-up: old-only app (Zoom) seen"        true "$(curl -s localhost:8095/api/apps | jq_ 'j.seen.some(s=>s.name==="Zoom")')"
 
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

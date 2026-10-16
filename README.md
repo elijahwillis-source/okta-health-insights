@@ -42,6 +42,8 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `LOOKBACK_DAYS` | no | Default 7 |
 | `MAX_EVENTS` | no | In-memory cap, default 100000 |
 | `OKTA_LOG_FILTER` | no | Narrow the feed on very large orgs |
+| `HEAD_HOURS` | no | Newest window loaded first (default 6). The dashboard is current as soon as this is done |
+| `BACKFILL_CHUNK_HOURS` | no | Older history is then loaded newest chunk first, in chunks of this size (default 12) |
 | `PORT` | no | Default 8080 |
 
 ### Okta permissions: use least privilege
@@ -63,7 +65,8 @@ The repo is a plain Node 20+ service with a `Dockerfile`. In your deploy tool:
 
 ## How the data behaves
 
-- On start it back-fills `LOOKBACK_DAYS` of System Log, then polls for new events. If a backfill is large it catches up in the background (the status API reports `catchingUp`).
+- On start it loads the newest `HEAD_HOURS` of the System Log first, so the dashboard is current within minutes. It then loads the rest of `LOOKBACK_DAYS` in the background, newest chunk first, and keeps polling for new events.
+- While older history is still loading, `/api/status` reports `catchingUp: true` and a `catchUp` block (`pct`, `loadedBack`). The dashboard shows apps it has not seen yet as grey "waiting for history" tiles instead of red "silent" ones, and reloads itself once history completes.
 - History is **in memory**: a restart re-fetches from Okta. Okta keeps ~90 days of logs, so nothing is lost.
 - Very large orgs (many sign-ins per day) can exceed `MAX_EVENTS`. Use `OKTA_LOG_FILTER` to focus on what matters (apps, provisioning, failures) or raise the cap if you have the memory.
 - "Silent" apps are judged from events seen in the loaded window. An app that was already quiet before the window starts looks "never seen". The app list from the Okta Apps API makes such apps show up as "No events".
@@ -72,7 +75,7 @@ The repo is a plain Node 20+ service with a `Dockerfile`. In your deploy tool:
 
 Open `/api/diagnostics` on the deployed service and check:
 
-- `poll.catchingUp: true` means the first backfill is still running. The newest events arrive last, so results are incomplete until it finishes.
+- `poll.catchingUp: true` means older history is still loading. `poll.catchUp.pct` and `loadedBack` show progress. Recent activity is already included; apps not seen yet show as "waiting".
 - `poll.lastError` shows why polling is failing (bad token, missing scope, rate limit).
 - `events.held` at `events.cap` means older events are being dropped. The per-app last-seen data is unaffected, but raise `MAX_EVENTS` if you want full drill-downs.
 - `inventory.withoutEventsSample` lists apps with no events, and `sameNameSeenUnderOtherId` flags a name that appears in events under a different app id (a duplicate or recreated app).
