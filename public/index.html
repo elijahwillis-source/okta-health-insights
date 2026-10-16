@@ -220,7 +220,7 @@ const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&
 const FAIL = new Set(["FAILURE","DENY","ERROR"]);
 const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_management|app\.user|group\.user_membership/i;
 
-const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false };
+const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false, lseq:0 };
 
 /* ---------- helpers ---------- */
 const APP_ACTORS=/^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
@@ -616,7 +616,9 @@ function renderDrill(){
   $("#exportCsv").onclick=()=>exportCsv(rows);
 }
 /* ---------- user lookup ---------- */
-// every user identity an event mentions: the actor (if a person) and any User / AppUser target
+// Searching a person asks the server to query Okta's System Log for THEM (live, up to 90 days), so it
+// works right after a deploy and does not depend on what has been loaded. Without the backend (file
+// upload / sample data) it searches the events already in the page.
 function idRefs(e){
   const out=[]; const a=e.actor;
   if(a&&a.type==="User"&&a.alternateId) out.push([a.alternateId,a.displayName]);
@@ -624,10 +626,9 @@ function idRefs(e){
   return out;
 }
 const localPart=x=>String(x).trim().toLowerCase().split("@")[0];
-function buildPeople(){
-  if(S.people&&S.peopleN===S.events.length) return S.people;
+function peopleFrom(events){
   const m=new Map();
-  for(const e of S.events){
+  for(const e of events){
     const f=isFail(e);
     for(const [alt,name] of idRefs(e)){
       const k=localPart(alt); if(!k) continue;
@@ -635,12 +636,16 @@ function buildPeople(){
       p.alts.add(String(alt).trim()); p.n++; if(f) p.f++; if(!p.name&&name) p.name=String(name).trim();
     }
   }
-  S.people=m; S.peopleN=S.events.length; return m;
+  return m;
 }
-function findPeople(q){
+function buildPeople(){   // people in the loaded events (used for type-ahead and as a fallback)
+  if(S.people&&S.peopleN===S.events.length) return S.people;
+  S.people=peopleFrom(S.events); S.peopleN=S.events.length; return S.people;
+}
+function findPeopleIn(map,q){
   q=String(q||"").trim().toLowerCase(); if(q.length<2) return [];
   const exact=[], out=[];
-  for(const p of buildPeople().values()){
+  for(const p of map.values()){
     const alts=[...p.alts].map(a=>a.toLowerCase());
     if(alts.includes(q)||p.local===q) exact.push(p);
     else if(alts.some(a=>a.includes(q))||p.name.toLowerCase().includes(q)) out.push(p);
@@ -648,9 +653,27 @@ function findPeople(q){
   out.sort((a,b)=>b.f-a.f||b.n-a.n);
   return exact.length? exact : out;
 }
+const findPeople=q=>findPeopleIn(buildPeople(),q);
+const daysForWindow=()=>S.win? Math.max(1,Math.ceil(S.win/864e5)) : 90;
+const viaOkta=()=>!!(S.live&&S.lookupApi);
+async function fetchOkta(qs){
+  const days=daysForWindow();
+  const r=await fetch("api/user-events?"+qs.map(q=>"q="+encodeURIComponent(q)).join("&")+"&days="+days);
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return {events:j.events||[],truncated:!!j.truncated,days};
+}
+function loadedMatches(q){   // events already in the page that mention the text (covers partial words Okta's keyword search may miss)
+  const ql=String(q).toLowerCase(), min=S.win? S.ref-S.win : 0;
+  return S.events.filter(e=>ts(e)>=min&&idRefs(e).some(([a,n])=>a.toLowerCase().includes(ql)||String(n||"").toLowerCase().includes(ql)));
+}
+function mergeById(a,b){ const seen=new Set(), out=[]; for(const e of a.concat(b)){ if(e.id){ if(seen.has(e.id)) continue; seen.add(e.id); } out.push(e); } return out; }
+function queriesFor(q){ const qs=[q]; const lp=localPart(q); if(String(q).includes("@")&&lp.length>=2&&lp!==String(q).toLowerCase()) qs.push(lp); return qs; }
+
 function personEvents(p){
-  const pool=S.win? S.events.filter(e=>ts(e)>=S.ref-S.win) : S.events;
-  return pool.filter(e=>idRefs(e).some(([a])=>localPart(a)===p.local));
+  const min=S.win? S.ref-S.win : 0;
+  const base=S.lpool||S.events;
+  return base.filter(e=>ts(e)>=min&&idRefs(e).some(([a])=>localPart(a)===p.local));
 }
 const SIGNIN_RE=/authentication|session|sso|mfa|password|lockout|account\.lock|oauth2/i;
 function summarizePerson(mine){
@@ -664,28 +687,64 @@ function summarizePerson(mine){
     apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
 }
 function openUser(q){ $("#usearch").value=q; lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
-function lookupUser(q){
-  const res=$("#uresult"); const c=findPeople(q);
-  S.uperson=null;
-  if(String(q||"").trim().length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
-  if(!c.length){ res.innerHTML='<div class="empty">No one matching “'+esc(q)+'” appears in the loaded events'+(S.catchingUp?' (history is still loading, so try again in a few minutes)':'')+'.</div>'; return; }
+
+async function lookupUser(q){
+  q=String(q||"").trim(); const res=$("#uresult"), token=++S.lseq;
+  S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource="loaded"; S.lnote=""; S.ltrunc=false; S.lqs=null;
+  if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
+  if(viaOkta()){
+    res.innerHTML='<div class="empty">Searching Okta for “'+esc(q)+'”…</div>';
+    try{
+      const qs=queriesFor(q), r=await fetchOkta(qs); if(token!==S.lseq) return;
+      S.lpool=mergeById(r.events,loadedMatches(q)); S.lpeople=peopleFrom(S.lpool);
+      S.lsource="okta"; S.ltrunc=r.truncated; S.ldays=r.days; S.lqs=qs;
+    }catch(err){ if(token!==S.lseq) return; S.lnote="Couldn’t search Okta directly ("+err.message+"), so this only covers the events already loaded."; }
+  }
+  const c=findPeopleIn(S.lpeople||buildPeople(),q);
+  if(!c.length){ res.innerHTML=(S.lnote?'<div class="empty">'+esc(S.lnote)+'</div>':"")+'<div class="empty">No one matching “'+esc(q)+'” was found'+(S.lsource==="okta"?' in Okta’s log for the last '+S.ldays+' days (try a longer Window above)':(S.catchingUp?' (history is still loading, so try again in a few minutes)':' in the loaded events'))+'.</div>'; return; }
   if(c.length===1){ S.uperson=c[0]; renderPerson(); return; }
-  res.innerHTML='<p class="hint">'+c.length+' people match. Pick one:</p><div class="cands">'+c.slice(0,15).map(p=>
+  res.innerHTML=(S.lnote?'<div class="empty">'+esc(S.lnote)+'</div>':"")+'<p class="hint">'+c.length+' people match. Pick one:</p><div class="cands">'+c.slice(0,15).map(p=>
     '<button class="cand" data-pick="'+esc(p.local)+'"><span>'+esc(p.name||[...p.alts][0])+' <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+fmtN(p.f)+' errors · '+fmtN(p.n)+' events</span></button>').join("")+'</div>'+(c.length>15?'<div class="empty">Showing 15 of '+c.length+'. Type more to narrow it down.</div>':"");
 }
+// the person is chosen from a list: ask Okta for exactly that person's events (every login they have)
+async function pickPerson(p){
+  S.uperson=p; const token=++S.lseq;
+  if(viaOkta()){
+    $("#uresult").innerHTML='<div class="empty">Loading '+esc(p.name||[...p.alts][0])+' from Okta…</div>';
+    try{ await refetchPerson(p,token); }catch(err){ S.lnote="Couldn’t load this person from Okta ("+err.message+"), so this uses the events already found."; S.ldays=daysForWindow(); }
+    if(token!==S.lseq) return;
+  }
+  renderPerson();
+}
+async function refetchPerson(p,token){
+  const qs=[...new Set([[...p.alts][0],p.local].filter(x=>x&&x.length>=2))];
+  const r=await fetchOkta(qs); if(token!==undefined&&token!==S.lseq) return;
+  S.lpool=mergeById(r.events,loadedMatches(p.local)); S.lsource="okta"; S.ltrunc=r.truncated; S.ldays=r.days; S.lqs=qs; S.lnote="";
+}
+
 function renderPerson(){
   const p=S.uperson, res=$("#uresult"); if(!p){ return; }
+  // the Window changed (or the person was just picked): fetch the right number of days from Okta, then redraw
+  if(S.lsource==="okta"&&viaOkta()&&S.ldays!==daysForWindow()&&!S.lbusy){
+    S.lbusy=true; const t=S.lseq;
+    refetchPerson(p,t).catch(err=>{ S.lnote="Couldn’t refresh from Okta ("+err.message+")."; S.ldays=daysForWindow(); }).finally(()=>{ S.lbusy=false; if(S.uperson===p) renderPerson(); });
+    return;
+  }
   const mine=personEvents(p), sm=summarizePerson(mine);
   const only=$("#ufail")? $("#ufail").checked : true;
   const rows=(only? sm.fails : mine).slice().sort((a,b)=>ts(b)-ts(a));
-  const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : "all loaded events";
-  res.innerHTML='<div><b>'+esc(p.name||p.local)+'</b></div><div class="ids">Logins seen: '+esc([...p.alts].join(", "))+' · looking at '+esc(winTxt)+' (change “Window” above)</div>'+
+  const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : (S.lsource==="okta"?"the last 90 days":"all loaded events");
+  const src=S.lsource==="okta"? "Searched Okta live"+(S.ltrunc?" — showing the most recent events only; narrow the Window for the full picture":"")
+                              : "From the events already loaded";
+  res.innerHTML='<div><b>'+esc(p.name||p.local)+'</b></div><div class="ids">Logins seen: '+esc([...p.alts].join(", "))+' · '+esc(src)+' · '+esc(winTxt)+' (change “Window” above)</div>'+
+    (S.lnote?'<div class="empty">'+esc(S.lnote)+'</div>':"")+
     '<div class="ukpis">'+[["Events",fmtN(sm.events),""],["Errors",fmtN(sm.fails.length),sm.fails.length?"bad":""],["Assignment / provisioning",fmtN(sm.assign),sm.assign?"warn":""],
-      ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(S.ref-sm.lastFail):"—",""]]
+      ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(Date.now()-sm.lastFail):"—",""]]
       .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
     (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+'</div>').join("")+'</div>'
                    : '<div class="empty">No errors for this person in this window.</div>')+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
+    (S.lsource==="okta"?'<button id="urefresh" class="ghost">Refresh from Okta</button>':"")+
     '<button id="uask" class="ghost">Ask the assistant about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
     '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>Source</th><th>Reason</th></tr>'+
     (rows.slice(0,50).map(e=>'<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill '+(isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o"))+'">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(appOf(e)||"—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td>'+esc(e.outcome&&e.outcome.reason||"")+'</td></tr>').join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
@@ -693,17 +752,17 @@ function renderPerson(){
   $("#ufail").onchange=renderPerson;
   $("#uask").onclick=()=>ask("Help me troubleshoot the errors for the user "+([...p.alts][0])+". What is going wrong and what should I check in Okta?");
   $("#uexp").onclick=()=>exportCsv(rows);
+  if($("#urefresh")) $("#urefresh").onclick=()=>{ S.ldays=-1; renderPerson(); };   // forces a fresh fetch
 }
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
-$("#usearch").addEventListener("input",()=>{    // type-ahead suggestions
+$("#usearch").addEventListener("input",()=>{    // type-ahead suggestions come from events already loaded
   const q=$("#usearch").value; const dl=$("#ulist");
   dl.innerHTML= q.trim().length<2? "" : findPeople(q).slice(0,15).map(p=>'<option value="'+esc([...p.alts][0])+'">'+esc(p.name)+'</option>').join("");
 });
-$("#usearch").addEventListener("change",()=>{ if(findPeople($("#usearch").value).length===1) lookupUser($("#usearch").value); });
 $("#uresult").addEventListener("click",ev=>{
   const b=ev.target.closest("[data-pick]"); if(!b) return;
-  S.uperson=buildPeople().get(b.dataset.pick); renderPerson();
+  const p=(S.lpeople||buildPeople()).get(b.dataset.pick); if(p) pickPerson(p);
 });
 
 async function exportCsv(rows){
@@ -720,7 +779,7 @@ document.addEventListener("click",ev=>{
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
-  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; $("#uresult").innerHTML="";
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML="";
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }
@@ -799,7 +858,7 @@ async function refreshLive(){
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
     const st=sr.ok? await sr.json():null;
-    const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp);
+    const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
     const cu=st&&st.catchUp;

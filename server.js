@@ -31,6 +31,8 @@ const cfg = {
   headHours: +env.HEAD_HOURS || 6,                 // newest window loaded first, so the dashboard is current within minutes
   backfillChunkHours: +env.BACKFILL_CHUNK_HOURS || 12,   // older history is then filled in newest-chunk-first
   appsRefreshMin: +env.APPS_REFRESH_MINUTES || 15,
+  lookupMaxPages: Math.max(1, +env.LOOKUP_MAX_PAGES || 10),       // per-user lookups: pages of 1000 events fetched per search term
+  lookupMaxEvents: Math.max(100, +env.LOOKUP_MAX_EVENTS || 5000),  // ... and the most events returned to the page
   anthropicKey: env.ANTHROPIC_API_KEY || "",
   model: env.ANTHROPIC_MODEL || "claude-sonnet-5-5",
   anthropicUrl: (env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/+$/, ""),
@@ -220,6 +222,63 @@ async function refreshApps() {
   } catch (err) { log("apps refresh error:", String(err.message || err)); }
 }
 
+/* ----------------------------------------------------------- per-user search */
+// Ask Okta directly for everything that mentions a person, newest first. Independent of the loaded
+// event buffer and of OKTA_LOG_FILTER, so it works right after a deploy and reaches back up to 90 days.
+const cleanQ = v => String(v == null ? "" : v).replace(/\s+/g, " ").trim().split(" ").slice(0, 10).map(k => k.slice(0, 40)).join(" ");
+
+async function userSearch(qs, days) {
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const seen = new Set(), events = [];
+  let truncated = false;
+  for (const q of qs) {
+    let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(since)}&q=${encodeURIComponent(q)}&limit=1000&sortOrder=DESCENDING`;
+    let pages = 0;
+    while (url) {
+      if (pages >= cfg.lookupMaxPages || events.length >= cfg.lookupMaxEvents) { truncated = true; break; }
+      const { json, next } = await oktaGet(url); pages++;
+      if (!json.length) break;
+      for (const raw of json) {
+        const e = slim(raw);
+        if (!e.id || seen.has(e.id)) continue;
+        seen.add(e.id); events.push(e);
+      }
+      url = next;
+    }
+  }
+  events.sort((a, b) => (a.published < b.published ? 1 : a.published > b.published ? -1 : 0));   // newest first
+  if (events.length > cfg.lookupMaxEvents) { events.length = cfg.lookupMaxEvents; truncated = true; }
+  return { queries: qs, days, since, truncated, count: events.length, events };
+}
+
+const lookupCache = new Map();   // short cache so repeated clicks do not hammer Okta's rate limit
+async function userSearchCached(qs, days) {
+  const key = days + "|" + qs.join("|").toLowerCase(), hit = lookupCache.get(key);
+  if (hit && Date.now() - hit.at < 60000) return hit.data;
+  let data;
+  try { data = await userSearch(qs, days); }
+  catch (err) { const e = new Error("Okta lookup failed: " + String(err.message || err).slice(0, 200)); e.status = 502; throw e; }
+  lookupCache.set(key, { at: Date.now(), data });
+  if (lookupCache.size > 50) lookupCache.delete(lookupCache.keys().next().value);
+  return data;
+}
+
+// the assistant's version: same search, trimmed to what it needs
+async function assistantUserLookup(i) {
+  i = i || {};
+  const q = cleanQ(i.user); if (q.length < 2) return { error: "Provide a user email, username or name (at least 2 characters)." };
+  const days = Math.min(90, Math.max(1, +i.days || 7));
+  const qs = [q]; const lp = q.includes("@") ? cleanQ(q.split("@")[0]) : ""; if (lp.length >= 2 && lp.toLowerCase() !== q.toLowerCase()) qs.push(lp);
+  const r = await userSearchCached(qs, days);
+  const ql = q.toLowerCase(), local = ql.split("@")[0];
+  let ev = r.events.filter(e => (e.actor && e.actor.type === "User" ? [e.actor] : []).concat((e.target || []).filter(t => t.type === "User" || t.type === "AppUser"))
+    .some(x => (String(x.alternateId || "").toLowerCase().includes(ql)) || (q.includes("@") && String(x.alternateId || "").toLowerCase().split("@")[0] === local) || String(x.displayName || "").toLowerCase().includes(ql)));
+  const totalFound = ev.length;
+  if (i.errors_only) ev = ev.filter(e => FAILS.has(e.outcome && e.outcome.result));
+  return { searchedDays: days, totalAboutThisPerson: totalFound, shown: Math.min(15, ev.length), truncatedByLimit: r.truncated,
+    events: ev.slice(0, 15).map(e => ({ time: e.published, result: e.outcome && e.outcome.result, eventType: e.eventType, app: appOf(e), reason: (e.outcome && e.outcome.reason) || null, ip: e.ip })) };
+}
+
 /* --------------------------------------------------------------- assistant */
 const SYSTEM = `You are an expert Okta administrator and identity engineer embedded in an Okta health dashboard. You help the admin troubleshoot using live Okta System Log data.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
@@ -239,6 +298,18 @@ const TOOLS = [{
       reasonContains: { type: "string" },
       limit: { type: "number" }
     }
+  }
+}, {
+  name: "lookup_user_events",
+  description: "Search Okta's System Log LIVE for one person (email, username or name) over the last N days (default 7, max 90). Prefer this for any question about a specific user: it reaches events the dashboard has not loaded. Returns up to 15 most recent events about that person, newest first, plus how many were found.",
+  input_schema: {
+    type: "object",
+    properties: {
+      user: { type: "string", description: "Email, username or name" },
+      days: { type: "number", description: "How far back to search (1-90, default 7)" },
+      errors_only: { type: "boolean", description: "Only failures, denies and errors" }
+    },
+    required: ["user"]
   }
 }];
 
@@ -316,10 +387,16 @@ async function chat(body) {
     if (!r.ok) { const e = new Error("Anthropic API error: " + (data.error && data.error.message || r.status)); e.status = 502; throw e; }
     if (data.stop_reason === "tool_use") {
       msgs.push({ role: "assistant", content: data.content });
-      const results = data.content.filter(b => b.type === "tool_use").map(b => ({
-        type: "tool_result", tool_use_id: b.id,
-        content: JSON.stringify(b.name === "query_events" ? queryEvents(b.input, windowMs) : { error: "unknown tool" })
-      }));
+      const results = [];
+      for (const b of data.content.filter(b => b.type === "tool_use")) {
+        let out;
+        try {
+          out = b.name === "query_events" ? queryEvents(b.input, windowMs)
+              : b.name === "lookup_user_events" ? await assistantUserLookup(b.input)
+              : { error: "unknown tool" };
+        } catch (err) { out = { error: String(err.message || err).slice(0, 200) }; }
+        results.push({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify(out) });
+      }
       msgs.push({ role: "user", content: results });
       continue;
     }
@@ -376,6 +453,8 @@ function authorized(req) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+const lookupHits = [];
+function lookupRateOk() { const now = Date.now(); while (lookupHits.length && now - lookupHits[0] > 60000) lookupHits.shift(); if (lookupHits.length >= 30) return false; lookupHits.push(now); return true; }
 const hits = []; // crude global rate limit for the assistant
 function rateOk() { const now = Date.now(); while (hits.length && now - hits[0] > 60000) hits.shift(); if (hits.length >= 20) return false; hits.push(now); return true; }
 
@@ -401,7 +480,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo()
+        catchUp: catchUpInfo(), lookup: true
       });
 
     if (req.method === "GET" && url.pathname === "/api/events") {
@@ -418,6 +497,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/diagnostics") return send(req, res, 200, diagnostics());
+
+    if (req.method === "GET" && url.pathname === "/api/user-events") {
+      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
+      const qs = [...new Set(url.searchParams.getAll("q").map(cleanQ).filter(q => q.length >= 2))].slice(0, 3);
+      if (!qs.length) return send(req, res, 400, { error: "Provide ?q=<email, username or name> (at least 2 characters)." });
+      const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
+      return send(req, res, 200, await userSearchCached(qs, days));
+    }
 
     if (req.method === "POST" && url.pathname === "/api/chat") {
       if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });

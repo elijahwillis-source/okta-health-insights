@@ -5,7 +5,7 @@ A live dashboard for Okta health, with an Okta-expert AI assistant built in.
 - **Silent app tiles**: apps with no events for longer than a threshold you choose
 - **Error hot spots**: apps and error reasons with the most failures
 - **Assignment / provisioning errors**: grouped by user
-- **User lookup**: search by email, username or name to see every error tied to one person (failed sign-ins, assignment and provisioning errors, AD failures), with their top reasons and a CSV export. Logins with the same name before the @ (an Okta email and an AD login) are treated as one person
+- **User lookup**: search by email, username or name and the server asks Okta's System Log for that person directly (live, up to 90 days), so it works right after a deploy and does not depend on what has been loaded. Shows every error tied to them (failed sign-ins, assignment and provisioning errors, AD failures), their top reasons and a CSV export. Logins with the same name before the @ (an Okta email and an AD login) are treated as one person. The assistant can do the same lookup
 - **Drill-down + CSV export** on anything you click
 - **Assistant**: ask it to troubleshoot; it can search the live events itself
 
@@ -43,6 +43,8 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `LOOKBACK_DAYS` | no | Default 7 |
 | `MAX_EVENTS` | no | In-memory cap, default 100000 |
 | `OKTA_LOG_FILTER` | no | Narrow the feed on very large orgs |
+| `LOOKUP_MAX_PAGES` | no | Per-user search: pages of 1000 Okta events fetched per search term (default 10) |
+| `LOOKUP_MAX_EVENTS` | no | Per-user search: most events returned to the page (default 5000) |
 | `HEAD_HOURS` | no | Newest window loaded first (default 6). The dashboard is current as soon as this is done |
 | `BACKFILL_CHUNK_HOURS` | no | Older history is then loaded newest chunk first, in chunks of this size (default 12) |
 | `PORT` | no | Default 8080 |
@@ -82,6 +84,10 @@ Open `/api/diagnostics` on the deployed service and check:
 - `inventory.withoutEventsSample` lists apps with no events, and `sameNameSeenUnderOtherId` flags a name that appears in events under a different app id (a duplicate or recreated app).
 - `eventAppsNotInInventory` lists apps seen in events that the Apps API did not return as ACTIVE.
 
+## How the user search works
+
+Searching a person calls `GET /api/user-events`, which runs Okta's System Log keyword search (`q`) for the typed text, plus the part before the `@` so the Okta email and the AD login both match. Results are cached for 60 seconds and limited to 30 searches a minute. If Okta cannot be reached (or the page has no backend, for example with an uploaded file), the search falls back to the events already loaded and says so. Okta's keyword search matches whole words, so a fragment like `pank` may only be found in loaded events; a full email, username or first or last name works best.
+
 ## Privacy
 
 Events are kept in memory only, and are not written to disk. When someone uses the assistant, the dashboard summary and any events it looks up are sent to the Anthropic API. If that isn't acceptable for your data, leave `ANTHROPIC_API_KEY` unset and the assistant is switched off.
@@ -95,6 +101,7 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `GET /api/events?since=<ms>` | Events at/after a timestamp |
 | `GET /api/apps` | Active apps: labels, ids, and last time each app was seen |
 | `GET /api/diagnostics` | Why an app shows "No events": polling state, buffer size, apps with no events, and names that look duplicated |
+| `GET /api/user-events?q=…&q=…&days=7` | Live per-user search of Okta's System Log (newest first, max 90 days). Uses the same read-only log permission; ignores `OKTA_LOG_FILTER` |
 | `POST /api/chat` | `{messages, summary, windowMs}` → `{text}` |
 
 ## Roadmap ideas

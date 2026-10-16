@@ -51,6 +51,9 @@ R=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json
   -d '{"messages":[{"role":"user","content":"why is servicenow failing"}],"summary":{},"windowMs":604800000}')
 check "assistant runs tool loop"   "TOOL RESULT SEEN" "$R"
 check "assistant tool found data"  "totalMatches" "$R"
+R2=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"lookup-user please"}],"summary":{},"windowMs":604800000}')
+check "assistant can search a user live"   "totalAboutThisPerson" "$R2"
 check "chat rejects bad history"   400 "$(code $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d '{"messages":[{"role":"assistant","content":"x"}]}')"
 check "unknown route -> 404"       404 "$(code $A localhost:8099/nope)"
 
@@ -89,6 +92,23 @@ check "catch-up: reports 100%"                    100 "$(echo "$FIN" | jq_ 'j.ca
 check "catch-up: all events loaded"               true "$(echo "$FIN" | jq_ 'j.eventCount>=3000')"
 check "catch-up: events are in time order"        true "$(curl -s localhost:8095/api/events | jq_ 'j.events.every((e,i)=>i===0||e.published>=j.events[i-1].published)')"
 check "catch-up: old-only app (Zoom) seen"        true "$(curl -s localhost:8095/api/apps | jq_ 'j.seen.some(s=>s.name==="Zoom")')"
+
+# --- live per-user search: the server asks Okta for one person ---
+U=$(curl -s $A "localhost:8099/api/user-events?q=user07@example.com&q=user07&days=7")
+check "user search: finds that person"           true "$(echo "$U" | jq_ 'j.count>0&&j.events.length===j.count')"
+check "user search: only events about them"      true "$(echo "$U" | jq_ 'j.events.every(e=>JSON.stringify([e.actor,e.target]).toLowerCase().includes("user07"))')"
+check "user search: newest first"                true "$(echo "$U" | jq_ 'j.events.every((e,i)=>i===0||e.published<=j.events[i-1].published)')"
+check "user search: no one else leaks in"        true "$(echo "$U" | jq_ '!j.events.some(e=>JSON.stringify([e.actor,e.target]).toLowerCase().includes("user08@"))')"
+check "user search: unknown user is empty"       0 "$(curl -s $A "localhost:8099/api/user-events?q=nobody.here.zzz" | jq_ 'j.count')"
+check "user search: too short -> 400"            400 "$(code $A "localhost:8099/api/user-events?q=a")"
+check "user search: missing q -> 400"            400 "$(code $A "localhost:8099/api/user-events")"
+check "user search: needs the password"          401 "$(code "localhost:8099/api/user-events?q=user07")"
+check "status advertises user search"            true "$(curl -s $A localhost:8099/api/status | jq_ 'j.lookup===true')"
+# the search must work even before history has loaded (fresh start, tiny pages)
+OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8093 MAX_PAGES_PER_POLL=2 HEAD_HOURS=1 BACKFILL_CHUNK_HOURS=1 \
+node server.js >/tmp/smoke-server-lookup.log 2>&1 & PIDS+=($!)
+sleep 1.5
+check "user search works while history loads"    true "$(curl -s "localhost:8093/api/user-events?q=user07&days=7" | jq_ 'j.count>0')"
 
 # --- assistant's user search matches ANY login of a person (Okta email or AD AppUser login) ---
 UQ=$(node -e '

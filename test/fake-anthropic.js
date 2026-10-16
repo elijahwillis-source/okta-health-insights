@@ -10,6 +10,8 @@ http.createServer((q, r) => {
     r.writeHead(200, { "content-type": "application/json" });
     if (Array.isArray(last.content) && last.content[0].type === "tool_result")
       r.end(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "TOOL RESULT SEEN: " + last.content[0].content.slice(0, 160) }] }));
+    else if (JSON.stringify(j.messages[0]).includes("lookup-user"))   // ask for the live per-user search tool
+      r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t2", name: "lookup_user_events", input: { user: "user07@example.com", days: 7 } }] }));
     else
       r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "query_events", input: { app: "ServiceNow", result: "ANY_FAILURE", limit: 2 } }] }));
   });

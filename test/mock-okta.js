@@ -41,12 +41,16 @@ http.createServer((req, res) => {
   if (u.pathname === "/api/v1/logs") {
     const since = u.searchParams.get("since") || "1970-01-01T00:00:00.000Z";
     const until = u.searchParams.get("until");
+    const q = (u.searchParams.get("q") || "").toLowerCase().split(/\s+/).filter(Boolean);   // keyword search: every keyword must appear somewhere
+    const desc = u.searchParams.get("sortOrder") === "DESCENDING";
     const after = +u.searchParams.get("after") || 0, limit = Math.min(1000, +u.searchParams.get("limit") || 100);
-    const pool = events.filter(e => e.published >= since && (!until || e.published < until));
+    let pool = events.filter(e => e.published >= since && (!until || e.published < until));
+    if (q.length) pool = pool.filter(e => { const blob = JSON.stringify([e.actor, e.target, e.displayMessage, e.outcome]).toLowerCase(); return q.every(k => blob.includes(k)); });
+    if (desc) pool = pool.slice().reverse();
     const page = pool.slice(after, after + limit);
-    const next = `http://localhost:4010/api/v1/logs?since=${encodeURIComponent(since)}${until ? "&until=" + encodeURIComponent(until) : ""}&limit=${limit}&after=${after + page.length}`;
+    const next = `http://localhost:4010/api/v1/logs?since=${encodeURIComponent(since)}${until ? "&until=" + encodeURIComponent(until) : ""}${q.length ? "&q=" + encodeURIComponent(q.join(" ")) : ""}${desc ? "&sortOrder=DESCENDING" : ""}&limit=${limit}&after=${after + page.length}`;
     // like the real API: polling queries always get a next link; bounded queries lose it at the end
-    if (until && after + page.length >= pool.length) return json(page);
+    if ((until || desc) && after + page.length >= pool.length) return json(page);
     return json(page, { link: `<${next}>; rel="next"` });
   }
   if (u.pathname === "/api/v1/apps") {
