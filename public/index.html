@@ -101,6 +101,14 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .sugg button{font-size:12px;padding:4px 9px;border-radius:99px}
 .inp{display:flex;gap:8px;margin-top:6px}
 .inp input{flex:1}
+.ulrow{display:flex;gap:8px;margin-bottom:10px}.ulrow input{flex:1;min-width:0}
+.ukpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.ukpi{background:var(--surface2);border-radius:10px;padding:8px 10px}.ukpi .l{font-size:11.5px;color:var(--muted)}.ukpi .v{font-size:20px;font-weight:650}
+.ukpi.bad .v{color:var(--bad)}.ukpi.warn .v{color:var(--warn)}
+.cands{display:flex;flex-direction:column;gap:6px}
+.cand{display:flex;justify-content:space-between;gap:10px;text-align:left;width:100%}
+.ids{color:var(--muted);font-size:12px;margin:2px 0 6px;overflow-wrap:anywhere}
+.why{margin:8px 0}.why div{font-size:13px;padding:2px 0}
 #map{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px}
 #map[hidden]{display:none}
 #map .mbody{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;width:min(640px,100%);max-height:90vh;overflow:auto}
@@ -178,6 +186,13 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <h2>Users with assignment / provisioning errors</h2>
       <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user.</p>
       <div class="scroll"><table id="userTbl"></table></div>
+    </div>
+
+    <div class="card" id="userLookup">
+      <h2>User lookup</h2>
+      <p class="hint">Search by email, username or name to see every error tied to that person: failed sign-ins, assignment and provisioning errors, and Active Directory failures. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person.</p>
+      <div class="ulrow"><input type="text" id="usearch" placeholder="Search a user, e.g. jane.doe@company.com" autocomplete="off" list="ulist"><datalist id="ulist"></datalist><button id="ugo" class="primary">Look up</button></div>
+      <div id="uresult"></div>
     </div>
 
     <div class="card" id="drill">
@@ -528,6 +543,7 @@ function render(){
       return `<tr class="click" data-k="user" data-v="${esc(u.user)}"><td>${esc(u.user)}</td><td><span class="pill f">${u.n}</span></td><td>${apps}</td><td>${esc(r?r[0]:"")}</td><td>${ago(S.ref-u.last)}</td></tr>`;}).join("")
     : '<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>';
   renderDrill();
+  if(S.uperson) renderPerson();
 }
 
 function renderTiles(){
@@ -599,6 +615,97 @@ function renderDrill(){
   $("#askAbout").onclick=()=>ask(`Help me troubleshoot the ${f.k} “${f.v}”. What's going wrong and what should I check in Okta?`);
   $("#exportCsv").onclick=()=>exportCsv(rows);
 }
+/* ---------- user lookup ---------- */
+// every user identity an event mentions: the actor (if a person) and any User / AppUser target
+function idRefs(e){
+  const out=[]; const a=e.actor;
+  if(a&&a.type==="User"&&a.alternateId) out.push([a.alternateId,a.displayName]);
+  for(const t of (e.target||[])) if((t.type==="User"||t.type==="AppUser")&&t.alternateId) out.push([t.alternateId,t.displayName]);
+  return out;
+}
+const localPart=x=>String(x).trim().toLowerCase().split("@")[0];
+function buildPeople(){
+  if(S.people&&S.peopleN===S.events.length) return S.people;
+  const m=new Map();
+  for(const e of S.events){
+    const f=isFail(e);
+    for(const [alt,name] of idRefs(e)){
+      const k=localPart(alt); if(!k) continue;
+      let p=m.get(k); if(!p){ p={local:k,name:"",alts:new Set(),n:0,f:0}; m.set(k,p); }
+      p.alts.add(String(alt).trim()); p.n++; if(f) p.f++; if(!p.name&&name) p.name=String(name).trim();
+    }
+  }
+  S.people=m; S.peopleN=S.events.length; return m;
+}
+function findPeople(q){
+  q=String(q||"").trim().toLowerCase(); if(q.length<2) return [];
+  const exact=[], out=[];
+  for(const p of buildPeople().values()){
+    const alts=[...p.alts].map(a=>a.toLowerCase());
+    if(alts.includes(q)||p.local===q) exact.push(p);
+    else if(alts.some(a=>a.includes(q))||p.name.toLowerCase().includes(q)) out.push(p);
+  }
+  out.sort((a,b)=>b.f-a.f||b.n-a.n);
+  return exact.length? exact : out;
+}
+function personEvents(p){
+  const pool=S.win? S.events.filter(e=>ts(e)>=S.ref-S.win) : S.events;
+  return pool.filter(e=>idRefs(e).some(([a])=>localPart(a)===p.local));
+}
+const SIGNIN_RE=/authentication|session|sso|mfa|password|lockout|account\.lock|oauth2/i;
+function summarizePerson(mine){
+  const fails=mine.filter(isFail), assign=fails.filter(isAssign), signin=fails.filter(e=>!isAssign(e)&&SIGNIN_RE.test(e.eventType||""));
+  const why=top(countBy(fails,e=>reasonOf(e)),5).map(([reason,n])=>{
+    const apps=top(countBy(fails.filter(e=>reasonOf(e)===reason),appOf),3).map(x=>x[0]);
+    return {reason,n,apps};
+  });
+  const lastFail=fails.reduce((m,e)=>Math.max(m,ts(e)),0);
+  return {events:mine.length,fails,assign:assign.length,signin:signin.length,other:fails.length-assign.length-signin.length,
+    apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
+}
+function openUser(q){ $("#usearch").value=q; lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+function lookupUser(q){
+  const res=$("#uresult"); const c=findPeople(q);
+  S.uperson=null;
+  if(String(q||"").trim().length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
+  if(!c.length){ res.innerHTML='<div class="empty">No one matching “'+esc(q)+'” appears in the loaded events'+(S.catchingUp?' (history is still loading, so try again in a few minutes)':'')+'.</div>'; return; }
+  if(c.length===1){ S.uperson=c[0]; renderPerson(); return; }
+  res.innerHTML='<p class="hint">'+c.length+' people match. Pick one:</p><div class="cands">'+c.slice(0,15).map(p=>
+    '<button class="cand" data-pick="'+esc(p.local)+'"><span>'+esc(p.name||[...p.alts][0])+' <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+fmtN(p.f)+' errors · '+fmtN(p.n)+' events</span></button>').join("")+'</div>'+(c.length>15?'<div class="empty">Showing 15 of '+c.length+'. Type more to narrow it down.</div>':"");
+}
+function renderPerson(){
+  const p=S.uperson, res=$("#uresult"); if(!p){ return; }
+  const mine=personEvents(p), sm=summarizePerson(mine);
+  const only=$("#ufail")? $("#ufail").checked : true;
+  const rows=(only? sm.fails : mine).slice().sort((a,b)=>ts(b)-ts(a));
+  const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : "all loaded events";
+  res.innerHTML='<div><b>'+esc(p.name||p.local)+'</b></div><div class="ids">Logins seen: '+esc([...p.alts].join(", "))+' · looking at '+esc(winTxt)+' (change “Window” above)</div>'+
+    '<div class="ukpis">'+[["Events",fmtN(sm.events),""],["Errors",fmtN(sm.fails.length),sm.fails.length?"bad":""],["Assignment / provisioning",fmtN(sm.assign),sm.assign?"warn":""],
+      ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(S.ref-sm.lastFail):"—",""]]
+      .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
+    (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+'</div>').join("")+'</div>'
+                   : '<div class="empty">No errors for this person in this window.</div>')+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
+    '<button id="uask" class="ghost">Ask the assistant about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
+    '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>Source</th><th>Reason</th></tr>'+
+    (rows.slice(0,50).map(e=>'<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill '+(isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o"))+'">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(appOf(e)||"—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td>'+esc(e.outcome&&e.outcome.reason||"")+'</td></tr>').join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
+    '</table></div>'+(rows.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
+  $("#ufail").onchange=renderPerson;
+  $("#uask").onclick=()=>ask("Help me troubleshoot the errors for the user "+([...p.alts][0])+". What is going wrong and what should I check in Okta?");
+  $("#uexp").onclick=()=>exportCsv(rows);
+}
+$("#ugo").onclick=()=>lookupUser($("#usearch").value);
+$("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
+$("#usearch").addEventListener("input",()=>{    // type-ahead suggestions
+  const q=$("#usearch").value; const dl=$("#ulist");
+  dl.innerHTML= q.trim().length<2? "" : findPeople(q).slice(0,15).map(p=>'<option value="'+esc([...p.alts][0])+'">'+esc(p.name)+'</option>').join("");
+});
+$("#usearch").addEventListener("change",()=>{ if(findPeople($("#usearch").value).length===1) lookupUser($("#usearch").value); });
+$("#uresult").addEventListener("click",ev=>{
+  const b=ev.target.closest("[data-pick]"); if(!b) return;
+  S.uperson=buildPeople().get(b.dataset.pick); renderPerson();
+});
+
 async function exportCsv(rows){
   const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
   const csv=["time,result,eventType,app,user,reason"].concat(rows.map(e=>[e.published,e.outcome&&e.outcome.result,e.eventType,appOf(e),userOf(e),e.outcome&&e.outcome.reason].map(q).join(","))).join("\n");
@@ -606,13 +713,14 @@ async function exportCsv(rows){
 }
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-k]"); if(!t) return;
+  if(t.dataset.k==="user"){ openUser(t.dataset.v); return; }
   S.filter={k:t.dataset.k,v:t.dataset.v}; renderDrill(); $("#drill").scrollIntoView({behavior:"smooth",block:"nearest"});
 });
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
-  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null;
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; $("#uresult").innerHTML="";
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }

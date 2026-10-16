@@ -270,6 +270,14 @@ function noteApp(e) {
   if (!cur || ms > cur.last) state.appSeen.set(key, { id: id || null, name, last: ms });
 }
 
+// every login an event mentions about a person (the actor, plus User / AppUser targets)
+function userRefs(e) {
+  const out = [], a = e.actor;
+  if (a && a.type === "User" && a.alternateId) out.push(a.alternateId);
+  for (const t of (e.target || [])) if ((t.type === "User" || t.type === "AppUser") && t.alternateId) out.push(t.alternateId);
+  return out;
+}
+
 function queryEvents(i, windowMs) {
   i = i || {}; const lc = s => String(s || "").toLowerCase();
   const min = windowMs ? Date.now() - windowMs : 0;
@@ -279,7 +287,7 @@ function queryEvents(i, windowMs) {
     if (new Date(e.published).getTime() < min) break;
     const res = e.outcome && e.outcome.result;
     if (i.app && !lc(appOf(e)).includes(lc(i.app))) continue;
-    if (i.user && !lc(userOf(e)).includes(lc(i.user))) continue;
+    if (i.user && !userRefs(e).some(u => lc(u).includes(lc(i.user)))) continue;
     if (i.eventType && !lc(e.eventType).includes(lc(i.eventType))) continue;
     if (i.reasonContains && !lc((e.outcome && e.outcome.reason) || e.displayMessage).includes(lc(i.reasonContains))) continue;
     if (i.result === "ANY_FAILURE") { if (!FAILS.has(res)) continue; } else if (i.result && res !== i.result) continue;

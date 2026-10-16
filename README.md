@@ -5,6 +5,7 @@ A live dashboard for Okta health, with an Okta-expert AI assistant built in.
 - **Silent app tiles**: apps with no events for longer than a threshold you choose
 - **Error hot spots**: apps and error reasons with the most failures
 - **Assignment / provisioning errors**: grouped by user
+- **User lookup**: search by email, username or name to see every error tied to one person (failed sign-ins, assignment and provisioning errors, AD failures), with their top reasons and a CSV export. Logins with the same name before the @ (an Okta email and an AD login) are treated as one person
 - **Drill-down + CSV export** on anything you click
 - **Assistant**: ask it to troubleshoot; it can search the live events itself
 

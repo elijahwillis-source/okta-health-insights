@@ -90,5 +90,13 @@ check "catch-up: all events loaded"               true "$(echo "$FIN" | jq_ 'j.e
 check "catch-up: events are in time order"        true "$(curl -s localhost:8095/api/events | jq_ 'j.events.every((e,i)=>i===0||e.published>=j.events[i-1].published)')"
 check "catch-up: old-only app (Zoom) seen"        true "$(curl -s localhost:8095/api/apps | jq_ 'j.seen.some(s=>s.name==="Zoom")')"
 
+# --- assistant's user search matches ANY login of a person (Okta email or AD AppUser login) ---
+UQ=$(node -e '
+const m=require("./server.js"); const ev=(id,actor,target)=>({id,published:new Date().toISOString(),eventType:"x",outcome:{result:"FAILURE",reason:"r"},actor,target});
+m.state.events.push(ev("1",{type:"SystemPrincipal",alternateId:"system@okta.com"},[{type:"AppUser",alternateId:"jane.doe@corp.int",displayName:"Jane Doe"},{type:"AppInstance",displayName:"Active Directory",id:"a"}]));
+m.state.events.push(ev("2",{type:"User",alternateId:"jane.doe@corp.com"},[{type:"AppInstance",displayName:"Slack",id:"b"}]));
+console.log(JSON.stringify([m.queryEvents({user:"jane.doe@corp.int"},0).totalMatches, m.queryEvents({user:"jane.doe@corp.com"},0).totalMatches, m.queryEvents({user:"nobody"},0).totalMatches]));')
+check "user search: AD login found"            "[1,1,0]" "$UQ"
+
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
