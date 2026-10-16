@@ -9,16 +9,22 @@ const USERS = Array.from({ length: 25 }, (_, i) => `user${String(i + 1).padStart
 const REASONS = ["Automatic provisioning of user to app failed: Insufficient licenses available",
   "Automatic provisioning of user to app failed: 401 Unauthorized — API token expired", "INVALID_CREDENTIALS", "User is not assigned to the application"];
 const pick = a => a[Math.floor(Math.random() * a.length)];
+const appId = app => "0oa" + APPS.indexOf(app);   // stable id per app, like the real API
 
-function makeEvent(t) {
-  const app = pick(APPS), bad = Math.random() < (app === "ServiceNow" ? 0.25 : 0.06), prov = Math.random() < 0.25;
+function makeEvent(t, live) {
+  let app = pick(APPS);
+  // Zoom only has OLD activity (3+ days back): it falls out of a small event buffer, like a rarely-used real app
+  if (app === "Zoom") { if (live) app = "Slack"; else t = Math.min(t, Date.now() - 3 * 864e5); }
+  // event-side display names sometimes carry stray whitespace
+  const shown = Math.random() < 0.15 ? app + " " : app;
+  const bad = Math.random() < (app === "ServiceNow" ? 0.25 : 0.06), prov = Math.random() < 0.25;
   return {
     uuid: crypto.randomUUID(), published: new Date(t).toISOString(), severity: bad ? "WARN" : "INFO",
     eventType: prov ? pick(["application.provision.user.push", "application.user_membership.add"]) : "user.authentication.sso",
     displayMessage: prov ? "Automatic provisioning" : "User single sign on to app",
     outcome: { result: bad ? "FAILURE" : "SUCCESS", reason: bad ? pick(REASONS) : null },
     actor: { type: prov ? "SystemPrincipal" : "User", alternateId: prov ? "system@okta.com" : pick(USERS), displayName: "x" },
-    target: prov ? [{ type: "User", alternateId: pick(USERS) }, { type: "AppInstance", displayName: app, id: "0oa" + app.length }] : [{ type: "AppInstance", displayName: app, id: "0oa" + app.length }]
+    target: prov ? [{ type: "User", alternateId: pick(USERS) }, { type: "AppInstance", displayName: shown, id: appId(app) }] : [{ type: "AppInstance", displayName: shown, id: appId(app) }]
   };
 }
 
@@ -26,7 +32,7 @@ const events = [];
 const now = Date.now();
 for (let i = 0; i < 3000; i++) events.push(makeEvent(now - Math.random() * 3 * 864e5));
 events.sort((a, b) => (a.published < b.published ? -1 : 1));
-setInterval(() => events.push(makeEvent(Date.now())), 5000);   // a new event every 5s
+setInterval(() => events.push(makeEvent(Date.now(), true)), 5000);   // a new event every 5s
 
 http.createServer((req, res) => {
   const u = new URL(req.url, "http://localhost:4010");
@@ -39,6 +45,11 @@ http.createServer((req, res) => {
     const next = `http://localhost:4010/api/v1/logs?since=${encodeURIComponent(since)}&limit=${limit}&after=${after + page.length}`;
     return json(page, { link: `<${next}>; rel="next"` });
   }
-  if (u.pathname === "/api/v1/apps") return json(APPS.concat(["Legacy HR Portal"]).map((l, i) => ({ id: "0oa" + i, label: l, status: "ACTIVE" })));
+  if (u.pathname === "/api/v1/apps") {
+    // labels with stray whitespace (as the real API sometimes returns) plus one blank label
+    const messy = { Slack: "Slack ", Zoom: "  Zoom" };
+    const labels = APPS.map(a => messy[a] || a).concat(["Legacy HR Portal", "   "]);
+    return json(labels.map((l, i) => ({ id: "0oa" + i, label: l, status: "ACTIVE" })));   // index i == APPS.indexOf for the real apps
+  }
   res.writeHead(404); res.end("{}");
 }).listen(4010, () => console.log("Mock Okta on http://localhost:4010"));

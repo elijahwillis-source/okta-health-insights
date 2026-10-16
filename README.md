@@ -68,6 +68,16 @@ The repo is a plain Node 20+ service with a `Dockerfile`. In your deploy tool:
 - Very large orgs (many sign-ins per day) can exceed `MAX_EVENTS`. Use `OKTA_LOG_FILTER` to focus on what matters (apps, provisioning, failures) or raise the cap if you have the memory.
 - "Silent" apps are judged from events seen in the loaded window. An app that was already quiet before the window starts looks "never seen". The app list from the Okta Apps API makes such apps show up as "No events".
 
+## Troubleshooting: an app shows "No events" but Okta shows activity
+
+Open `/api/diagnostics` on the deployed service and check:
+
+- `poll.catchingUp: true` means the first backfill is still running. The newest events arrive last, so results are incomplete until it finishes.
+- `poll.lastError` shows why polling is failing (bad token, missing scope, rate limit).
+- `events.held` at `events.cap` means older events are being dropped. The per-app last-seen data is unaffected, but raise `MAX_EVENTS` if you want full drill-downs.
+- `inventory.withoutEventsSample` lists apps with no events, and `sameNameSeenUnderOtherId` flags a name that appears in events under a different app id (a duplicate or recreated app).
+- `eventAppsNotInInventory` lists apps seen in events that the Apps API did not return as ACTIVE.
+
 ## Privacy
 
 Events are kept in memory only, and are not written to disk. When someone uses the assistant, the dashboard summary and any events it looks up are sent to the Anthropic API. If that isn't acceptable for your data, leave `ANTHROPIC_API_KEY` unset and the assistant is switched off.
@@ -79,7 +89,8 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `GET /healthz` | Liveness check (no auth) |
 | `GET /api/status` | Poll health, event count, last error |
 | `GET /api/events?since=<ms>` | Events at/after a timestamp |
-| `GET /api/apps` | Active app labels |
+| `GET /api/apps` | Active apps: labels, ids, and last time each app was seen |
+| `GET /api/diagnostics` | Why an app shows "No events": polling state, buffer size, apps with no events, and names that look duplicated |
 | `POST /api/chat` | `{messages, summary, windowMs}` → `{text}` |
 
 ## Roadmap ideas

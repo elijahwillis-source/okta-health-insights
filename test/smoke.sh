@@ -28,6 +28,8 @@ check "dashboard HTML served"      200 "$(code $A localhost:8099/)"
 check "status reports live"        true "$(curl -s $A localhost:8099/api/status | jq_ 'j.live')"
 check "events backfilled"          3000 "$(curl -s $A localhost:8099/api/events | jq_ 'j.total>=3000?3000:j.total')"
 check "apps inventory loaded"      "Legacy HR Portal" "$(curl -s $A localhost:8099/api/apps)"
+check "app labels are trimmed"      true "$(curl -s $A localhost:8099/api/apps | jq_ 'j.apps.every(a=>a===a.trim()&&a.length>0)')"
+check "Slack label matches events"  true "$(curl -s $A localhost:8099/api/apps | jq_ 'j.apps.includes("Slack")&&j.apps.includes("Zoom")&&!j.apps.includes("Slack ")')"
 
 BEFORE=$(curl -s $A localhost:8099/api/status | jq_ 'j.eventCount')
 sleep 20
@@ -43,6 +45,22 @@ check "assistant runs tool loop"   "TOOL RESULT SEEN" "$R"
 check "assistant tool found data"  "totalMatches" "$R"
 check "chat rejects bad history"   400 "$(code $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d '{"messages":[{"role":"assistant","content":"x"}]}')"
 check "unknown route -> 404"       404 "$(code $A localhost:8099/nope)"
+
+# --- app matching: by id, trimmed names, independent of the capped event buffer ---
+check "event app names are trimmed" true "$(curl -s $A localhost:8099/api/events | jq_ 'j.events.every(e=>e.target.every(t=>typeof t.displayName!=="string"||t.displayName===t.displayName.trim()))')"
+check "/api/apps returns ids + last-seen" true "$(curl -s $A localhost:8099/api/apps | jq_ 'j.items.length>=8&&j.seen.length>=8&&j.items.every(x=>x.id&&x.label)')"
+D=$(curl -s $A localhost:8099/api/diagnostics)
+check "diagnostics: only the unused app lacks events" 1 "$(echo "$D" | jq_ 'j.inventory.withoutEvents')"
+check "diagnostics: unused app is named" "Legacy HR Portal" "$D"
+
+# Small buffer: the server must still remember every app's last activity (the 'No events in export' bug)
+OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8098 POLL_INTERVAL_SECONDS=15 MAX_EVENTS=300 \
+node server.js >/tmp/smoke-server-small.log 2>&1 & PIDS+=($!)
+sleep 4
+SM=$(curl -s localhost:8098/api/diagnostics)
+check "small buffer: events capped"            true "$(echo "$SM" | jq_ 'j.events.held<=300')"
+check "small buffer: all apps still have last-seen" 1 "$(echo "$SM" | jq_ 'j.inventory.withoutEvents')"
+check "small buffer: old-only app (Zoom) still seen" true "$(curl -s localhost:8098/api/apps | jq_ 'j.seen.some(s=>s.name==="Zoom")')"
 
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

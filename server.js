@@ -44,6 +44,7 @@ const state = {
   ids: new Set(),
   cursor: null,          // ISO timestamp of the newest event stored
   apps: [],              // [{id,label,status}]
+  appSeen: new Map(),    // appId (or name) -> {id,name,last}; never trimmed with the event buffer
   lastPoll: null, lastPollOk: null, lastError: null,
   lastAppsRefresh: null, catchingUp: true, polls: 0
 };
@@ -92,13 +93,15 @@ async function oktaGet(url, attempt = 0) {
 }
 
 /* ------------------------------------------------------------ data polling */
+const clean = v => (typeof v === "string" ? v.trim() : v);
+
 function slim(e) {
   return {
     id: e.uuid, published: e.published, eventType: e.eventType, displayMessage: e.displayMessage, severity: e.severity,
     ip: (e.client && e.client.ipAddress) || null, city: (e.client && e.client.geographicalContext && e.client.geographicalContext.city) || null,
     outcome: e.outcome ? { result: e.outcome.result, reason: e.outcome.reason || null } : null,
-    actor: e.actor ? { type: e.actor.type, alternateId: e.actor.alternateId, displayName: e.actor.displayName } : null,
-    target: (e.target || []).map(t => ({ type: t.type, id: t.id, alternateId: t.alternateId, displayName: t.displayName }))
+    actor: e.actor ? { id: e.actor.id, type: e.actor.type, alternateId: e.actor.alternateId, displayName: clean(e.actor.displayName) } : null,
+    target: (e.target || []).map(t => ({ type: t.type, id: t.id, alternateId: t.alternateId, displayName: clean(t.displayName) }))
   };
 }
 
@@ -125,7 +128,7 @@ async function pollLogs() {
       for (const raw of json) {
         const e = slim(raw);
         if (!e.id || state.ids.has(e.id)) continue;
-        state.ids.add(e.id); state.events.push(e);
+        state.ids.add(e.id); state.events.push(e); noteApp(e);
         if (!state.cursor || e.published > state.cursor) state.cursor = e.published;
       }
       if (pages >= cfg.maxPagesPerPoll) { hitCap = true; break; }
@@ -193,6 +196,20 @@ const userOf = e => {
   return e.actor && e.actor.type === "User" ? (e.actor.alternateId || e.actor.displayName) : null;
 };
 
+// Remember the last time each app was seen. Keyed by app id so renames, stray whitespace and duplicate
+// names cannot split one app in two, and kept apart from the capped event buffer so old-but-in-window
+// activity is never forgotten when MAX_EVENTS trims the oldest events.
+function noteApp(e) {
+  let id = null, name = null;
+  const t = (e.target || []).find(x => x.type === "AppInstance");
+  if (t) { id = t.id; name = t.displayName || t.alternateId; }
+  else if (e.actor && APP_ACTORS.test(e.actor.type || "")) { id = e.actor.id; name = e.actor.displayName || e.actor.alternateId; }
+  if (!name) return;
+  const key = id || ("name:" + name), ms = Date.parse(e.published);
+  const cur = state.appSeen.get(key);
+  if (!cur || ms > cur.last) state.appSeen.set(key, { id: id || null, name, last: ms });
+}
+
 function queryEvents(i, windowMs) {
   i = i || {}; const lc = s => String(s || "").toLowerCase();
   const min = windowMs ? Date.now() - windowMs : 0;
@@ -241,6 +258,28 @@ async function chat(body) {
     return data.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim() || "(no answer)";
   }
   return "I looked through the data but couldn't finish in a reasonable number of steps. Try a narrower question.";
+}
+
+/* ------------------------------------------------------------- diagnostics */
+function diagnostics() {
+  const nrm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const active = state.apps.filter(a => a.status === "ACTIVE" || !a.status);
+  const seen = [...state.appSeen.values()];
+  const seenIds = new Set(seen.map(s => s.id).filter(Boolean));
+  const seenByName = new Map(seen.map(s => [nrm(s.name), s]));
+  const invIds = new Set(active.map(a => a.id));
+  const noEvents = active.filter(a => !seenIds.has(a.id));
+  const first = state.events[0], last = state.events[state.events.length - 1];
+  return {
+    poll: { cursor: state.cursor, catchingUp: state.catchingUp, lastPollOk: state.lastPollOk, lastError: state.lastError, lastAppsRefresh: state.lastAppsRefresh },
+    events: { held: state.events.length, cap: cfg.maxEvents, oldest: first && first.published, newest: last && last.published, lookbackDays: cfg.lookbackDays },
+    inventory: {
+      activeApps: active.length, withEvents: active.length - noEvents.length, withoutEvents: noEvents.length,
+      // same name seen under a different id means a duplicate/renamed app, not a quiet one
+      withoutEventsSample: noEvents.slice(0, 40).map(a => ({ id: a.id, label: a.label, sameNameSeenUnderOtherId: seenByName.has(nrm(a.label)) }))
+    },
+    eventAppsNotInInventory: seen.filter(s => !s.id || !invIds.has(s.id)).slice(0, 25).map(s => ({ id: s.id, name: s.name, last: new Date(s.last).toISOString() }))
+  };
 }
 
 /* ------------------------------------------------------------------- http */
@@ -304,7 +343,12 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/apps")
-      return send(req, res, 200, { apps: state.apps.filter(a => a.status === "ACTIVE" || !a.status).map(a => a.label) });
+    {
+      const active = state.apps.filter(a => a.status === "ACTIVE" || !a.status);
+      return send(req, res, 200, { apps: active.map(a => a.label), items: active.map(a => ({ id: a.id, label: a.label })), seen: [...state.appSeen.values()] });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/diagnostics") return send(req, res, 200, diagnostics());
 
     if (req.method === "POST" && url.pathname === "/api/chat") {
       if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });

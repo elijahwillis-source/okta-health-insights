@@ -210,8 +210,8 @@ const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:60480000
 const APP_ACTORS=/^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
 function appOf(e){
   const t=(e.target||[]).find(x=>x.type==="AppInstance");
-  if(t) return t.displayName||t.alternateId||t.id;
-  const a=e.actor; if(a && APP_ACTORS.test(a.type||"")) return a.displayName||a.alternateId||null;   // OAuth/OIDC clients show up as the actor
+  if(t) return String(t.displayName||t.alternateId||t.id||"").trim()||null;
+  const a=e.actor; if(a && APP_ACTORS.test(a.type||"")) return String(a.displayName||a.alternateId||"").trim()||null;   // OAuth/OIDC clients show up as the actor
   return null;
 }
 function userOf(e){
@@ -476,6 +476,10 @@ function compute(){
   // app stats
   const appNames=new Set(); all.forEach(e=>{const a=appOf(e); if(a) appNames.add(a);}); S.inventory.forEach(a=>appNames.add(a));
   const lastSeen=new Map(); for(const e of all){ const a=appOf(e); if(!a) continue; const t=ts(e); if(!lastSeen.has(a)||t>lastSeen.get(a)) lastSeen.set(a,t); }
+  if(S.seen&&S.seen.length){   // live mode: the server tracks last activity per app id, independent of the capped event buffer
+    const label=new Map((S.invItems||[]).map(x=>[x.id,String(x.label||"").trim()]));
+    for(const x of S.seen){ const nm=label.get(x.id)||String(x.name||"").trim(); if(!nm) continue; appNames.add(nm); if(!lastSeen.has(nm)||x.last>lastSeen.get(nm)) lastSeen.set(nm,x.last); }
+  }
   const winCount=countBy(win,appOf), failCount=countBy(fails,appOf);
   const tiles=[...appNames].map(name=>{
     const ls=lastSeen.get(name); const gap=ls==null?Infinity:ref-ls;
@@ -605,7 +609,7 @@ document.addEventListener("click",ev=>{
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
-  S.live=false; clearTimeout(S.liveTimer);
+  S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null;
   S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null;
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
@@ -679,12 +683,17 @@ function setAssistantUI(on){
 async function refreshLive(){
   try{
     const since=S.lastTs? S.lastTs-60000 : 0;
-    const [er,ar]=await Promise.all([fetch("api/events?since="+since),fetch("api/apps")]);
+    const [er,ar,sr]=await Promise.all([fetch("api/events?since="+since),fetch("api/apps"),fetch("api/status")]);
     if(!er.ok) throw new Error("events "+er.status);
     const ej=await er.json(), aj=ar.ok? await ar.json():{apps:[]};
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
-    S.inventory=aj.apps||[]; S.ref=Date.now(); S.demo=false; S.live=true; S.note="";
+    const st=sr.ok? await sr.json():null;
+    S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
+    S.ref=Date.now(); S.demo=false; S.live=true;
+    S.note = st&&st.lastError ? "Okta polling problem: "+st.lastError
+           : st&&st.catchingUp ? "Still loading history from Okta ("+fmtN(st.eventCount)+" events so far). Silent and quiet results may be incomplete until this finishes."
+           : "";
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,60000);
