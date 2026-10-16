@@ -142,6 +142,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <option value="2592000000">30 days</option>
     </select>
   </label>
+  <input type="text" id="hsearch" placeholder="Find a user…  (email, username or name)" autocomplete="off" aria-label="Find a user" style="min-width:230px">
   <button id="btnLive" class="primary" hidden>Live data</button>
   <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
   <button id="btnApps" class="ghost">Load app list (optional)</button>
@@ -755,6 +756,7 @@ function renderPerson(){
   if($("#urefresh")) $("#urefresh").onclick=()=>{ S.ldays=-1; renderPerson(); };   // forces a fresh fetch
 }
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
+$("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openUser(v); } });   // always-visible shortcut in the top bar
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
 $("#usearch").addEventListener("input",()=>{    // type-ahead suggestions come from events already loaded
   const q=$("#usearch").value; const dl=$("#ulist");
