@@ -120,11 +120,9 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
   </label>
   <label class="ctl">App silent after
     <select id="sil">
-      <option value="3600000">1 hour</option>
-      <option value="21600000">6 hours</option>
-      <option value="86400000">24 hours</option>
-      <option value="259200000" selected>3 days</option>
-      <option value="604800000">7 days</option>
+      <option value="604800000" selected>7 days</option>
+      <option value="1209600000">14 days</option>
+      <option value="2592000000">30 days</option>
     </select>
   </label>
   <button id="btnLive" class="primary" hidden>Live data</button>
@@ -196,7 +194,7 @@ const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&
 const FAIL = new Set(["FAILURE","DENY","ERROR"]);
 const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_management|app\.user|group\.user_membership/i;
 
-const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:259200000, filter:null, demo:false, history:[], sample:null, busy:false };
+const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false };
 
 /* ---------- helpers ---------- */
 function appOf(e){ const t=(e.target||[]).find(x=>x.type==="AppInstance"); return t? (t.displayName||t.alternateId||t.id) : null; }
