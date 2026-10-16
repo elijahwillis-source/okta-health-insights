@@ -197,9 +197,16 @@ const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_managemen
 const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false };
 
 /* ---------- helpers ---------- */
-function appOf(e){ const t=(e.target||[]).find(x=>x.type==="AppInstance"); return t? (t.displayName||t.alternateId||t.id) : null; }
+const APP_ACTORS=/^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
+function appOf(e){
+  const t=(e.target||[]).find(x=>x.type==="AppInstance");
+  if(t) return t.displayName||t.alternateId||t.id;
+  const a=e.actor; if(a && APP_ACTORS.test(a.type||"")) return a.displayName||a.alternateId||null;   // OAuth/OIDC clients show up as the actor
+  return null;
+}
 function userOf(e){
-  const t=(e.target||[]).find(x=>x.type==="User");
+  const tg=e.target||[];
+  const t=tg.find(x=>x.type==="User")||tg.find(x=>x.type==="AppUser");   // AppUser = the user's account inside an app (e.g. Active Directory)
   if(t) return t.alternateId||t.displayName;
   if(e.actor && e.actor.type==="User") return e.actor.alternateId||e.actor.displayName;
   return null;

@@ -176,8 +176,18 @@ const TOOLS = [{
 }];
 
 const FAILS = new Set(["FAILURE", "DENY", "ERROR"]);
-const appOf = e => { const t = (e.target || []).find(x => x.type === "AppInstance"); return t ? (t.displayName || t.alternateId || t.id) : null; };
-const userOf = e => { const t = (e.target || []).find(x => x.type === "User"); if (t) return t.alternateId || t.displayName; return e.actor && e.actor.type === "User" ? (e.actor.alternateId || e.actor.displayName) : null; };
+const APP_ACTORS = /^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
+const appOf = e => {
+  const t = (e.target || []).find(x => x.type === "AppInstance");
+  if (t) return t.displayName || t.alternateId || t.id;
+  const a = e.actor; return a && APP_ACTORS.test(a.type || "") ? (a.displayName || a.alternateId || null) : null;
+};
+const userOf = e => {
+  const tg = e.target || [];
+  const t = tg.find(x => x.type === "User") || tg.find(x => x.type === "AppUser");
+  if (t) return t.alternateId || t.displayName;
+  return e.actor && e.actor.type === "User" ? (e.actor.alternateId || e.actor.displayName) : null;
+};
 
 function queryEvents(i, windowMs) {
   i = i || {}; const lc = s => String(s || "").toLowerCase();
