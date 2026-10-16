@@ -377,11 +377,12 @@ async function chat(body) {
   while (msgs.length && msgs[0].role !== "user") msgs.shift();
   if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Last message must be from the user."); e.status = 400; throw e; }
   const system = SYSTEM + "\n\nCurrent dashboard summary (JSON):\n" + JSON.stringify(body.summary || {}).slice(0, 12000);
-  for (let step = 0; step < 6; step++) {
+  let nudged = false;
+  for (let step = 0; step < 7; step++) {
     const r = await fetch(cfg.anthropicUrl + "/v1/messages", {
       method: "POST",
       headers: { "x-api-key": cfg.anthropicKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 1500, system, tools: TOOLS, messages: msgs })
+      body: JSON.stringify({ model: cfg.model, max_tokens: 2000, system, tools: TOOLS, messages: msgs })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) { const e = new Error("Anthropic API error: " + (data.error && data.error.message || r.status)); e.status = 502; throw e; }
@@ -400,7 +401,19 @@ async function chat(body) {
       msgs.push({ role: "user", content: results });
       continue;
     }
-    return data.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim() || "(no answer)";
+    const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+    if (data.stop_reason === "pause_turn") { msgs.push({ role: "assistant", content: data.content }); continue; }
+    if (text) return text + (data.stop_reason === "max_tokens" ? "\n\n(The answer was cut off. Ask me to continue.)" : "");
+    // an empty final turn: log why, then ask once for a plain-text answer instead of showing a blank
+    log("assistant returned no text; stop_reason=" + data.stop_reason + " blocks=" + (data.content || []).map(b => b.type).join(",") + " step=" + step);
+    if (!nudged) {
+      nudged = true;
+      const keep = (data.content || []).filter(b => b.type === "text");      // never replay an unanswered tool_use
+      msgs.push({ role: "assistant", content: keep.length ? keep : [{ type: "text", text: "(no reply yet)" }] });
+      msgs.push({ role: "user", content: "Please answer now in plain text, based on what you found. If you found nothing, say so plainly." });
+      continue;
+    }
+    return "The assistant returned an empty reply (stop reason: " + data.stop_reason + "). Try rephrasing, or ask about one app or user at a time.";
   }
   return "I looked through the data but couldn't finish in a reasonable number of steps. Try a narrower question.";
 }

@@ -54,6 +54,10 @@ check "assistant tool found data"  "totalMatches" "$R"
 R2=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","content":"lookup-user please"}],"summary":{},"windowMs":604800000}')
 check "assistant can search a user live"   "totalAboutThisPerson" "$R2"
+chat() { curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$1\"}],\"summary\":{},\"windowMs\":604800000}"; }
+check "assistant recovers from an empty reply"   "RECOVERED" "$(chat empty-reply)"
+check "assistant flags a cut-off answer"         "cut off" "$(chat cutoff)"
+check "assistant explains a persistent empty reply" "empty reply (stop reason: end_turn)" "$(chat always-empty)"
 check "chat rejects bad history"   400 "$(code $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d '{"messages":[{"role":"assistant","content":"x"}]}')"
 check "unknown route -> 404"       404 "$(code $A localhost:8099/nope)"
 
