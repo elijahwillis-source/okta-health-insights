@@ -58,6 +58,23 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16p
 .kpi .v{font-size:26px;font-weight:650;letter-spacing:-.02em;margin-top:2px}
 .kpi .d{font-size:11.5px;color:var(--muted)}
 .kpi.bad .v{color:var(--bad)} .kpi.warn .v{color:var(--warn)} .kpi.ok .v{color:var(--ok)}
+.acat{border:1px solid var(--border);border-radius:14px;background:var(--surface2);margin-bottom:10px;overflow:hidden;transition:border-color .25s,box-shadow .25s}
+.acat.open{border-color:var(--accent);box-shadow:0 6px 22px rgba(0,0,0,.14)}
+.ahead{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;background:transparent;border:none;border-radius:0;text-align:left;color:inherit;cursor:pointer;flex-wrap:wrap}
+.ahead:hover{background:var(--surface)}
+.achev{flex:none;color:var(--muted);transition:transform .38s cubic-bezier(.2,.8,.2,1)}.acat.open .achev{transform:rotate(90deg);color:var(--accent)}
+.acount{font-size:24px;font-weight:650;letter-spacing:-.01em}.ashare{font-size:12.5px;color:var(--muted)}.adesc{flex:1;min-width:220px;font-size:12.5px;color:var(--muted)}
+.abody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .42s cubic-bezier(.2,.8,.2,1)}
+.acat.open .abody{grid-template-rows:1fr}
+.ainner{min-height:0;overflow:hidden;visibility:hidden;transition:visibility 0s .42s}.acat.open .ainner{visibility:visible;transition:visibility 0s}
+.apad{padding:2px 16px 16px}
+@keyframes arowIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.acat.anim.open tr.arow{animation:arowIn .4s both;animation-delay:calc(var(--i,0)*30ms + 140ms)}
+@media (prefers-reduced-motion:reduce){.abody,.achev,.acat{transition:none}.acat.anim.open tr.arow{animation:none}}
+.sbar{display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px;background:var(--surface2)}.sbar i{display:block;height:100%}
+.sbar i.ok{background:var(--ok)}.sbar i.slow{background:var(--warn)}.sbar i.silent{background:var(--bad)}.sbar i.pending{background:var(--border)}
+.pill.q{background:var(--warn-soft);color:var(--warn)}
+th[data-sort]{cursor:pointer;user-select:none;white-space:nowrap}th.num,td.num{text-align:right}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .tile{border:1px solid var(--border);border-radius:10px;padding:10px 11px;background:var(--surface2);text-align:left;cursor:pointer;display:block;width:100%}
 .tile .n{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -158,11 +175,16 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     <div id="banner"></div>
     <div class="kpis" id="kpis"></div>
 
-    <div class="card">
-      <h2>App activity — silent integrations</h2>
-      <p class="hint">Tiles go red when an app has had no events for longer than your silence threshold. Amber means it's past half the threshold. Click a tile to see its events.</p>
-      <div class="ctl" style="gap:10px;margin-bottom:10px;flex-wrap:wrap"><select id="tview"><option value="attn" selected>Needs attention</option><option value="all">All apps</option></select><input type="text" id="tsearch" placeholder="Search apps…" autocomplete="off"><span id="tcount"></span></div>
-      <div class="tiles" id="tiles"></div>
+    <div class="card" id="appsCard">
+      <h2>App activity</h2>
+      <p class="hint" id="appsIntro"></p>
+      <div id="appsSummary"></div>
+      <div class="ctl" style="gap:10px;margin:14px 0 12px;flex-wrap:wrap">
+        <input type="text" id="appq" placeholder="Search apps…" autocomplete="off" aria-label="Search apps">
+        <button class="ghost" id="appexp">Expand all</button><button class="ghost" id="appcol">Collapse all</button>
+        <span id="appcount"></span>
+      </div>
+      <div id="appsAcc"></div>
     </div>
 
     <div class="card">
@@ -540,7 +562,7 @@ function render(){
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
   ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
 
-  renderTiles();
+  renderAppsPanel(C);
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app");
@@ -556,18 +578,86 @@ function render(){
   if(S.aapp) renderApp();
 }
 
-function renderTiles(){
-  const C=S.C; if(!C) return;
-  const view=$("#tview").value, q=($("#tsearch").value||"").trim().toLowerCase();
-  const all=C.tiles, nS=all.filter(t=>t.status==="silent").length, nQ=all.filter(t=>t.status==="slow").length, nP=all.filter(t=>t.status==="pending").length;
-  const list=all.filter(t=>(view==="all"||t.status==="silent"||t.status==="slow")&&(!q||t.name.toLowerCase().includes(q)));
-  $("#tcount").textContent=all.length+" apps · "+nS+" silent · "+nQ+" quiet"+(nP?" · "+nP+" waiting for history":"")+" · showing "+list.length;
-  $("#tiles").innerHTML = list.length? list.map(t=>
-    `<button class="tile ${t.status}" data-k="app" data-v="${esc(t.name)}"><div class="n" title="${esc(t.name)}">${esc(t.name)}</div>
-     <div class="s">${t.status==="pending"?(t.ls==null?"Waiting for history…":"Last seen "+ago(t.gap)+" · still loading"):(t.ls==null?"No events in export":(t.status==="ok"?"Active · ":(t.status==="slow"?"Quiet · ":"Silent · "))+"last "+ago(t.gap))}</div></button>`).join("")
-    : '<div class="empty">'+(all.length? "No apps match these filters. Switch to All apps to see everything." : "No apps found in the loaded events.")+'</div>';
+/* ---------- app activity panel ---------- */
+// Four expandable sections, one per state. The page opens with just the headers (and the apps that need
+// attention); any section expands with a slide to list every app in it, ten at a time.
+const APP_STATES={silent:{label:"Silent",cls:"f",order:0},slow:{label:"Quiet",cls:"q",order:1},pending:{label:"Waiting",cls:"o",order:2},ok:{label:"Active",cls:"s",order:3}};
+const CAT_ORDER=["silent","slow","pending","ok"];
+const fmtSpan=ms=>{ const d=Math.round(ms/864e5*10)/10; return d>=1? d+" day"+(d===1?"":"s") : Math.max(1,Math.round(ms/36e5))+" hours"; };
+function appStateText(k){
+  const half=fmtSpan(S.sil/2), full=fmtSpan(S.sil);
+  return {ok:"Used within the last "+half,slow:"No activity for "+half+" to "+full,silent:"No activity for more than "+full+". Possibly unused, broken or disconnected",pending:"Still being checked while history loads"}[k];
 }
-$("#tview").onchange=renderTiles; $("#tsearch").oninput=renderTiles;
+function appExplain(k){
+  const full=fmtSpan(S.sil);
+  return {silent:"Worth checking whether anyone still needs the app (a license we could reclaim), or whether its connection to Okta is broken. Click an app for its errors.",
+    slow:"Past half of the "+full+" cutoff with no activity. Not a problem yet, but worth watching.",
+    ok:"Used recently. Nothing to do.",
+    pending:"The dashboard has not finished loading history, so it cannot tell yet. These sort themselves out without any action."}[k];
+}
+const CHEV='<svg class="achev" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function sortCat(list){
+  const sort=S.asort||(S.asort={key:"state",dir:1}), d=sort.dir;
+  const byState=(a,b)=>b.gap-a.gap||a.name.localeCompare(b.name);   // longest without activity first
+  const cmp={state:byState,name:(a,b)=>a.name.localeCompare(b.name),last:(a,b)=>(b.gap===a.gap?0:(b.gap>a.gap?1:-1)),events:(a,b)=>b.count-a.count,errors:(a,b)=>b.fails-a.fails}[sort.key]||byState;
+  return list.sort((a,b)=>d*cmp(a,b)||byState(a,b));
+}
+function catBodyHTML(k){
+  const list=(S.acats&&S.acats[k])||[], pages=S.apages||(S.apages={}), page=pages[k]||10, shown=Math.min(list.length,page), sort=S.asort||{key:"state",dir:1}, d=sort.dir;
+  const q=($("#appq").value||"").trim();
+  if(!list.length) return '<p class="hint">'+(q? "No apps in this state match your search." : "No apps in this state.")+'</p>';
+  const th=(key,label,cls)=>'<th data-sort="'+key+'" class="'+(cls||"")+'" aria-sort="'+(sort.key===key?(d===1?"ascending":"descending"):"none")+'">'+label+(sort.key===key?(d===1?" ▲":" ▼"):"")+'</th>';
+  const wl=S.win? Math.round(S.win/864e5)+"d" : "all";
+  const when=t=>t.ls!=null? ago(t.gap)+(t.status==="pending"?" · still checking":"") : (t.status==="pending"? "Waiting for history…" : "Nothing in the loaded history");
+  const rows=list.slice(0,shown).map((t,i)=>'<tr class="arow" style="--i:'+Math.min(i,12)+'"><td><span class="lnk" data-k="app" data-v="'+esc(t.name)+'">'+esc(t.name)+'</span></td><td>'+esc(when(t))+'</td><td class="num">'+fmtN(t.count)+'</td>'+
+    '<td class="num">'+(t.fails? fmtN(t.fails)+' <span class="gsub">('+(t.fails/Math.max(1,t.count)*100).toFixed(t.fails/Math.max(1,t.count)<.1?1:0)+'%)</span>' : '<span class="gsub">0</span>')+'</td></tr>').join("");
+  return '<p class="hint" style="margin:4px 0 8px">'+esc(appExplain(k)||"")+'</p><div class="scroll"><table><tr>'+th("name","App")+th("last","Last activity")+th("events","Events ("+wl+")","num")+th("errors","Errors ("+wl+")","num")+'</tr>'+rows+'</table></div>'+
+    '<div style="display:flex;gap:10px;margin-top:10px">'+(shown<list.length? '<button class="ghost" data-more="'+k+'">Show '+Math.min(10,list.length-shown)+' more ('+fmtN(list.length-shown)+' left)</button>' : '')+(page>10&&list.length>10? '<button class="ghost" data-less="'+k+'">Show fewer</button>' : '')+'</div>';
+}
+function renderAppsPanel(C){
+  if(!C) return;
+  const all=C.tiles, total=all.length, q=($("#appq").value||"").trim().toLowerCase();
+  const cnt={silent:0,slow:0,pending:0,ok:0}; all.forEach(t=>{ cnt[t.status]++; });
+  const cats={silent:[],slow:[],pending:[],ok:[]}; for(const t of all) if(!q||t.name.toLowerCase().includes(q)) cats[t.status].push(t);
+  for(const k of CAT_ORDER) sortCat(cats[k]);
+  S.acats=cats; S.acnt=cnt;
+  if(!S.aopen){ S.aopen=new Set(); const first=cnt.silent? "silent" : cnt.slow? "slow" : null; if(first) S.aopen.add(first); }
+  $("#appsIntro").textContent="Which of our apps are actually being used? Each app is Active, Quiet or Silent, depending on how long it has been since its last activity in Okta. The cutoff comes from “App silent after” at the top (now "+fmtSpan(S.sil)+"). Open any section to see its apps.";
+  const vis=CAT_ORDER.filter(k=>k!=="pending"||cnt.pending);
+  $("#appsSummary").innerHTML= total? '<div class="sbar" role="img" aria-label="'+vis.map(k=>cnt[k]+" "+APP_STATES[k].label.toLowerCase()).join(", ")+' of '+total+' apps">'+["ok","slow","silent","pending"].filter(k=>cnt[k]).map(k=>'<i class="'+k+'" style="flex:'+cnt[k]+'"></i>').join("")+'</div>' : '';
+  $("#appcount").textContent= q? fmtN(CAT_ORDER.reduce((n,k)=>n+cats[k].length,0))+" of "+fmtN(total)+" apps match" : fmtN(total)+" apps in total";
+  $("#appsAcc").innerHTML= total? vis.map(k=>{
+    const open=!!(S.aopen.has(k)||(q&&cats[k].length>0)), id="abody-"+k;
+    return '<section class="acat '+k+(open?" open":"")+'" data-cat="'+k+'"><button class="ahead" data-toggle="'+k+'" aria-expanded="'+open+'" aria-controls="'+id+'">'+CHEV+
+      '<span class="pill '+APP_STATES[k].cls+'">'+APP_STATES[k].label+'</span><span class="acount">'+(q? fmtN(cats[k].length)+' <span class="ashare">of '+fmtN(cnt[k])+'</span>' : fmtN(cnt[k]))+'</span>'+
+      '<span class="ashare">'+(total? Math.round(cnt[k]/total*100) : 0)+'% of apps</span><span class="adesc">'+esc(appStateText(k))+'</span></button>'+
+      '<div class="abody" id="'+id+'" role="region" aria-label="'+APP_STATES[k].label+' apps"><div class="ainner"><div class="apad">'+catBodyHTML(k)+'</div></div></div></section>'; }).join("")
+    : '<div class="empty">No apps found in the loaded events.</div>';
+}
+function refreshBody(k){ const el=$("#appsAcc").querySelector("#abody-"+k+" .apad"); if(el) el.innerHTML=catBodyHTML(k); }
+function toggleCat(k,force){
+  if(!S.aopen) S.aopen=new Set();
+  const open= force!==undefined? force : !S.aopen.has(k); if(open) S.aopen.add(k); else S.aopen.delete(k);
+  const sec=$("#appsAcc").querySelector('[data-cat="'+k+'"]');
+  if(sec){ sec.classList.toggle("open",open); sec.classList.add("anim"); clearTimeout(sec._anim); sec._anim=setTimeout(()=>sec.classList.remove("anim"),1100);
+    const b=sec.querySelector(".ahead"); if(b) b.setAttribute("aria-expanded",String(open)); }
+}
+function appsAct(kind,v){
+  if(kind==="toggle") toggleCat(v);
+  else if(kind==="expand"||kind==="collapse"){ CAT_ORDER.filter(k=>k!=="pending"||(S.acnt&&S.acnt.pending)).forEach((k,i)=>setTimeout(()=>toggleCat(k,kind==="expand"),i*90)); }
+  else if(kind==="sort"){ const s0=S.asort||{key:"state",dir:1}; S.asort= s0.key===v? {key:v,dir:-s0.dir} : {key:v,dir:1}; for(const k of CAT_ORDER) if(S.acats) sortCat(S.acats[k]); CAT_ORDER.forEach(refreshBody); }
+  else if(kind==="more"){ (S.apages||(S.apages={}))[v]=((S.apages||{})[v]||10)+10; refreshBody(v); }
+  else if(kind==="less"){ (S.apages||(S.apages={}))[v]=10; refreshBody(v); }
+}
+$("#appq").oninput=()=>{ S.apages={}; renderAppsPanel(S.C); };
+$("#appexp").onclick=()=>appsAct("expand"); $("#appcol").onclick=()=>appsAct("collapse");
+$("#appsCard").addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-toggle]"); if(t){ appsAct("toggle",t.dataset.toggle); return; }
+  const so=ev.target.closest("[data-sort]"); if(so){ appsAct("sort",so.dataset.sort); return; }
+  const mo=ev.target.closest("[data-more]"); if(mo){ appsAct("more",mo.dataset.more); return; }
+  const le=ev.target.closest("[data-less]"); if(le){ appsAct("less",le.dataset.less); }
+});
 
 function bars(sel,list,kind){
   const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
