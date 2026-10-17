@@ -114,6 +114,28 @@ node server.js >/tmp/smoke-server-lookup.log 2>&1 & PIDS+=($!)
 sleep 1.5
 check "user search works while history loads"    true "$(curl -s "localhost:8093/api/user-events?q=user07&days=7" | jq_ 'j.count>0')"
 
+# --- live per-app errors: ask Okta for one app's failures ---
+SN=0oaMOCK000003   # ServiceNow in the fake org
+AE=$(curl -s $A "localhost:8099/api/app-events?id=$SN&days=7")
+check "app errors: finds the app's failures"      true "$(echo "$AE" | jq_ 'j.count>0&&j.events.length===j.count')"
+check "app errors: only failures and denies"      true "$(echo "$AE" | jq_ 'j.events.every(e=>["FAILURE","DENY","ERROR"].includes(e.outcome.result))')"
+check "app errors: only that app"                 true "$(echo "$AE" | jq_ 'j.events.every(e=>e.target.some(t=>t.id==="'$SN'"))')"
+check "app errors: newest first"                  true "$(echo "$AE" | jq_ 'j.events.every((e,i)=>i===0||e.published<=j.events[i-1].published)')"
+check "app errors: Okta filtered it"              true "$(echo "$AE" | jq_ 'j.serverFiltered===true')"
+check "app errors: unknown app is empty"          0 "$(curl -s $A "localhost:8099/api/app-events?id=0oaMOCK999999" | jq_ 'j.count')"
+check "app errors: bad id -> 400"                 400 "$(code $A "localhost:8099/api/app-events?id=abc")"
+check "app errors: missing id -> 400"             400 "$(code $A "localhost:8099/api/app-events")"
+check "app errors: needs the password"            401 "$(code "localhost:8099/api/app-events?id=$SN")"
+check "status advertises app lookup"              true "$(curl -s $A localhost:8099/api/status | jq_ 'j.appLookup===true')"
+R3=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d '{"messages":[{"role":"user","content":"lookup-app please"}],"summary":{},"windowMs":604800000}')
+check "assistant can look up an app's errors"     "errorsFound" "$R3"
+# an Okta that rejects the combined filter: the server falls back to filtering the errors itself
+MOCK_PORT=4011 MOCK_NO_RESULT_FILTER=1 node test/mock-okta.js >/tmp/smoke-okta2.log 2>&1 & PIDS+=($!)
+OKTA_ORG_URL=http://localhost:4011 OKTA_API_TOKEN=test PORT=8089 node server.js >/tmp/smoke-server-nofilter.log 2>&1 & PIDS+=($!)
+sleep 2
+NF=$(curl -s "localhost:8089/api/app-events?id=$SN&days=7")
+check "app errors: works if Okta rejects the filter" true "$(echo "$NF" | jq_ 'j.serverFiltered===false&&j.count>0&&j.events.every(e=>e.outcome.result==="FAILURE")')"
+
 # --- assistant's user search matches ANY login of a person (Okta email or AD AppUser login) ---
 UQ=$(node -e '
 const m=require("./server.js"); const ev=(id,actor,target)=>({id,published:new Date().toISOString(),eventType:"x",outcome:{result:"FAILURE",reason:"r"},actor,target});

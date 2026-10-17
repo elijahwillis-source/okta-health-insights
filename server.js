@@ -263,6 +263,82 @@ async function userSearchCached(qs, days) {
   return data;
 }
 
+/* ------------------------------------------------------------- per-app errors */
+const validAppId = id => typeof id === "string" && /^[A-Za-z0-9_-]{10,40}$/.test(id);
+const byNewest = (a, b) => (a.published < b.published ? 1 : a.published > b.published ? -1 : 0);
+
+// Ask Okta for the failures and denies that involve an app: as the target of a sign-in or provisioning
+// event, or as the actor (OAuth clients). Newest first. If Okta rejects the combined filter we fetch
+// everything for the app and keep the errors ourselves (serverFiltered: false).
+async function appSearch(ids, days) {
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const seen = new Set(), events = [];
+  let truncated = false, serverFiltered = true;
+  const run = async filter => {
+    let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(since)}&filter=${encodeURIComponent(filter)}&limit=1000&sortOrder=DESCENDING`, pages = 0;
+    while (url) {
+      if (pages >= cfg.lookupMaxPages || events.length >= cfg.lookupMaxEvents) { truncated = true; break; }
+      const { json, next } = await oktaGet(url); pages++;
+      if (!json.length) break;
+      for (const raw of json) {
+        const e = slim(raw);
+        if (!e.id || seen.has(e.id) || !FAILS.has(e.outcome && e.outcome.result)) continue;
+        seen.add(e.id); events.push(e);
+      }
+      url = next;
+    }
+  };
+  const combos = [];
+  for (const id of ids) for (const field of ["target.id", "actor.id"]) combos.push([field, id]);
+  try {
+    for (const [field, id] of combos) for (const res of ["FAILURE", "DENY"]) await run(`${field} eq "${id}" and outcome.result eq "${res}"`);
+  } catch (err) {
+    if (!/Okta 400/.test(String(err.message))) throw err;
+    serverFiltered = false; events.length = 0; seen.clear(); truncated = false;
+    for (const [field, id] of combos) await run(`${field} eq "${id}"`);
+  }
+  events.sort(byNewest);
+  if (events.length > cfg.lookupMaxEvents) { events.length = cfg.lookupMaxEvents; truncated = true; }
+  return { ids, days, since, serverFiltered, truncated, count: events.length, events };
+}
+async function appSearchCached(ids, days) {
+  const key = "app|" + days + "|" + ids.join("|"), hit = lookupCache.get(key);
+  if (hit && Date.now() - hit.at < 60000) return hit.data;
+  let data;
+  try { data = await appSearch(ids, days); }
+  catch (err) { const e = new Error("Okta lookup failed: " + String(err.message || err).slice(0, 200)); e.status = 502; throw e; }
+  lookupCache.set(key, { at: Date.now(), data });
+  if (lookupCache.size > 50) lookupCache.delete(lookupCache.keys().next().value);
+  return data;
+}
+
+// find apps by name (inventory first, then apps seen in events)
+function resolveApps(name) {
+  const q = String(name || "").trim().toLowerCase(); if (q.length < 2) return [];
+  const cand = new Map();
+  for (const a of state.apps) if (a.label && validAppId(a.id)) cand.set(a.id, a.label);
+  for (const v of state.appSeen.values()) if (validAppId(v.id) && !cand.has(v.id)) cand.set(v.id, v.name);
+  const all = [...cand];
+  const exact = all.filter(([, l]) => l.toLowerCase() === q);
+  return exact.length ? exact : all.filter(([, l]) => l.toLowerCase().includes(q));
+}
+// the assistant's version: one app's errors, summarised
+async function assistantAppLookup(i) {
+  i = i || {};
+  const m = resolveApps(i.app);
+  if (!m.length) return { error: `No app with a name like "${i.app}" was found.` };
+  const names = [...new Set(m.map(x => x[1]))];
+  if (names.length > 1) return { error: "Several apps match that name. Ask which one is meant.", matches: names.slice(0, 10) };
+  const days = Math.min(90, Math.max(1, +i.days || 7));
+  const r = await appSearchCached(m.map(x => x[0]).slice(0, 3), days);
+  const tally = (arr, f) => { const mm = new Map(); for (const x of arr) { const k = f(x); if (k != null) mm.set(k, (mm.get(k) || 0) + 1); } return [...mm].sort((a, b) => b[1] - a[1]); };
+  const reasons = tally(r.events, e => (e.outcome && e.outcome.reason) || e.displayMessage || "(no reason given)").slice(0, 8).map(([reason, count]) => ({
+    reason, count, people: new Set(r.events.filter(e => ((e.outcome && e.outcome.reason) || e.displayMessage || "(no reason given)") === reason).flatMap(userRefs).map(u => u.toLowerCase().split("@")[0])).size }));
+  return { app: names[0], searchedDays: days, errorsFound: r.count, truncatedByLimit: r.truncated, topReasons: reasons,
+    topEventTypes: tally(r.events, e => e.eventType).slice(0, 5).map(([type, count]) => ({ type, count })),
+    latest: r.events.slice(0, 10).map(e => ({ time: e.published, result: e.outcome && e.outcome.result, eventType: e.eventType, user: userRefs(e)[0] || null, reason: (e.outcome && e.outcome.reason) || null, ip: e.ip })) };
+}
+
 // the assistant's version: same search, trimmed to what it needs
 async function assistantUserLookup(i) {
   i = i || {};
@@ -298,6 +374,17 @@ const TOOLS = [{
       reasonContains: { type: "string" },
       limit: { type: "number" }
     }
+  }
+}, {
+  name: "lookup_app_errors",
+  description: "Search Okta's System Log LIVE for the failures and denies of one APP over the last N days (default 7, max 90). Prefer this for questions about a specific app (why is Salesforce failing?). Returns the error count, top reasons with how many people each affects, and the 10 latest errors.",
+  input_schema: {
+    type: "object",
+    properties: {
+      app: { type: "string", description: "App name, e.g. Salesforce" },
+      days: { type: "number", description: "How far back to search (1-90, default 7)" }
+    },
+    required: ["app"]
   }
 }, {
   name: "lookup_user_events",
@@ -394,6 +481,7 @@ async function chat(body) {
         try {
           out = b.name === "query_events" ? queryEvents(b.input, windowMs)
               : b.name === "lookup_user_events" ? await assistantUserLookup(b.input)
+              : b.name === "lookup_app_errors" ? await assistantAppLookup(b.input)
               : { error: "unknown tool" };
         } catch (err) { out = { error: String(err.message || err).slice(0, 200) }; }
         results.push({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify(out) });
@@ -493,7 +581,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true
+        catchUp: catchUpInfo(), lookup: true, appLookup: true
       });
 
     if (req.method === "GET" && url.pathname === "/api/events") {
@@ -517,6 +605,14 @@ const server = http.createServer(async (req, res) => {
       if (!qs.length) return send(req, res, 400, { error: "Provide ?q=<email, username or name> (at least 2 characters)." });
       const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
       return send(req, res, 200, await userSearchCached(qs, days));
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/app-events") {
+      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
+      const ids = [...new Set(url.searchParams.getAll("id").filter(validAppId))].slice(0, 3);
+      if (!ids.length) return send(req, res, 400, { error: "Provide ?id=<app id> (one to three)." });
+      const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
+      return send(req, res, 200, await appSearchCached(ids, days));
     }
 
     if (req.method === "POST" && url.pathname === "/api/chat") {

@@ -142,7 +142,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <option value="2592000000">30 days</option>
     </select>
   </label>
-  <input type="text" id="hsearch" placeholder="Find a user…  (email, username or name)" autocomplete="off" aria-label="Find a user" style="min-width:230px">
+  <input type="text" id="hsearch" placeholder="Find a user or app…" autocomplete="off" aria-label="Find a user or app" style="min-width:230px">
   <button id="btnLive" class="primary" hidden>Live data</button>
   <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
   <button id="btnApps" class="ghost">Load app list (optional)</button>
@@ -197,6 +197,13 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <div id="uresult"></div>
     </div>
 
+    <div class="card" id="appLookup">
+      <h2>App lookup</h2>
+      <p class="hint">Search an app to see every error it has produced: failed sign-ins, provisioning and sync failures, and token errors, with the reasons and who is affected. Clicking an app tile or bar above opens it here.</p>
+      <div class="ulrow"><input type="text" id="asearch" placeholder="Search an app, e.g. Salesforce" autocomplete="off" list="alist"><datalist id="alist"></datalist><button id="ago" class="primary">Look up</button></div>
+      <div id="aresult"></div>
+    </div>
+
     <div class="card" id="drill">
       <h2>Drill-down</h2>
       <div id="drillBody"><div class="empty">Click an app tile, bar, user or reason above to see the underlying events.</div></div>
@@ -222,7 +229,7 @@ const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&
 const FAIL = new Set(["FAILURE","DENY","ERROR"]);
 const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_management|app\.user|group\.user_membership/i;
 
-const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false, lseq:0 };
+const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false, lseq:0, aseq:0 };
 
 /* ---------- helpers ---------- */
 const APP_ACTORS=/^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
@@ -546,6 +553,7 @@ function render(){
     : '<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>';
   renderDrill();
   if(S.uperson) renderPerson();
+  if(S.aapp) renderApp();
 }
 
 function renderTiles(){
@@ -757,7 +765,7 @@ function renderPerson(){
   if($("#urefresh")) $("#urefresh").onclick=()=>{ S.ldays=-1; renderPerson(); };   // forces a fresh fetch
 }
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
-$("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openUser(v); } });   // always-visible shortcut in the top bar
+$("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openFind(v); } });   // always-visible shortcut in the top bar
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
 $("#usearch").addEventListener("input",()=>{    // type-ahead suggestions come from events already loaded
   const q=$("#usearch").value; const dl=$("#ulist");
@@ -768,6 +776,113 @@ $("#uresult").addEventListener("click",ev=>{
   const p=(S.lpeople||buildPeople()).get(b.dataset.pick); if(p) pickPerson(p);
 });
 
+/* ---------- app lookup ---------- */
+// Same idea as the user lookup: ask Okta for the failures and denies of one app (live, up to 90 days).
+// Without the backend it lists the errors in the events already loaded.
+function buildApps(){
+  const key=S.events.length+"|"+((S.invItems||[]).length);
+  if(S.appsIdx&&S.appsKey===key) return S.appsIdx;
+  const m=new Map();
+  const add=(name,id,fail)=>{ name=String(name||"").trim(); if(!name) return; const k=name.toLowerCase(); let o=m.get(k); if(!o){ o={name,ids:new Set(),n:0,f:0}; m.set(k,o); } if(id) o.ids.add(id); if(fail!==undefined){ o.n++; if(fail) o.f++; } };
+  for(const x of (S.invItems||[])) add(x.label,x.id);
+  for(const e of S.events){ const a=appOf(e); if(!a) continue; const t=(e.target||[]).find(x=>x.type==="AppInstance"); const id=t? t.id : (e.actor&&APP_ACTORS.test(e.actor.type||"")? e.actor.id : null); add(a,id,isFail(e)); }
+  S.appsIdx=m; S.appsKey=key; return m;
+}
+function findApps(q){
+  q=String(q||"").trim().toLowerCase(); if(q.length<2) return [];
+  const exact=[], out=[];
+  for(const a of buildApps().values()){ const n=a.name.toLowerCase(); if(n===q) exact.push(a); else if(n.includes(q)) out.push(a); }
+  out.sort((a,b)=>b.f-a.f||b.n-a.n||a.name.localeCompare(b.name));
+  return exact.length? exact : out;
+}
+const viaOktaApps=()=>!!(S.live&&S.appLookupApi);
+async function fetchAppErrors(app){
+  const ids=[...app.ids].slice(0,3), days=daysForWindow();
+  const r=await fetch("api/app-events?"+ids.map(i=>"id="+encodeURIComponent(i)).join("&")+"&days="+days);
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+  return {events:j.events||[],truncated:!!j.truncated,filtered:j.serverFiltered!==false,days};
+}
+function openApp(q){ $("#asearch").value=q; lookupApp(q); $("#appLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+async function lookupApp(q){
+  q=String(q||"").trim(); const res=$("#aresult"); ++S.aseq;
+  S.aapp=null; S.aevents=null; S.asource="loaded"; S.anote="";
+  if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an app name.</div>'; return; }
+  const c=findApps(q);
+  if(!c.length){ res.innerHTML='<div class="empty">No app matching “'+esc(q)+'” was found'+(S.catchingUp?' (history is still loading, so try again in a few minutes)':'')+'.</div>'; return; }
+  if(c.length===1){ await pickApp(c[0]); return; }
+  res.innerHTML='<p class="hint">'+c.length+' apps match. Pick one:</p><div class="cands">'+c.slice(0,15).map(a=>
+    '<button class="cand" data-apick="'+esc(a.name.toLowerCase())+'"><span>'+esc(a.name)+'</span><span class="ct">'+(a.n? fmtN(a.f)+' errors · '+fmtN(a.n)+' events' : '')+'</span></button>').join("")+'</div>'+(c.length>15?'<div class="empty">Showing 15 of '+c.length+'. Type more to narrow it down.</div>':"");
+}
+async function pickApp(app){
+  const token=++S.aseq; S.aapp=app; S.aevents=null; S.asource="loaded"; S.anote="";
+  if(viaOktaApps()&&app.ids.size){
+    $("#aresult").innerHTML='<div class="empty">Asking Okta for the errors of '+esc(app.name)+'…</div>';
+    try{ const r=await fetchAppErrors(app); if(token!==S.aseq) return; S.aevents=r.events; S.atrunc=r.truncated; S.afiltered=r.filtered; S.adays=r.days; S.asource="okta"; }
+    catch(err){ if(token!==S.aseq) return; S.anote="Couldn’t ask Okta directly ("+err.message+"), so this only covers the events already loaded."; }
+  }
+  renderApp();
+}
+function appErrorEvents(app){
+  const min=S.win? S.ref-S.win : 0;
+  const base=S.aevents||S.events.filter(e=>appOf(e)===app.name);
+  return base.filter(e=>isFail(e)&&ts(e)>=min);
+}
+function dayBars(errs){
+  const n=Math.min(90,daysForWindow()), D=864e5, end=Math.ceil(S.ref/D)*D, start=end-n*D, c=new Array(n).fill(0);
+  for(const e of errs){ const i=Math.floor((ts(e)-start)/D); if(i>=0&&i<n) c[i]++; }
+  const mx=Math.max(1,...c), W=760, H=80, bw=W/n;
+  return '<svg width="100%" viewBox="0 0 '+W+' '+(H+4)+'" role="img" aria-label="Errors per day">'+c.map((v,i)=>{ const h=Math.max(v?3:1,v/mx*H);
+    return '<rect x="'+(i*bw+1).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+Math.max(2,bw-2).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" style="fill:'+(v?"var(--barfail)":"var(--border)")+'"><title>'+esc(new Date(start+i*D).toLocaleDateString())+': '+v+' errors</title></rect>'; }).join("")+'</svg>';
+}
+function renderApp(){
+  const app=S.aapp, res=$("#aresult"); if(!app) return;
+  // the Window changed, or Refresh was clicked: ask Okta for the right number of days, then redraw
+  if(S.asource==="okta"&&viaOktaApps()&&S.adays!==daysForWindow()&&!S.abusy){
+    S.abusy=true; const t=S.aseq;
+    fetchAppErrors(app).then(r=>{ if(t!==S.aseq) return; S.aevents=r.events; S.atrunc=r.truncated; S.afiltered=r.filtered; S.adays=r.days; S.anote=""; })
+      .catch(err=>{ S.anote="Couldn’t refresh from Okta ("+err.message+")."; S.adays=daysForWindow(); })
+      .finally(()=>{ S.abusy=false; if(S.aapp===app) renderApp(); });
+    return;
+  }
+  const errs=appErrorEvents(app).sort((a,b)=>ts(b)-ts(a));
+  const personOf=e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; };
+  const people=new Set(errs.map(personOf).filter(Boolean));
+  const why=top(countBy(errs,reasonOf),6).map(([reason,n])=>({reason,n,people:new Set(errs.filter(e=>reasonOf(e)===reason).map(personOf).filter(Boolean)).size}));
+  const last=errs.length? ts(errs[0]) : 0;
+  const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : (S.asource==="okta"?"the last 90 days":"all loaded events");
+  const src=S.asource==="okta"? "Asked Okta directly for failures and denies"+(S.atrunc?" — showing the most recent only; narrow the Window for the full picture":"")+(S.afiltered===false?" (Okta could not pre-filter, so the errors were picked out here)":"")
+                              : "From the events already loaded (errors only)";
+  res.innerHTML='<div><b>'+esc(app.name)+'</b></div><div class="ids">'+esc(src)+' · '+esc(winTxt)+' (change “Window” above)</div>'+
+    (S.anote?'<div class="empty">'+esc(S.anote)+'</div>':"")+
+    '<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people.size),people.size?"warn":""],["Kinds of error",fmtN(new Set(errs.map(reasonOf)).size),""],["Last error",last?ago(Date.now()-last):"—",""]]
+      .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
+    (errs.length? '<div class="ids">Errors per day</div>'+dayBars(errs)+'<div class="why"><b>What is going wrong</b>'+why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.people?' <span class="ids">('+fmtN(w.people)+' '+(w.people===1?"person":"people")+')</span>':"")+'</div>').join("")+'</div>'
+                 : '<div class="empty">No errors for this app in this window.</div>')+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><span class="ctl">'+fmtN(errs.length)+' errors</span><span class="spacer"></span>'+
+    (S.asource==="okta"?'<button id="arefresh" class="ghost">Refresh from Okta</button>':"")+
+    '<button id="aask" class="ghost">Ask the assistant about this app</button><button id="aexp" class="ghost">Export CSV</button></div>'+
+    '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>Person</th><th>Source</th><th>Reason</th></tr>'+
+    (errs.slice(0,50).map(e=>{ const r=idRefs(e)[0]; return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(r? r[0] : "—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td>'+esc(e.outcome&&e.outcome.reason||"")+'</td></tr>'; }).join("")||'<tr><td colspan="6" class="empty">No errors.</td></tr>')+
+    '</table></div>'+(errs.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
+  $("#aask").onclick=()=>ask("Help me troubleshoot the errors for the app “"+app.name+"”. What is going wrong and what should I check in Okta?");
+  $("#aexp").onclick=()=>exportCsv(errs);
+  if($("#arefresh")) $("#arefresh").onclick=()=>{ S.adays=-1; renderApp(); };
+}
+$("#ago").onclick=()=>lookupApp($("#asearch").value);
+$("#asearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupApp($("#asearch").value); } });
+$("#asearch").addEventListener("input",()=>{ const q=$("#asearch").value; $("#alist").innerHTML= q.trim().length<2? "" : findApps(q).slice(0,15).map(a=>'<option value="'+esc(a.name)+'"></option>').join(""); });
+$("#aresult").addEventListener("click",ev=>{ const b=ev.target.closest("[data-apick]"); if(!b) return; const a=buildApps().get(b.dataset.apick); if(a) pickApp(a); });
+// the top-bar box finds either a person or an app
+function openFind(v){
+  v=String(v||"").trim(); if(v.length<2) return;
+  if(v.includes("@")){ openUser(v); return; }
+  const ppl=findPeopleIn(buildPeople(),v).length, apps=findApps(v).length;
+  if(apps&&!ppl){ openApp(v); return; }
+  if(apps&&ppl){ $("#asearch").value=v; lookupApp(v); }   // both match: fill both cards, then show the person
+  openUser(v);
+}
+
 async function exportCsv(rows){
   const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"';
   const csv=["time,result,eventType,app,user,reason"].concat(rows.map(e=>[e.published,e.outcome&&e.outcome.result,e.eventType,appOf(e),userOf(e),e.outcome&&e.outcome.reason].map(q).join(","))).join("\n");
@@ -776,13 +891,14 @@ async function exportCsv(rows){
 document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-k]"); if(!t) return;
   if(t.dataset.k==="user"){ openUser(t.dataset.v); return; }
+  if(t.dataset.k==="app"){ openApp(t.dataset.v); return; }
   S.filter={k:t.dataset.k,v:t.dataset.v}; renderDrill(); $("#drill").scrollIntoView({behavior:"smooth",block:"nearest"});
 });
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
-  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML="";
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML=""; S.aapp=null; S.aevents=null; S.appsIdx=null; $("#aresult").innerHTML="";
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }
@@ -899,7 +1015,7 @@ async function refreshLive(){
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
     const st=sr.ok? await sr.json():null;
-    const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup);
+    const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup); S.appLookupApi=!!(st&&st.appLookup);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
     const cu=st&&st.catchUp; S.catchPct=cu? cu.pct : null;
