@@ -147,6 +147,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
   <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
   <button id="btnApps" class="ghost">Load app list (optional)</button>
   <button id="btnDemo" class="ghost">Sample data</button>
+  <button id="btnDeck" class="ghost" title="Copies the figures behind the presentation slides. Contains no names or emails.">Copy data for slides</button>
   <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.csv,.tsv,.txt" hidden>
   <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
   <div id="map" hidden><div class="mbody"></div></div>
@@ -803,6 +804,44 @@ $("#win").onchange=e=>{S.win=+e.target.value;render();};
 $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
 
 /* ---------- assistant ---------- */
+/* ---------- data for the presentation slides ---------- */
+// Aggregates only (counts, no names or emails), computed from the same data and rules the screen uses,
+// so slides built from it always agree with the dashboard.
+function deckData(){
+  const C=S.C||compute(), H=3600000;
+  const end=Math.ceil(S.ref/H)*H, nH=Math.max(1,Math.min(168,S.win? Math.round(S.win/H) : 168)), start=end-nH*H;
+  const hourTotal=new Array(nH).fill(0), hourFail=new Array(nH).fill(0);
+  for(const e of C.win){ const i=Math.floor((ts(e)-start)/H); if(i>=0&&i<nH){ hourTotal[i]++; if(isFail(e)) hourFail[i]++; } }
+  const personKey=e=>{ const u=userOf(e); return u? localPart(u) : null; };
+  const topReasons=top(countBy(C.fails,reasonOf),8).map(([reason,n])=>{
+    const ev=C.fails.filter(e=>reasonOf(e)===reason), users=countBy(ev,personKey);
+    return {reason,count:n,apps:top(countBy(ev,appOf),5).map(([app,count])=>({app,count})),distinctPeople:users.size,errorsPerPerson:top(users,10).map(x=>x[1])};
+  });
+  const topFailingApps=top(countBy(C.fails,appOf),8).map(([app,failures])=>({app,failures,distinctPeople:new Set(C.fails.filter(e=>appOf(e)===app).map(personKey).filter(Boolean)).size}));
+  const st={silent:0,slow:0,ok:0,pending:0}; C.tiles.forEach(t=>{ st[t.status]=(st[t.status]||0)+1; });
+  return {kind:"okta-deck-data",v:1,generatedAt:new Date().toISOString(),source:S.demo?"sample data (not real)":(S.live?"live Okta data":"uploaded file"),
+    windowStart:new Date(start).toISOString(),windowEnd:new Date(end).toISOString(),windowDays:S.win? S.win/864e5 : null,silenceDays:S.sil/864e5,
+    historyComplete:!S.catchingUp,historyLoadedPct:S.catchingUp? (S.catchPct==null? null : S.catchPct) : 100,
+    totals:{events:C.win.length,failures:C.fails.length,failureRatePct:C.win.length? Math.round(C.fails.length/C.win.length*1000)/10 : 0,activeUsers:C.uniqueUsers,
+      assignmentErrors:C.assignFails.length,peopleWithAssignmentErrors:C.users.length},
+    apps:{seen:C.tiles.length,silent:st.silent,quiet:st.slow,active:st.ok,waitingForHistory:st.pending},
+    hourly:{start:new Date(start).toISOString(),total:hourTotal,failures:hourFail},topReasons,topFailingApps};
+}
+function showCopyBox(text){
+  const o=document.createElement("div"); o.setAttribute("style","position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px");
+  const b=document.createElement("div"); b.setAttribute("style","background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;width:min(720px,100%)");
+  const p=document.createElement("p"); p.textContent="Your browser blocked automatic copying. Select all of this text, copy it, and paste it into your chat."; p.setAttribute("style","margin:0 0 10px");
+  const t=document.createElement("textarea"); t.value=text; t.readOnly=true; t.setAttribute("style","width:100%;height:320px;font:12px ui-monospace,Menlo,monospace;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px");
+  const c=document.createElement("button"); c.textContent="Close"; c.setAttribute("style","margin-top:10px"); c.onclick=()=>o.remove();
+  b.append(p,t,c); o.append(b); document.body.append(o); t.focus(); t.select();
+}
+async function copyDeckData(){
+  const btn=$("#btnDeck"), json=JSON.stringify(deckData(),null,1);
+  try{ await navigator.clipboard.writeText(json); btn.textContent="Copied. Paste it into your chat"; setTimeout(()=>{ btn.textContent="Copy data for slides"; },3500); }
+  catch(_){ showCopyBox(json); }
+}
+$("#btnDeck").onclick=copyDeckData;
+
 function summary(){
   const C=S.C||compute();
   return {asOf:new Date(S.ref).toISOString(),windowDays:S.win?S.win/864e5:"all",silenceThresholdHours:S.sil/36e5,
@@ -863,7 +902,7 @@ async function refreshLive(){
     const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
-    const cu=st&&st.catchUp;
+    const cu=st&&st.catchUp; S.catchPct=cu? cu.pct : null;
     S.note = st&&st.lastError ? "Okta polling problem: "+st.lastError
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
