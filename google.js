@@ -40,7 +40,8 @@ function hint(status, body) {
   if (/invalid_grant/i.test(t)) return "Google refused to let the service account act as the admin. Check GOOGLE_ADMIN_EMAIL (it must be a real, active admin in your Workspace) and that domain-wide delegation is set up for this service account.";
   if (/invalid_scope|invalid_request/i.test(t)) return "Google did not accept the request. Check the key file is a service account key and that the scope is spelled exactly: " + SCOPE;
   if (/has not been used in project|accessNotConfigured|SERVICE_DISABLED/i.test(t)) return "The Admin SDK API is not enabled in the Google Cloud project. Enable it (APIs & Services > Library > Admin SDK API), then wait a minute.";
-  if (status === 403) return "The admin the service account acts as is not allowed to read audit logs. Give that admin a role with the Reports privilege (Admin console > Account > Admin roles).";
+  // Google answers 401 or 403 with these words when the ADMIN the service account acts as may not read audit logs
+  if (/not authorized to read activity records|not authorized to access this resource/i.test(t) || status === 403) return "The admin the service account acts as (GOOGLE_ADMIN_EMAIL) is not allowed to read audit logs. In the Admin console open Directory > Users > that user > Admin roles and privileges: it needs Super Admin, or a role that includes the Reports privilege (Account > Admin roles > create or edit a role > Admin console privileges > Reports). Role changes can take a few minutes to apply. If it already has that, check Security > API controls has not restricted the Admin SDK.";
   if (status === 401) return "Google rejected the access token. Check the clock on the server and that the key has not been deleted or disabled.";
   return "";
 }
@@ -56,6 +57,8 @@ function createGoogle(env, log) {
   let key = null, keyError = "";
   try { key = loadKey(cfg.keyRaw); } catch (e) { keyError = e.message; }
   const configured = !!(cfg.keyRaw && cfg.admin);
+  // exactly one of the two is set: say which, instead of silently staying off
+  const partial = !cfg.keyRaw && cfg.admin ? "GOOGLE_ADMIN_EMAIL is set but GOOGLE_SA_KEY is missing (or empty)." : cfg.keyRaw && !cfg.admin ? "GOOGLE_SA_KEY is set but GOOGLE_ADMIN_EMAIL is missing (or empty)." : "";
 
   async function accessToken() {
     if (st.token && Date.now() < st.tokenExp - 120000) return st.token;
@@ -130,7 +133,7 @@ function createGoogle(env, log) {
     start() { if (!configured) return; if (keyError) { st.lastError = keyError; log("Google: " + keyError); return; } log("Google OAuth audit enabled for " + cfg.admin + " (reads the last " + cfg.lookbackDays + " days, then every " + cfg.pollSec + "s)"); loop(); },
     stop() { clearTimeout(timer); },
     status() {
-      return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: keyError || st.lastError, hint: keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
+      return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: partial || keyError || st.lastError, hint: partial ? "Google needs both settings. Add the missing one in your hosting dashboard (environment variables) and redeploy." : keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
         lookbackDays: cfg.lookbackDays, oldest: st.events.length ? st.events[0].time : null, newest: st.events.length ? st.events[st.events.length - 1].time : null, scope: SCOPE };
     },
     events(since) { const s = +since || 0; return s ? st.events.filter(e => e.time > s) : st.events; },

@@ -70,6 +70,19 @@ header.top .sub{color:var(--muted);font-size:12px}
 .chipbtn{border-radius:99px;padding:4px 11px;font-size:12.5px;background:transparent;display:inline-flex;gap:6px;align-items:center}
 .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}.chipbtn i{font-style:normal;color:var(--muted);font-size:11.5px}.chipbtn.on i{color:inherit}
 .fin{flex:1 1 180px;min-width:150px;padding:5px 9px;font-size:12.5px}
+.usuggest{margin-top:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);overflow:hidden}
+.sg{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:9px 12px;font-size:13px}
+.sg:last-child{border-bottom:none}.sg:hover,.sg:focus-visible{background:var(--accent-soft);outline:none}.sg .ct{color:var(--muted);font-size:12px;white-space:nowrap}.sg.okta{color:var(--accent);font-weight:600}
+.stale{opacity:.38;transition:opacity .2s}
+#gTbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}#gTbl th.sortable:hover{color:var(--text)}#gTbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.kpi.click{cursor:pointer}.kpi.click:hover{border-color:var(--accent)}.kpi.click:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.gfb{margin-bottom:12px}.tiny{font-size:11px;color:var(--muted);margin-left:6px;font-weight:600}
+#userTbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}#userTbl th.sortable:hover{color:var(--text)}#userTbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sarrow{color:var(--accent);font-size:10px;margin-left:5px}.umore td{color:var(--muted);font-size:12.5px;padding-top:10px}.umore button{font-size:12px;padding:2px 10px}
+.wrow{margin:4px 0}.mini{font-size:12px;padding:1px 9px;margin-left:6px}
+.sg .cpill{margin-right:6px}
+.sg-h{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 12px 2px}.sg-n{padding:2px 12px 10px;font-size:12.5px;color:var(--muted)}
+.fb-note{font-size:12px;color:var(--muted)}
 .fb-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
 .fchip{display:inline-flex;gap:4px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:2px 4px 2px 10px;font-size:12px}
 .fchip button{border:none;background:transparent;color:inherit;padding:0 5px;line-height:1;font-size:15px}
@@ -280,7 +293,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     <main>
       <section class="view" id="view-overview" data-view="overview">
         <div class="vhead"><div><p class="vs">How healthy Okta is right now: errors, busy apps, and what needs a look.</p></div></div>
-        <div class="fbar" data-fbar="compact"></div>
+        <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
         <div class="kpis" id="kpis"></div>
         <div class="two">
           <div class="card"><h2>Apps at a glance</h2><p class="hint">How many apps are in use, quiet or silent.</p><div id="glance"></div></div>
@@ -309,7 +322,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
       <section class="view" id="view-errors" data-view="errors" hidden>
         <div class="vhead"><div><p class="vs">Every failed, denied or errored event, filtered the way you want.</p></div></div>
-        <div class="fbar" data-fbar="full"></div>
+        <div class="fbar" data-fbar="full" data-fscope="errors"></div>
         <div class="card" id="errView"></div>
       </section>
 
@@ -322,7 +335,14 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
               <option value="2592000000">30 days</option>
             </select>
           </label></div>
-    <div class="card" id="appsCard">
+    <div class="card" id="appLookup">
+      <h2>App lookup</h2>
+      <p class="hint">Search an app to see every error it has produced: failed sign-ins, provisioning and sync failures, and token errors, with the reasons and who is affected. Clicking an app in the list below opens it here.</p>
+      <div class="ulrow"><input type="text" id="asearch" placeholder="Search an app, e.g. Salesforce" autocomplete="off" list="alist"><datalist id="alist"></datalist><button id="ago" class="primary">Look up</button></div>
+      <div class="fbar" data-fbar="lookup" data-fscope="app"></div>
+      <div id="aresult"></div>
+    </div>
+<div class="card" id="appsCard">
       <h2>App activity</h2>
       <p class="hint" id="appsIntro"></p>
       <div id="appsSummary"></div>
@@ -333,32 +353,25 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       </div>
       <div id="appsAcc"></div>
     </div>
-
-    <div class="card" id="appLookup">
-      <h2>App lookup</h2>
-      <p class="hint">Search an app to see every error it has produced: failed sign-ins, provisioning and sync failures, and token errors, with the reasons and who is affected. Clicking an app tile or bar above opens it here.</p>
-      <div class="ulrow"><input type="text" id="asearch" placeholder="Search an app, e.g. Salesforce" autocomplete="off" list="alist"><datalist id="alist"></datalist><button id="ago" class="primary">Look up</button></div>
-      <div id="aresult"></div>
-    </div>
-
       </section>
 
       <section class="view" id="view-people" data-view="people" hidden>
         <div class="vhead"><div><p class="vs">Who is hitting errors, what each error means, and how to fix it.</p></div></div>
-        <div class="fbar" data-fbar="compact"></div>
-    <div class="card">
-      <h2>Users with assignment / provisioning errors</h2>
-      <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
-      <div class="scroll"><table id="userTbl"></table></div>
-    </div>
-
-    <div class="card" id="userLookup">
-      <h2>User lookup</h2>
-      <p class="hint">Search by email, username or name to see every error tied to that person: failed sign-ins, assignment and provisioning errors, and Active Directory failures. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person.</p>
-      <div class="ulrow"><input type="text" id="usearch" placeholder="Search a user, e.g. jane.doe@company.com" autocomplete="off" list="ulist"><datalist id="ulist"></datalist><button id="ugo" class="primary">Look up</button></div>
+        <div class="card" id="userLookup">
+      <h2>Find a person</h2>
+      <p class="hint">Start typing a name or email and pick the person; a full email address is looked up on its own. You get everything about them: failed sign-ins, assignment and provisioning errors, Active Directory failures and the Google apps they connected. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person. <b>Clear</b> goes back to the list of people with assignment or provisioning errors.</p>
+      <div class="ulrow"><input type="text" id="usearch" placeholder="Search a person, e.g. jane.doe@company.com" autocomplete="off"><button id="ugo" class="primary">Look up</button><button id="uclear" class="ghost" type="button">Clear</button></div>
+      <div id="usuggest" class="usuggest" hidden></div>
+      <div class="fbar" data-fbar="lookup" data-fscope="person"></div>
       <div id="uresult"></div>
     </div>
 
+        <div class="fbar" id="peopleBar" data-fbar="compact" data-fscope="dash"></div>
+<div class="card" id="usersCard">
+      <h2>Users with assignment / provisioning errors</h2>
+      <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it. Newest first; click a column heading to sort by it.</p>
+      <div class="scroll"><table id="userTbl"></table></div>
+    </div>
       </section>
 
       <section class="view" id="view-google" data-view="google" hidden>
@@ -739,7 +752,7 @@ function render(){
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
   evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView();
-  { const on=filterActive(S.fil), pill=$("#fpill"); pill.hidden=!on; if(on){ pill.title="Showing only: "+describeFilter(S.fil)+". Click to show all errors again."; pill.setAttribute("aria-label","Error filters are on ("+describeFilter(S.fil)+"). Click to clear them."); } }
+  updateFilterPill();
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app",C,"apps");
@@ -857,10 +870,23 @@ function explHTML(st){
   if(st.state==="loading") return '<span class="gsub">Asking the assistant…</span>';
   return md(st.text||"");
 }
+function userSort(){ if(!S.usort) S.usort=(typeof prefs!=="undefined"&&prefs.usort&&prefs.usort.key)? prefs.usort : {key:"last",dir:"desc"}; return S.usort; }
+function setUserSort(key){
+  const cur=userSort(); S.usort= cur.key===key? {key,dir:cur.dir==="asc"?"desc":"asc"} : {key,dir:(key==="errors"||key==="last")?"desc":"asc"};     // numbers and times start biggest/newest first; words start A to Z
+  try{ prefs.usort=S.usort; savePrefs(); }catch(_){}
+  S.ushown=15; if(S.C) renderUsersTable(S.C);
+}
 function renderUsersTable(C){
   const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
-  if(!C.users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
-  el.innerHTML='<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>'+C.users.slice(0,12).map((u,ui)=>{
+  // two modes: BROWSING (nothing typed: the list of people with assignment or provisioning errors) and SEARCHING
+  // (something typed or looked up: only the search is shown, so two things never answer at once)
+  const searching=!!((S.pq||"").trim()||S.lq); $("#usersCard").hidden=searching; $("#peopleBar").hidden=searching; if(searching) return;
+  const us=userSort(), dir=us.dir==="asc"? 1 : -1, ukey={user:u=>u.user.toLowerCase(),errors:u=>u.n,apps:u=>((top(u.apps,1)[0]||[""])[0]).toLowerCase(),reason:u=>normErr((top(u.reasons,1)[0]||[""])[0]).toLowerCase(),last:u=>u.last}[us.key]||(u=>u.last);
+  const users=C.users.slice().sort((a,b)=>{ const x=ukey(a), y=ukey(b), c=x<y?-1:x>y?1:0; return c? c*dir : (b.last-a.last)||(b.n-a.n); });     // sorted BEFORE the cut-off, so the newest are never the ones left out
+  const cap=S.ushown||15;
+  if(!users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
+  const th=(k,label)=>'<th class="sortable" data-usort="'+k+'" tabindex="0" role="button" aria-sort="'+(us.key===k? (us.dir==="asc"?"ascending":"descending") : "none")+'" title="Sort by '+label.toLowerCase()+'">'+label+(us.key===k? '<span class="sarrow" aria-hidden="true">'+(us.dir==="asc"?"▲":"▼")+'</span>' : "")+'</th>';
+  el.innerHTML='<tr>'+th("user","User")+th("errors","Errors")+th("apps","Apps")+th("reason","Most common reason")+th("last","Last")+'</tr>'+users.slice(0,cap).map((u,ui)=>{
     const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
     const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
       return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
@@ -868,7 +894,7 @@ function renderUsersTable(C){
         '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask the assistant</button></div>'+
         '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
     return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" data-first="'+ui+'_0" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'+
-      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("");
+      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("")+(users.length>15? '<tr class="umore"><td colspan="5">Showing '+Math.min(cap,users.length)+' of '+users.length+' · '+(cap<users.length? '<button type="button" class="ghost" data-umore="1">Show '+Math.min(25,users.length-cap)+' more</button> ' : "")+(cap>15? '<button type="button" class="ghost" data-uless="1">Show fewer</button>' : "")+'</td></tr>' : "");
 }
 async function loadExplanation(key){
   const x=S.xerr&&S.xerr.get(key); if(!x) return; const ek=errKey(x);
@@ -900,6 +926,9 @@ function toggleUserRow(user){
     if(x){ const ek=errKey(x); if(!S.xshown.has(ek)){ S.xshown.add(ek); const el=root.querySelector("#xe-"+key), btn=root.querySelector('[data-explain="'+key+'"]'); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation"; } loadExplanation(key); } }
 }
 $("#userTbl").addEventListener("click",ev=>{
+  const sh=ev.target.closest("th[data-usort]"); if(sh){ setUserSort(sh.dataset.usort); return; }
+  if(ev.target.closest("[data-umore]")){ S.ushown=(S.ushown||15)+25; renderUsersTable(S.C); return; }
+  if(ev.target.closest("[data-uless]")){ S.ushown=15; renderUsersTable(S.C); return; }
   const ex=ev.target.closest("[data-explain]"); if(ex){ explainToggle(ex.dataset.explain); return; }
   const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#userTbl").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
   const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x) ask("Help me with this Okta error: “"+x.norm+"”"+(x.apps.length?" (app: "+x.apps.join(", ")+")":"")+". What does it mean, and what exactly should I do to fix it?"); return; }
@@ -907,7 +936,8 @@ $("#userTbl").addEventListener("click",ev=>{
   if(ev.target.closest("tr.udet")) return;          // clicks inside the opened details never collapse them
   const row=ev.target.closest("tr.urow"); if(row) toggleUserRow(row.dataset.u);
 });
-$("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
+$("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("th[data-usort]")){ ev.preventDefault(); setUserSort(ev.target.dataset.usort); return; }
+  if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
 
 /* ---------- error filters ---------- */
 const CATS={signin:"Sign-in & password",provision:"Provisioning & assignment",token:"Token & OAuth",access:"Access denied",other:"Other"};
@@ -923,7 +953,10 @@ function catOf(e){
   return (e._c=c);
 }
 const emptyFilter=()=>({cats:[],results:[],apps:[],include:"",exclude:"",person:""});
-S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));
+S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));      // the dashboard (Overview and People)
+S.efil=Object.assign(emptyFilter(),LS.get("okta.efilters.v1",{}));
+S.fil.person="";                       // a person is found on the People page now, not through a dashboard filter
+S.afil=emptyFilter(); S.pfil=emptyFilter(); S.pq=""; S.lcounts={app:new Map(),person:new Map()};     // the app and person lookups each have their own filters, kept only while you are looking   // the Errors page has its own, so the two never change each other
 const filterActive=f=>!!(f&&(f.cats.length||f.results.length||f.apps.length||(f.include||"").trim()||(f.exclude||"").trim()||(f.person||"").trim()));
 function compileFilter(f){
   if(!filterActive(f)) return null;
@@ -944,8 +977,17 @@ function describeFilter(f){
   if((f.exclude||"").trim()) parts.push("hiding “"+f.exclude.trim()+"”"); if((f.person||"").trim()) parts.push("for "+f.person.trim());
   return parts.length? parts.join(" · ") : "all errors";
 }
-const saveFilters=()=>LS.set("okta.filters.v1",S.fil);
-function setFilter(mut){ mut(S.fil); saveFilters(); S.errShown=50; render(); renderFilterBars(true); }
+const FS=sc=> sc==="errors"? S.efil : sc==="app"? S.afil : sc==="person"? S.pfil : S.fil;
+const saveFilters=sc=> sc==="errors"? LS.set("okta.efilters.v1",S.efil) : (sc==="app"||sc==="person")? true : LS.set("okta.filters.v1",S.fil);
+function setFilter(scope,mut){ mut(FS(scope)); saveFilters(scope); S.errShown=50; if(scope==="errors"){ if(S.C) renderErrorsView(S.C); } else if(scope==="app"){ renderApp(); } else if(scope==="person"){ renderPerson(); } else render(); renderFilterBars(true); updateFilterPill(); }
+// the top-bar button shows the filters of the page you are on (Errors has its own; Overview and People share the dashboard's)
+const pillScope=()=> (S.view==="overview"||S.view==="people")? "dash" : S.view==="errors"? "errors" : null;
+function updateFilterPill(){
+  const pill=$("#fpill"), sc=pillScope(), on=!!sc&&filterActive(FS(sc)); pill.hidden=!on; if(!on) return;
+  pill.innerHTML=(sc==="errors"?"Errors page filters on":"Dashboard filters on")+' <span aria-hidden="true">·</span> Clear';
+  pill.title="Showing only: "+describeFilter(FS(sc))+(sc==="errors"? ". These filters only affect the Errors page." : ". These filters affect the Overview and People pages.")+" Click to clear them.";
+  pill.setAttribute("aria-label",(sc==="errors"?"Errors page":"Dashboard")+" filters are on ("+describeFilter(FS(sc))+"). Click to clear them.");
+}
 function filterChips(f){
   const chip=(k,v,label)=>'<span class="fchip">'+esc(label)+'<button type="button" data-fx="'+k+'" data-fv="'+esc(v)+'" aria-label="Remove filter">×</button></span>';
   return f.cats.map(c=>chip("cat",c,CATS[c])).join("")+f.results.map(r=>chip("res",r,r==="FAILURE"?"Failed":r==="DENY"?"Denied":r)).join("")+f.apps.map(a=>chip("app",a,a)).join("")+
@@ -955,41 +997,44 @@ function renderFilterBars(force){
   const C=S.C; const dl=$("#fbApps");
   document.querySelectorAll("[data-fbar]").forEach(host=>{
     if(!force&&host.contains(document.activeElement)&&document.activeElement.tagName==="INPUT") return;      // do not steal focus while typing
-    const f=S.fil, full=host.dataset.fbar==="full", open=full||S.fbarOpen, on=filterActive(f);
-    const cc=(C&&C.catCounts)||new Map();
+    const sc=host.dataset.fscope||"dash", f=FS(sc), lookup=host.dataset.fbar==="lookup", full=host.dataset.fbar==="full"||lookup, open=full||S.fbarOpen, on=filterActive(f);
+    if(lookup&&((sc==="app"&&!S.aapp)||(sc==="person"&&!S.uperson))){ host.innerHTML=""; return; }       // nothing opened yet: no filters to show
+    const cc=lookup? ((S.lcounts&&S.lcounts[sc])||new Map()) : ((C&&C.catCounts)||new Map());
     const head=full? "" : '<div class="fb-row"><button type="button" class="ghost" data-fa="toggle" aria-expanded="'+!!S.fbarOpen+'">'+(S.fbarOpen?"Hide filters":"Filter errors")+'</button>'+
       (on? '<span class="fb-active" data-chips>'+filterChips(f)+'</span><button type="button" class="ghost" data-fa="clear">Clear</button>' : '<span class="fb-active" data-chips>Showing all errors</span>')+'</div>';
     const body=!open? "" : '<div class="fb-row"><span class="fb-l">Type</span>'+CAT_KEYS.map(k=>'<button type="button" class="chipbtn'+(f.cats.includes(k)?" on":"")+'" data-fc="cat" data-fv="'+k+'" aria-pressed="'+f.cats.includes(k)+'">'+CATS[k]+' <i>'+fmtN(cc.get(k)||0)+'</i></button>').join("")+
       '<span class="fb-sep"></span><span class="fb-l">Result</span>'+[["FAILURE","Failed"],["DENY","Denied"]].map(([k,l])=>'<button type="button" class="chipbtn'+(f.results.includes(k)?" on":"")+'" data-fc="res" data-fv="'+k+'" aria-pressed="'+f.results.includes(k)+'">'+l+'</button>').join("")+'</div>'+
-      '<div class="fb-row"><input class="fin" data-ff="app" list="fbApps" placeholder="Add an app…" autocomplete="off" aria-label="Filter by app"><input class="fin" data-ff="include" placeholder="Reason contains…" value="'+esc(f.include||"")+'" aria-label="Reason contains">'+
-      '<input class="fin" data-ff="exclude" placeholder="Hide errors containing… (comma separated)" value="'+esc(f.exclude||"")+'" aria-label="Hide errors containing"><input class="fin" data-ff="person" placeholder="Person…" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>'+
-      '<div class="fb-row">'+(full? '<span class="fb-active" data-chips>'+(on? filterChips(f) : "No filters on")+'</span>' : '<span class="fb-active"></span>')+'<span class="spacer"></span><button type="button" class="ghost" data-fa="clear"'+(on?"":" disabled")+'>Clear all</button><button type="button" class="primary" data-fa="alert"'+(on?"":" disabled")+'>Create an alert from this</button></div>';
-    host.innerHTML='<div class="fb">'+head+body+'</div>';
+      '<div class="fb-row">'+(sc!=="app"? '<input class="fin" data-ff="app" list="fbApps" placeholder="Add an app…" autocomplete="off" aria-label="Filter by app">' : '')+'<input class="fin" data-ff="include" placeholder="Reason contains…" value="'+esc(f.include||"")+'" aria-label="Reason contains">'+
+      '<input class="fin" data-ff="exclude" placeholder="Hide errors containing… (comma separated)" value="'+esc(f.exclude||"")+'" aria-label="Hide errors containing">'+((sc==="errors"||sc==="app")? '<input class="fin" data-ff="person" placeholder="Person…" value="'+esc(f.person||"")+'" aria-label="Filter by person">' : '')+'</div>'+
+      '<div class="fb-row">'+(full? '<span class="fb-active" data-chips>'+(on? filterChips(f) : "No filters on")+'</span>' : '<span class="fb-active"></span>')+'<span class="spacer"></span><button type="button" class="ghost" data-fa="clear"'+(on?"":" disabled")+'>Clear all</button>'+(lookup? '' : '<button type="button" class="primary" data-fa="alert"'+(on?"":" disabled")+'>Create an alert from this</button>')+'</div>';
+    const note='<div class="fb-note">'+(lookup? "These filters only change the results below, and reset when you look up something else." : sc==="errors"? "These filters only affect this page. The Overview and People pages have their own." : "These filters affect the Overview and People pages. The Errors page has its own.")+'</div>';
+    host.innerHTML=('<div class="fb">'+head+body+(open? note : "")+'</div>').replace(/ data-(fc|fx|fa|ff)=/g,' data-fs="'+sc+'" data-$1=');       // every control knows which filter set it belongs to
   });
   if(dl&&C){ dl.innerHTML=top(countBy(C.failsAll||[],appOf),80).map(([a])=>'<option value="'+esc(a)+'"></option>').join(""); }
 }
 document.addEventListener("click",ev=>{
-  const c=ev.target.closest("[data-fc]"); if(c){ const k=c.dataset.fc==="cat"?"cats":"results", v=c.dataset.fv; setFilter(f=>{ const i=f[k].indexOf(v); if(i<0) f[k].push(v); else f[k].splice(i,1); }); return; }
-  const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
+  const c=ev.target.closest("[data-fc]"); if(c){ const k=c.dataset.fc==="cat"?"cats":"results", v=c.dataset.fv; setFilter(c.dataset.fs||"dash",f=>{ const i=f[k].indexOf(v); if(i<0) f[k].push(v); else f[k].splice(i,1); }); return; }
+  const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(x.dataset.fs||"dash",f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
   const a=ev.target.closest("[data-fa]"); if(a){ const k=a.dataset.fa;
     if(k==="toggle"){ S.fbarOpen=!S.fbarOpen; renderFilterBars(true); }
-    else if(k==="clear") setFilter(f=>Object.assign(f,emptyFilter()));
-    else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(S.fil))}); }
+    else if(k==="clear") setFilter(a.dataset.fs||"dash",f=>Object.assign(f,emptyFilter()));
+    else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(FS(a.dataset.fs||"dash")))}); }
 });
 function syncFilterControls(){
-  const on=filterActive(S.fil);
-  document.querySelectorAll('[data-fa="clear"],[data-fa="alert"]').forEach(b=>{ b.disabled=!on; });
-  document.querySelectorAll("[data-chips]").forEach(el=>{ const full=el.closest("[data-fbar]")&&el.closest("[data-fbar]").dataset.fbar==="full"; el.innerHTML= on? filterChips(S.fil) : (full?"No filters on":"Showing all errors"); });
+  document.querySelectorAll('[data-fa="clear"],[data-fa="alert"]').forEach(b=>{ b.disabled=!filterActive(FS(b.dataset.fs||"dash")); });
+  document.querySelectorAll("[data-chips]").forEach(el=>{ const host=el.closest("[data-fbar]"), sc=(host&&host.dataset.fscope)||"dash", full=host&&(host.dataset.fbar==="full"||host.dataset.fbar==="lookup"), on=filterActive(FS(sc));
+    el.innerHTML=(on? filterChips(FS(sc)) : (full?"No filters on":"Showing all errors")).replace(/ data-(fx)=/g,' data-fs="'+sc+'" data-$1='); });
+  updateFilterPill();
 }
 let fTimer=null;
 document.addEventListener("input",ev=>{
-  const i=ev.target.closest&&ev.target.closest("[data-ff]"); if(!i) return; const k=i.dataset.ff, v=i.value;
+  const i=ev.target.closest&&ev.target.closest("[data-ff]"); if(!i) return; const k=i.dataset.ff, v=i.value, sc=i.dataset.fs||"dash", F=FS(sc);
   if(k==="app"){ const m=((S.C&&S.C.failsAll)?[...new Set(S.C.failsAll.map(appOf))]:[]).find(a=>a&&a.toLowerCase()===v.trim().toLowerCase());
-    if(m&&!S.fil.apps.includes(m)){ i.value=""; setFilter(f=>{ f.apps.push(m); }); } return; }
-  S.fil[k]=v; saveFilters(); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; render(); syncFilterControls(); },300);
+    if(m&&!F.apps.includes(m)){ i.value=""; setFilter(sc,f=>{ f.apps.push(m); }); } return; }
+  F[k]=v; saveFilters(sc); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; if(sc==="errors"){ if(S.C) renderErrorsView(S.C); } else if(sc==="app") renderApp(); else if(sc==="person") renderPerson(); else render(); syncFilterControls(); },300);
 });
-function showErrorsFor(reason){ S.fil=Object.assign(emptyFilter(),{include:String(reason||"")}); S.errShown=50;     // not saved: a drill-down should not still be there next visit
-  go("errors"); render(); renderFilterBars(true); }
+function showErrorsFor(reason){ S.efil=Object.assign(emptyFilter(),{include:String(reason||"")}); S.errShown=50;     // not saved: a drill-down should not still be there next visit
+  go("errors"); if(S.C) renderErrorsView(S.C); renderFilterBars(true); updateFilterPill(); }
 
 /* ---------- the Errors page ---------- */
 function errBuckets(errs){
@@ -1006,9 +1051,9 @@ function errChart(errs){
 }
 function mutePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,60); }
 function renderErrorsView(C){
-  const el=$("#errView"); const errs=[...C.fails].sort((a,b)=>ts(b)-ts(a));
+  const el=$("#errView"), epred=compileFilter(S.efil); const errs=(epred? C.failsAll.filter(epred) : C.failsAll.slice()).sort((a,b)=>ts(b)-ts(a));
   const people=new Set(errs.map(e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; }).filter(Boolean)).size, apps=new Set(errs.map(appOf).filter(Boolean)).size;
-  const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.fil);
+  const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.efil);
   const byCat=CAT_KEYS.map(k=>[k,errs.filter(e=>catOf(e)===k).length]).filter(x=>x[1]);
   const mx=byCat.length? Math.max(...byCat.map(x=>x[1])) : 1;
   el.innerHTML='<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people),people?"warn":""],["Apps affected",fmtN(apps),""],["Latest error",last?ago(S.ref-last):"—",""]].map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
@@ -1022,12 +1067,12 @@ function renderErrorsView(C){
       '<div style="display:flex;gap:10px;margin-top:10px">'+(shown<errs.length?'<button class="ghost" data-emore="1">Show '+Math.min(50,errs.length-shown)+' more ('+fmtN(errs.length-shown)+' left)</button>':"")+((S.errShown||50)>50&&errs.length>50?'<button class="ghost" data-eless="1">Show fewer</button>':"")+'</div>'
     : '<div class="empty">'+(on?"No errors match these filters in this window. Try removing a filter.":"No errors in this window.")+'</div>');
   S.errRows=errs;
-  const ask1=$("#errAsk"); if(ask1) ask1.onclick=()=>ask("I'm looking at "+fmtN(errs.length)+" errors ("+describeFilter(S.fil)+") affecting "+people+" people and "+apps+" apps. What patterns do you see, and what should I look at first?");
+  const ask1=$("#errAsk"); if(ask1) ask1.onclick=()=>ask("I'm looking at "+fmtN(errs.length)+" errors ("+describeFilter(S.efil)+") affecting "+people+" people and "+apps+" apps. What patterns do you see, and what should I look at first?");
   const csv=$("#errCsv"); if(csv) csv.onclick=()=>exportCsv(errs);
 }
 $("#errView").addEventListener("click",ev=>{
   const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e) ask("Help me with this Okta error: “"+normErr(reasonOf(e))+"”"+(appOf(e)?" (app: "+appOf(e)+")":"")+" from event "+e.eventType+". What does it mean, and what should I do to fix it?"); return; }
-  const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter(f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
+  const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter("errors",f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
@@ -1040,6 +1085,34 @@ function emptyErrors(C,what){
   if(what==="users"&&on) return '<div class="empty">No assignment or provisioning errors match your filters.'+clr+'</div>';
   return '<div class="empty">'+(what==="users"?"No assignment or provisioning errors in this window.":"No errors in this window.")+'</div>';
 }
+/* ---------- Find a person: suggestions while you type ---------- */
+const EMAIL_RE=/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+function markStale(){ const stale=!!S.lq&&S.pq.trim()!==S.lq; $("#uresult").classList.toggle("stale",stale); $("#userLookup .fbar").classList.toggle("stale",stale); }
+function renderSuggest(){
+  const box=$("#usuggest"), q=(S.pq||"").trim();
+  if(q.length<2||q===S.lq){ box.hidden=true; box.innerHTML=""; return; }          // nothing typed, or this exact text was already looked up
+  const found=findPeopleIn(buildPeople(),q).slice(0,6), live=viaOkta(), asg=new Map(((S.C&&S.C.users)||[]).map(u=>[localPart(u.user),u.n]));
+  box.innerHTML=(found.length? '<div class="sg-h">People in the loaded data</div>'+found.map(p=>'<button type="button" class="sg" data-sgp="'+esc([...p.alts][0])+'"><span><b>'+esc(p.name||[...p.alts][0])+'</b> <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+(asg.get(p.local)? '<span class="cpill">'+fmtN(asg.get(p.local))+' assignment</span> ' : "")+(p.f? fmtN(p.f)+' error'+(p.f===1?"":"s") : 'no errors')+' · '+fmtN(p.n)+' events</span></button>').join("") : "")+
+    '<button type="button" class="sg okta" data-sgq="1"><span>'+(live? 'Search Okta for “'+esc(q)+'”' : 'Look up “'+esc(q)+'”')+'</span><span class="ct">Enter ↵</span></button>'+
+    (found.length? "" : '<div class="sg-n">Nobody in the loaded data matches yet'+(S.catchingUp? " (history is still loading)":"")+'. '+(live? "Searching Okta looks through the whole window, not just what is loaded here." : "Look up searches the events that are loaded.")+'</div>');
+  box.hidden=false;
+}
+$("#usearch").addEventListener("input",()=>{
+  const v=$("#usearch").value; if(!v.trim()){ $("#uclear").onclick(); return; }
+  S.pq=v; renderSuggest(); markStale(); if(S.C) renderUsersTable(S.C);
+  clearTimeout(S.autoT); const t=v.trim();
+  if(EMAIL_RE.test(t)&&t!==S.lq) S.autoT=setTimeout(()=>{ if($("#usearch").value.trim()===t) lookupUser(t); },700);     // a complete email address needs no button
+});
+$("#usuggest").addEventListener("click",ev=>{
+  const one=ev.target.closest("[data-sgp]"); if(one){ openUser(one.dataset.sgp); return; }
+  if(ev.target.closest("[data-sgq]")) lookupUser($("#usearch").value);
+});
+$("#usearch").addEventListener("keydown",ev=>{ if(ev.key==="ArrowDown"){ const f=document.querySelector("#usuggest .sg"); if(f){ ev.preventDefault(); f.focus(); } } });
+$("#usuggest").addEventListener("keydown",ev=>{
+  const all=[...document.querySelectorAll("#usuggest .sg")], i=all.indexOf(document.activeElement);
+  if(ev.key==="ArrowDown"&&i<all.length-1){ ev.preventDefault(); all[i+1].focus(); } else if(ev.key==="ArrowUp"){ ev.preventDefault(); if(i>0) all[i-1].focus(); else $("#usearch").focus(); } else if(ev.key==="Escape"){ $("#usearch").focus(); }
+});
+$("#uclear").onclick=()=>{ $("#usearch").value=""; S.pq=""; S.lq=""; clearTimeout(S.autoT); renderSuggest(); markStale(); S.lseq++; S.uperson=null; S.lpool=null; S.lpeople=null; $("#uresult").innerHTML=""; S.pfil=emptyFilter(); renderFilterBars(true); if(S.C) renderUsersTable(S.C); };
 function bars(sel,list,kind,C,what){
   const el=$(sel); if(!list.length){ el.innerHTML=emptyErrors(C||S.C||{failsAll:[],fails:[]},what||"reasons"); return; }
   const max=list[0][1];
@@ -1129,18 +1202,23 @@ function personEvents(p){
 const SIGNIN_RE=/authentication|session|sso|mfa|password|lockout|account\.lock|oauth2/i;
 function summarizePerson(mine){
   const fails=mine.filter(isFail), assign=fails.filter(isAssign), signin=fails.filter(e=>!isAssign(e)&&SIGNIN_RE.test(e.eventType||""));
-  const why=top(countBy(fails,e=>reasonOf(e)),5).map(([reason,n])=>{
-    const apps=top(countBy(fails.filter(e=>reasonOf(e)===reason),appOf),3).map(x=>x[0]);
+  const why=top(countBy(fails,e=>normErr(reasonOf(e))),5).map(([reason,n])=>{
+    const apps=top(countBy(fails.filter(e=>normErr(reasonOf(e))===reason),appOf),3).map(x=>x[0]);
     return {reason,n,apps};
   });
   const lastFail=fails.reduce((m,e)=>Math.max(m,ts(e)),0);
+  why.forEach(w=>{ w.types=top(countBy(fails.filter(e=>normErr(reasonOf(e))===w.reason),e=>e.eventType),2).map(x=>x[0]); });
   return {events:mine.length,fails,assign:assign.length,signin:signin.length,other:fails.length-assign.length-signin.length,
     apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
 }
-function openUser(q){ go("people"); $("#usearch").value=q; lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+function openUser(q){ go("people"); $("#usearch").value=q; S.pq=String(q||"").trim(); S.lq=S.pq; if(S.C) renderUsersTable(S.C); lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 
-async function lookupUser(q){
+// whatever way a lookup ends (found, several matches, nobody), the note under the list is brought up to date
+async function lookupUser(q){ try{ await _lookupUser(q); } finally { if(S.C) renderUsersTable(S.C); } }
+async function _lookupUser(q){
   q=String(q||"").trim(); const res=$("#uresult"), token=++S.lseq;
+  S.lq=q; S.pwxOpen=new Set(); clearTimeout(S.autoT); renderSuggest(); markStale();
+  S.pfil=emptyFilter(); renderFilterBars(true);
   S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource="loaded"; S.lnote=""; S.ltrunc=false; S.lqs=null;
   if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
   if(viaOkta()){
@@ -1181,7 +1259,9 @@ function renderPerson(){
     refetchPerson(p,t).catch(err=>{ S.lnote="Couldn’t refresh from Okta ("+err.message+")."; S.ldays=daysForWindow(); }).finally(()=>{ S.lbusy=false; if(S.uperson===p) renderPerson(); });
     return;
   }
-  const mine=personEvents(p), sm=summarizePerson(mine);
+  const mineAll=personEvents(p), ppred=compileFilter(S.pfil); S.pwxOpen=S.pwxOpen||new Set();
+  S.lcounts.person=countBy(mineAll.filter(isFail),catOf);
+  const mine= ppred? mineAll.filter(e=>!isFail(e)||ppred(e)) : mineAll, sm=summarizePerson(mine);        // filters narrow the ERRORS; successful events stay
   const only=$("#ufail")? $("#ufail").checked : true;
   const rows=(only? sm.fails : mine).slice().sort((a,b)=>ts(b)-ts(a));
   const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : (S.lsource==="okta"?"the last 90 days":"all loaded events");
@@ -1192,26 +1272,44 @@ function renderPerson(){
     '<div class="ukpis">'+[["Events",fmtN(sm.events),""],["Errors",fmtN(sm.fails.length),sm.fails.length?"bad":""],["Assignment / provisioning",fmtN(sm.assign),sm.assign?"warn":""],
       ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(Date.now()-sm.lastFail):"—",""]]
       .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
-    (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+'</div>').join("")+'</div>'
-                   : '<div class="empty">No errors for this person in this window.</div>')+googlePersonHTML(p)+
+    (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map((w,i)=>'<div class="wrow"><div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+' <button type="button" class="ghost mini" data-pwx="'+i+'">What does this mean?</button></div><div class="xexp" id="pwx-'+i+'" hidden></div></div>').join("")+'</div>'
+                   : (ppred&&mineAll.some(isFail)? '<div class="empty">No errors match your filters. <button type="button" class="ghost" data-fa="clear" data-fs="person">Clear filters</button></div>' : '<div class="empty">No errors for this person in this window.</div>'))+googlePersonHTML(p)+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
     (S.lsource==="okta"?'<button id="urefresh" class="ghost">Refresh from Okta</button>':"")+
     '<button id="uask" class="ghost">Ask the assistant about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
     '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>Source</th><th>Reason</th></tr>'+
-    (rows.slice(0,50).map(e=>'<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill '+(isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o"))+'">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(appOf(e)||"—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td>'+esc(e.outcome&&e.outcome.reason||"")+'</td></tr>').join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
+    (rows.slice(0,50).map(e=>'<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill '+(isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o"))+'">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(appOf(e)||"—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td title="'+esc(e.outcome&&e.outcome.reason||"")+'">'+esc(normErr(e.outcome&&e.outcome.reason||""))+'</td></tr>').join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
     '</table></div>'+(rows.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
   $("#ufail").onchange=renderPerson;
   $("#uask").onclick=()=>ask("Help me troubleshoot the errors for the user "+([...p.alts][0])+". What is going wrong and what should I check in Okta?");
   $("#uexp").onclick=()=>exportCsv(rows);
   if($("#urefresh")) $("#urefresh").onclick=()=>{ S.ldays=-1; renderPerson(); };   // forces a fresh fetch
+  S.pwhy=sm.why; sm.why.forEach((w,i)=>{ if(S.pwxOpen.has(i)) personExplain(i,true); });
+  renderFilterBars();
 }
+// "What does this mean?" on a line of the person's results: same assistant, same cache as the list rows
+async function personExplain(i,keepOpen){
+  const w=S.pwhy&&S.pwhy[i], root=$("#uresult"); if(!w) return; if(!S.explain) S.explain=new Map();
+  const el=root.querySelector("#pwx-"+i), btn=root.querySelector('[data-pwx="'+i+'"]'); if(!el) return;
+  const x={norm:w.reason,apps:w.apps.slice(0,1),types:(w.types||[]).slice(0,1)}, ek=errKey(x), st=S.explain.get(ek);
+  if(!keepOpen&&!el.hidden&&(!st||st.state!=="error")){ el.hidden=true; S.pwxOpen.delete(i); btn.textContent="What does this mean?"; return; }
+  if(st&&st.state==="error") S.explain.delete(ek);
+  el.hidden=false; S.pwxOpen.add(i); btn.textContent="Hide explanation";
+  const cur=S.explain.get(ek); if(cur&&(cur.state==="done"||cur.state==="loading")){ el.innerHTML=explHTML(cur); return; }
+  if(!S.assistant){ S.explain.set(ek,{state:"error",text:"The explanation needs the assistant, which is only available when the dashboard is connected to its backend with an Anthropic API key."}); el.innerHTML=explHTML(S.explain.get(ek)); return; }
+  S.explain.set(ek,{state:"loading"}); el.innerHTML=explHTML(S.explain.get(ek));
+  try{
+    const r=await fetch("api/explain-error",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:x.norm,apps:x.apps,eventTypes:x.types,count:w.n,people:1})});
+    const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+    S.explain.set(ek,{state:"done",text:j.text});
+  }catch(err){ S.explain.set(ek,{state:"error",text:"Couldn’t get an explanation ("+err.message+"). Click the button again to retry."}); }
+  const el2=$("#uresult").querySelector("#pwx-"+i); if(el2) el2.innerHTML=explHTML(S.explain.get(ek));
+}
+$("#uresult").addEventListener("click",ev=>{ const b=ev.target.closest("[data-pwx]"); if(b) personExplain(+b.dataset.pwx); });
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
 $("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openFind(v); } });   // always-visible shortcut in the top bar
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
-$("#usearch").addEventListener("input",()=>{    // type-ahead suggestions come from events already loaded
-  const q=$("#usearch").value; const dl=$("#ulist");
-  dl.innerHTML= q.trim().length<2? "" : findPeople(q).slice(0,15).map(p=>'<option value="'+esc([...p.alts][0])+'">'+esc(p.name)+'</option>').join("");
-});
+
 $("#uresult").addEventListener("click",ev=>{
   const b=ev.target.closest("[data-pick]"); if(!b) return;
   const p=(S.lpeople||buildPeople()).get(b.dataset.pick); if(p) pickPerson(p);
@@ -1247,6 +1345,7 @@ async function fetchAppErrors(app){
 function openApp(q){ go("apps"); $("#asearch").value=q; lookupApp(q); $("#appLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 async function lookupApp(q){
   q=String(q||"").trim(); const res=$("#aresult"); ++S.aseq;
+  S.afil=emptyFilter(); renderFilterBars(true);
   S.aapp=null; S.aevents=null; S.asource="loaded"; S.anote="";
   if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an app name.</div>'; return; }
   const c=findApps(q);
@@ -1286,10 +1385,11 @@ function renderApp(){
       .finally(()=>{ S.abusy=false; if(S.aapp===app) renderApp(); });
     return;
   }
-  const errs=appErrorEvents(app).sort((a,b)=>ts(b)-ts(a));
+  const allErrs=appErrorEvents(app).sort((a,b)=>ts(b)-ts(a)), apred=compileFilter(S.afil), errs=apred? allErrs.filter(apred) : allErrs;
+  S.lcounts.app=countBy(allErrs,catOf);
   const personOf=e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; };
   const people=new Set(errs.map(personOf).filter(Boolean));
-  const why=top(countBy(errs,reasonOf),6).map(([reason,n])=>({reason,n,people:new Set(errs.filter(e=>reasonOf(e)===reason).map(personOf).filter(Boolean)).size}));
+  const why=top(countBy(errs,e=>normErr(reasonOf(e))),6).map(([reason,n])=>({reason,n,people:new Set(errs.filter(e=>normErr(reasonOf(e))===reason).map(personOf).filter(Boolean)).size}));
   const last=errs.length? ts(errs[0]) : 0;
   const winTxt=S.win? "the last "+Math.round(S.win/864e5)+" day"+(S.win>864e5*1.5?"s":"") : (S.asource==="okta"?"the last 90 days":"all loaded events");
   const src=S.asource==="okta"? "Asked Okta directly for failures and denies"+(S.atrunc?" — showing the most recent only; narrow the Window for the full picture":"")+(S.afiltered===false?" (Okta could not pre-filter, so the errors were picked out here)":"")
@@ -1299,16 +1399,17 @@ function renderApp(){
     '<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people.size),people.size?"warn":""],["Kinds of error",fmtN(new Set(errs.map(reasonOf)).size),""],["Last error",last?ago(Date.now()-last):"—",""]]
       .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
     (errs.length? '<div class="ids">Errors per day</div>'+dayBars(errs)+'<div class="why"><b>What is going wrong</b>'+why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.people?' <span class="ids">('+fmtN(w.people)+' '+(w.people===1?"person":"people")+')</span>':"")+'</div>').join("")+'</div>'
-                 : '<div class="empty">No errors for this app in this window.</div>')+
-    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><span class="ctl">'+fmtN(errs.length)+' errors</span><span class="spacer"></span>'+
+                 : (apred&&allErrs.length? '<div class="empty">No errors match your filters ('+fmtN(allErrs.length)+' hidden). <button type="button" class="ghost" data-fa="clear" data-fs="app">Clear filters</button></div>' : '<div class="empty">No errors for this app in this window.</div>'))+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><span class="ctl">'+fmtN(errs.length)+' errors'+(apred? ' (of '+fmtN(allErrs.length)+')' : '')+'</span><span class="spacer"></span>'+
     (S.asource==="okta"?'<button id="arefresh" class="ghost">Refresh from Okta</button>':"")+
     '<button id="aask" class="ghost">Ask the assistant about this app</button><button id="aexp" class="ghost">Export CSV</button></div>'+
     '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>Person</th><th>Source</th><th>Reason</th></tr>'+
-    (errs.slice(0,50).map(e=>{ const r=idRefs(e)[0]; return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(r? r[0] : "—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td>'+esc(e.outcome&&e.outcome.reason||"")+'</td></tr>'; }).join("")||'<tr><td colspan="6" class="empty">No errors.</td></tr>')+
+    (errs.slice(0,50).map(e=>{ const r=idRefs(e)[0]; return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(r? r[0] : "—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td title="'+esc(e.outcome&&e.outcome.reason||"")+'">'+esc(normErr(e.outcome&&e.outcome.reason||""))+'</td></tr>'; }).join("")||'<tr><td colspan="6" class="empty">No errors.</td></tr>')+
     '</table></div>'+(errs.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
   $("#aask").onclick=()=>ask("Help me troubleshoot the errors for the app “"+app.name+"”. What is going wrong and what should I check in Okta?");
   $("#aexp").onclick=()=>exportCsv(errs);
   if($("#arefresh")) $("#arefresh").onclick=()=>{ S.adays=-1; renderApp(); };
+  renderFilterBars();
 }
 $("#ago").onclick=()=>lookupApp($("#asearch").value);
 $("#asearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupApp($("#asearch").value); } });
@@ -1345,7 +1446,7 @@ function showView(v){
   if(!VIEWS[v]) v="overview"; S.view=v;
   document.querySelectorAll(".view").forEach(el=>{ el.hidden= el.dataset.view!==v; });
   document.querySelectorAll(".navi[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
-  $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
+  updateFilterPill(); $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
   try{ window.scrollTo(0,0); }catch(_){}
   if(S.C&&typeof renderViewExtras==="function") renderViewExtras(v);
 }
@@ -1502,7 +1603,7 @@ function renderLatestAlerts(){
 function markRead(id){ const n=S.notifs.find(x=>x.id===id); if(n&&n.unread){ n.unread=false; saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); } }
 function openNotif(id){
   const n=S.notifs.find(x=>x.id===id); if(!n) return; markRead(id); $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false");
-  if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+  if(n.link&&n.link.view==="errors"){ S.efil=Object.assign(emptyFilter(),n.link.filter||{}); S.errShown=50; go("errors"); if(S.C) renderErrorsView(S.C); renderFilterBars(true); updateFilterPill(); }
   else if(n.link&&n.link.view==="google"){ S.gfocus=n.link.app||""; go("google"); renderGoogleView(); }
   else if(n.link&&n.link.view) go(n.link.view);
 }
@@ -1645,7 +1746,7 @@ function googleApps(){
     else if(e.type==="revoke"){ a.revokes++; const prev=a.state.get(e.actor); a.state.set(e.actor,{on:false,time:e.time,scopes:(prev&&prev.scopes)||e.scopes}); }
     else if(e.type==="deny") a.denies++; else if(e.type==="request") a.requests++; else a.calls++; }
   const apps=[...m.values()].map(a=>{ a.people=[...a.state].filter(([,v])=>v.on).map(([who,v])=>({who,time:v.time,scopes:v.scopes})).sort((x,y)=>y.time-x.time);
-    if(!isFinite(a.first)) a.first=a.firstAny; a.rank=Math.max(1,...[...a.scopes].map(x=>RISK_RANK[scopeInfo(x).risk])); a.riskName=RISK_NAME[a.rank]; return a; })
+    if(!isFinite(a.first)) a.first=a.firstAny; a.rank=Math.max(1,...[...a.scopes].map(x=>RISK_RANK[scopeInfo(x).risk])); a.riskName=RISK_NAME[a.rank]; a.areas=appAreas(a); return a; })
     .sort((a,b)=>b.rank-a.rank||b.people.length-a.people.length||b.last-a.last);
   G._ck=ck; G._apps=apps; return apps;
 }
@@ -1683,32 +1784,78 @@ function googleSetupHTML(){
     '<li>Open <b>IAM &amp; Admin &gt; Service accounts</b> and create a service account (for example <code>okta-health-readonly</code>). Give it <b>no project roles</b>. Under <b>Keys</b>, add a JSON key and download it. Note the account\'s numeric <b>Client ID</b> (shown on its details page).</li>'+
     '<li>In the <b>Google Admin console</b> go to <b>Account &gt; Admin roles</b>, create a role that has only the <b>Reports</b> privilege, and assign it to a dedicated admin user, for example <code>audit-reader@yourdomain</code>.</li>'+
     '<li>Still in the Admin console, open <b>Security &gt; Access and data control &gt; API controls &gt; Manage domain-wide delegation</b> and add the Client ID with exactly one scope: <code>https://www.googleapis.com/auth/admin.reports.audit.readonly</code></li>'+
-    '<li>On the server, set two environment variables and redeploy: <code>GOOGLE_SA_KEY</code> (the contents of the JSON key, or the same text base64-encoded) and <code>GOOGLE_ADMIN_EMAIL</code> (the admin from step 3). Optional: <code>GOOGLE_LOOKBACK_DAYS</code> (default 30, at most 180).</li></ol>'+
+    '<li><b>Add two settings where the app is hosted, then redeploy.</b> They are called environment variables, and no tool needs to understand Google for this: you just add two names and values in the hosting dashboard. In Coolify: open this app, then <b>Configuration &gt; Environment Variables &gt; Add</b>. Make sure each is available at <b>runtime</b>.'+
+    '<br><code>GOOGLE_ADMIN_EMAIL</code> = the admin from step 3, for example <code>audit-reader@yourdomain.com</code>'+
+    '<br><code>GOOGLE_SA_KEY</code> = the contents of the JSON key file. If pasting a multi-line file causes trouble, paste it base64-encoded instead. On a Mac: <code>base64 -i key.json | tr -d \'\\n\' | pbcopy</code> copies the encoded text.'+
+    '<br>Type the key straight into the hosting dashboard. Do not paste it into a chat, an AI assistant or the repository. Optional: <code>GOOGLE_LOOKBACK_DAYS</code> (default 30, at most 180).</li></ol>'+
     '<p class="hint">Google keeps these logs for 6 months and reports them a couple of hours late. Menu names in Google\'s consoles change from time to time, so look for the closest match.</p></div>';
 }
+/* ---- the Google page: sorting and filters ---- */
+// "What it can touch": which parts of Google an app's scopes reach (this list is the dashboard's own, like the risk levels)
+const G_AREAS=[["gmail","Gmail",/mail\.google\.com|gmail\./],["drive","Drive",/auth\/drive/],["calendar","Calendar",/auth\/calendar/],["docs","Docs & Sheets",/auth\/(documents|spreadsheets|presentations|forms)/],
+  ["contacts","Contacts",/auth\/(contacts|directory)/],["admin","Admin & directory",/auth\/(admin\.|cloud-identity|apps\.)/],["chat","Chat & Meet",/auth\/(chat|meetings)/],["cloud","Google Cloud",/auth\/cloud-platform/]];
+const G_AREA_CHIPS=G_AREAS.map(x=>[x[0],x[1]]).concat([["signin","Sign-in only"]]);
+const SIGNIN_ONLY=/^(openid|email|profile)$|(^|\/)userinfo\.(email|profile)$/;
+function appAreas(a){ const out=new Set(); let onlySignin=a.scopes.size>0; for(const x of a.scopes){ if(!SIGNIN_ONLY.test(x)) onlySignin=false; for(const [k,,re] of G_AREAS) if(re.test(x)) out.add(k); } if(onlySignin) out.add("signin"); return out; }
+const gDefault=()=>({risk:"all",access:"all",areas:[],min:0,active:0,isNew:false,person:"",q:""});
+S.gf=gDefault();
+const gFiltering=f=>!!(f.risk!=="all"||f.access!=="all"||f.areas.length||f.min||f.active||f.isNew||(f.person||"").trim()||(f.q||"").trim());
+function gPass(a,f){
+  if(f.risk!=="all"&&a.riskName!==f.risk) return false;
+  if(f.access==="has"&&!a.people.length) return false;
+  if(f.access==="none"&&a.people.length) return false;
+  if(f.areas.length&&!f.areas.some(k=>a.areas.has(k))) return false;
+  if(f.min&&a.people.length<f.min) return false;
+  if(f.active&&a.last<S.ref-f.active*864e5) return false;
+  if(f.isNew&&!gIsNew(a)) return false;
+  const p=(f.person||"").trim().toLowerCase(); if(p&&!a.people.some(x=>x.who.toLowerCase().includes(p))) return false;
+  const q=(f.q||"").trim().toLowerCase(); if(q&&!(a.name+" "+a.clientId+" "+[...a.scopes].join(" ")).toLowerCase().includes(q)) return false;
+  return true;
+}
+function gSortState(){ if(!S.gsort) S.gsort=(typeof prefs!=="undefined"&&prefs.gsort&&prefs.gsort.key)? prefs.gsort : {key:"risk",dir:"desc"}; return S.gsort; }
+function googleShown(){
+  const apps=googleApps(), f=S.gf, so=gSortState(), d=so.dir==="asc"?1:-1;
+  const key={app:a=>a.name.toLowerCase(),risk:a=>a.rank,people:a=>a.people.length,first:a=>a.first,last:a=>a.last}[so.key]||(a=>a.rank);
+  const shown=apps.filter(a=>gPass(a,f)).sort((a,b)=>{ const x=key(a), y=key(b), c=x<y?-1:x>y?1:0; return c? c*d : (b.rank-a.rank)||(b.people.length-a.people.length)||(b.last-a.last); });
+  return {apps,shown};
+}
+function setGoogleSort(k){ const cur=gSortState(); S.gsort= cur.key===k? {key:k,dir:cur.dir==="asc"?"desc":"asc"} : {key:k,dir:k==="app"?"asc":"desc"}; try{ prefs.gsort=S.gsort; savePrefs(); }catch(_){} renderGoogleView(); }
 function googleKpis(apps){
   const live=apps.filter(a=>a.people.length), people=new Set(); live.forEach(a=>a.people.forEach(p=>people.add(p.who)));
   const lo=S.win? S.ref-S.win : 0, inWin=S.g.events.filter(e=>e.time>=lo);
-  return [["Apps with access",fmtN(live.length),""],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok"],
-    ["New this week",fmtN(live.filter(gIsNew).length),live.some(gIsNew)?"warn":"ok"],["Revoked in window",fmtN(inWin.filter(e=>e.type==="revoke").length),""],["Blocked in window",fmtN(inWin.filter(e=>e.type==="deny").length),inWin.some(e=>e.type==="deny")?"warn":""]];
+  return [["Apps with access",fmtN(live.length),"","has"],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok","high"],
+    ["New this week",fmtN(live.filter(gIsNew).length),live.some(gIsNew)?"warn":"ok","new"],["Revoked in window",fmtN(inWin.filter(e=>e.type==="revoke").length),""],["Blocked in window",fmtN(inWin.filter(e=>e.type==="deny").length),inWin.some(e=>e.type==="deny")?"warn":""]];
 }
+function gApplyKpi(k){ S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
 function renderGoogleView(){
   const el=$("#googleView"), stEl=$("#gStatus"), G=S.g; if(!el) return;
   if(!G.configured){ stEl.textContent=""; el.innerHTML=googleSetupHTML(); return; }
-  const st=G.status||{}, apps=googleApps(), q=(S.gq||"").trim().toLowerCase(), rf=S.grisk||"all";
+  if(S.gfocus) S.gf=gDefault();                       // opened from an alert: make sure that app is not filtered out
+  const act=document.activeElement, keep=act&&(act.id==="gq"||act.id==="gPerson")? {id:act.id,pos:act.selectionStart} : null;
+  const st=G.status||{}, {apps,shown}=googleShown(), f=S.gf, so=gSortState(), on=gFiltering(f), more=S.gmore||!!(f.min||f.active||f.isNew||(f.person||"").trim());
   stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span>'+(st.catchingUp?"Loading history… ":"")+'Reading the last '+(st.lookbackDays||30)+' days as '+esc(st.admin||"")+' · read-only</span>';
-  const shown=apps.filter(a=>(rf==="all"||(rf==="high"&&a.rank===3)||(rf==="medium"&&a.rank===2)||(rf==="low"&&a.rank===1))&&(!q||(a.name+" "+a.clientId).toLowerCase().includes(q)));
   if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); }
   const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
+  const chip=(attr,val,label,cur,n)=>'<button type="button" class="chipbtn'+(cur?" on":"")+'" '+attr+'="'+val+'" aria-pressed="'+cur+'">'+label+(n!==undefined?' <i>'+fmtN(n)+'</i>':"")+'</button>';
+  const hasN=apps.filter(a=>a.people.length).length, opt=(v,l,cur)=>'<option value="'+v+'"'+(+cur===v?" selected":"")+'>'+l+'</option>';
+  const th=(k,l,tip)=>'<th class="sortable" data-gsort="'+k+'" tabindex="0" role="button" aria-sort="'+(so.key===k?(so.dir==="asc"?"ascending":"descending"):"none")+'" title="'+tip+'">'+l+(so.key===k?'<span class="sarrow" aria-hidden="true">'+(so.dir==="asc"?"▲":"▼")+'</span>':"")+'</th>';
   el.innerHTML=(st.lastError? '<div class="gwarn"><b>Google problem:</b> '+esc(st.lastError)+(st.hint?'<br>'+esc(st.hint):"")+'</div>':"")+
-    '<div class="kpis">'+googleKpis(apps).map(k=>'<div class="kpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
-    '<div class="card"><h2>Apps connected to Google accounts</h2><p class="hint">Sorted by how much access the app asked for. “Risk” is this dashboard’s own reading of the scopes, not Google’s. Click an app to see exactly what it can do and who connected it.</p>'+
-    '<div class="fb-row" style="margin-bottom:10px"><span class="fb-l">Risk</span>'+[["all","All"],["high","High"],["medium","Medium"],["low","Low"]].map(([k,l])=>'<button type="button" class="chipbtn'+(rf===k?" on":"")+'" data-grisk="'+k+'" aria-pressed="'+(rf===k)+'">'+l+'</button>').join("")+
-    '<input type="text" id="gq" class="fin" placeholder="Search apps…" value="'+esc(S.gq||"")+'" aria-label="Search apps"><span class="ctl">'+fmtN(shown.length)+' of '+fmtN(apps.length)+'</span></div>'+
-    (shown.length? '<div class="scroll"><table id="gTbl"><tr><th>App</th><th>Risk</th><th>Access it asked for</th><th>People</th><th>First seen</th><th>Last activity</th></tr>'+shown.map(a=>googleRow(a)).join("")+'</table></div>' : '<div class="empty">'+(apps.length?"No apps match.":"No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
+    '<div class="kpis">'+googleKpis(apps).map(k=>'<div class="kpi '+k[2]+(k[3]?" click":"")+'"'+(k[3]?' data-gkpi="'+k[3]+'" tabindex="0" role="button" title="Click to show these apps"':"")+'><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
+    '<div class="card"><h2>Apps connected to Google accounts</h2><p class="hint">Highest risk first by default; click a column heading to sort by it. “Risk” is this dashboard’s own reading of the scopes, not Google’s. Click an app to see exactly what it can do and who connected it.</p>'+
+    '<div class="fb gfb"><div class="fb-row"><span class="fb-l">Risk</span>'+[["all","All"],["high","High"],["medium","Medium"],["low","Low"]].map(([k,l])=>chip("data-grisk",k,l,f.risk===k)).join("")+
+      '<span class="fb-sep"></span><span class="fb-l">Access</span>'+chip("data-gaccess","all","Any",f.access==="all")+chip("data-gaccess","has","Someone has it",f.access==="has",hasN)+chip("data-gaccess","none","Nobody now",f.access==="none",apps.length-hasN)+
+      '<input type="text" id="gq" class="fin" placeholder="Search apps, client IDs or scopes…" value="'+esc(f.q||"")+'" aria-label="Search apps"></div>'+
+    '<div class="fb-row"><span class="fb-l">Can reach</span>'+G_AREA_CHIPS.map(([k,l])=>chip("data-garea",k,l,f.areas.includes(k),apps.filter(a=>a.areas.has(k)).length)).join("")+'</div>'+
+    '<div class="fb-row"><button type="button" class="ghost" data-gmore="1" aria-expanded="'+more+'">'+(more?"Fewer filters":"More filters")+'</button>'+(on? '<button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "")+'<span class="spacer"></span><span class="ctl">'+fmtN(shown.length)+' of '+fmtN(apps.length)+' apps</span></div>'+
+    (more? '<div class="fb-row"><label class="ctl">Used by <select id="gMin">'+opt(0,"anyone",f.min)+opt(2,"2+ people",f.min)+opt(5,"5+ people",f.min)+opt(10,"10+ people",f.min)+opt(50,"50+ people",f.min)+'</select></label>'+
+      '<label class="ctl">Active in the last <select id="gAct">'+opt(0,"any time",f.active)+opt(1,"24 hours",f.active)+opt(7,"7 days",f.active)+opt(30,"30 days",f.active)+'</select></label>'+
+      '<label class="ctl"><input type="checkbox" id="gNew"'+(f.isNew?" checked":"")+'> new this week</label>'+
+      '<input type="text" id="gPerson" class="fin" placeholder="Apps this person connected, e.g. jane@company.com" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>' : "")+'</div>'+
+    (shown.length? '<div class="scroll"><table id="gTbl"><tr>'+th("app","App","Sort by app name")+th("risk","Risk","Sort by risk")+'<th>Access it asked for</th>'+th("people","People","Sort by how many people currently have access, as far as the log shows")+th("first","First seen","Sort by when the app was first seen in the log")+th("last","Last activity","Sort by the app\'s most recent activity")+'</tr>'+shown.map(a=>googleRow(a)).join("")+'</table></div>' : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
     '<div class="card"><h2>Recent activity</h2><div class="fb-row" style="margin-bottom:8px"><label class="ctl"><input type="checkbox" id="ghi"'+(S.gonlyhi?" checked":"")+'> only events with high-risk access</label></div>'+
     (recent.length? '<div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th><th>App</th><th>Access</th></tr>'+recent.map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td><span class="lnk" data-k="user" data-v="'+esc(e.actor)+'">'+esc(e.actor)+'</span></td><td><span class="pill '+(GACT[e.type]||["","o"])[1]+'">'+esc((GACT[e.type]||[e.type])[0])+'</span>'+(e.rejection?' <span class="gsub">'+esc(e.rejection)+'</span>':"")+'</td><td>'+esc(e.app||"—")+'</td><td>'+e.scopes.slice(0,4).map(scopeChip).join("")+(e.scopes.length>4?'<span class="gsub">+'+(e.scopes.length-4)+'</span>':"")+'</td></tr>').join("")+'</table></div>' : '<div class="empty">Nothing to show.</div>')+'</div>';
   if(S.gfocus){ const row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===S.gfocus); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60); S.gfocus=""; }
+  if(keep){ const i=$("#"+keep.id); if(i){ try{ i.focus(); i.setSelectionRange(keep.pos,keep.pos); }catch(_){} } }
 }
 function googleRow(a){
   const open=S.gopen.has(a.key), sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
@@ -1717,18 +1864,35 @@ function googleRow(a){
     '<div class="gsec"><b>People with access ('+fmtN(a.people.length)+')</b>'+(a.people.length? '<div class="gppl">'+a.people.slice(0,30).map(p=>'<span class="chip" data-k="user" data-v="'+esc(p.who)+'" title="Connected '+esc(new Date(p.time).toLocaleString())+'">'+esc(p.who)+'</span>').join("")+(a.people.length>30?'<span class="gsub">and '+(a.people.length-30)+' more</span>':"")+'</div>' : '<span class="gsub">Nobody currently (everyone revoked, or it was only requested or blocked).</span>')+'</div>'+
     '<div class="gsec"><b>Recent activity</b><div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th></tr>'+a.events.slice(-8).reverse().map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td>'+esc(e.actor)+'</td><td>'+esc((GACT[e.type]||[e.type])[0])+(e.rejection?' ('+esc(e.rejection)+')':"")+'</td></tr>').join("")+'</table></div></div>'+
     '<p class="gsub">To allow, limit or block this app, use the Google Admin console (Security &gt; API controls). This dashboard is read-only.</p>';
-  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
+  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+(!a.people.length&&a.calls? '<span class="tiny" title="The app made API calls on someone\'s behalf, but their consent is older than the part of the log that was read">in use</span>' : "")+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
     '<tr class="udet"><td colspan="6"><div class="xbody"><div class="xinner"><div class="xpad">'+detail+'</div></div></div></td></tr>';
 }
 $("#googleView").addEventListener("click",ev=>{
-  const rf=ev.target.closest("[data-grisk]"); if(rf){ S.grisk=rf.dataset.grisk; renderGoogleView(); return; }
+  const sh=ev.target.closest("th[data-gsort]"); if(sh){ setGoogleSort(sh.dataset.gsort); return; }
+  const kp=ev.target.closest("[data-gkpi]"); if(kp){ gApplyKpi(kp.dataset.gkpi); return; }
+  const rf=ev.target.closest("[data-grisk]"); if(rf){ S.gf.risk=rf.dataset.grisk; renderGoogleView(); return; }
+  const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; renderGoogleView(); return; }
+  const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); renderGoogleView(); return; }
+  if(ev.target.closest("[data-gmore]")){ S.gmore=!S.gmore; renderGoogleView(); return; }
+  if(ev.target.closest("[data-gclear]")){ S.gf=gDefault(); renderGoogleView(); return; }
   const ga=ev.target.closest("[data-gask]"); if(ga){ const a=googleApps().find(x=>x.key===ga.dataset.gask); if(a) ask("Is the Google app “"+a.name+"” (client ID "+a.clientId+") safe for our people to use? It was granted: "+[...a.scopes].map(shortScope).join(", ")+", by "+a.people.length+" people. What does that access allow, what are the risks, and what should I check in the Google Admin console before deciding to allow or block it?"); return; }
   if(ev.target.closest("[data-k]")||ev.target.closest("tr.udet")) return;
   const row=ev.target.closest("#gTbl tr.urow"); if(row){ const k=row.dataset.gk, open=!S.gopen.has(k); if(open) S.gopen.add(k); else S.gopen.delete(k); row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open)); }
 });
-$("#googleView").addEventListener("input",ev=>{ if(ev.target.id==="gq"){ S.gq=ev.target.value; clearTimeout(S.gqT); S.gqT=setTimeout(()=>{ renderGoogleView(); const i=$("#gq"); if(i){ i.focus(); try{ i.setSelectionRange(i.value.length,i.value.length); }catch(_){} } },200); } });
-$("#googleView").addEventListener("change",ev=>{ if(ev.target.id==="ghi"){ S.gonlyhi=ev.target.checked; renderGoogleView(); } });
-$("#googleView").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("#gTbl tr.urow")){ ev.preventDefault(); ev.target.click(); } });
+$("#googleView").addEventListener("input",ev=>{ const id=ev.target.id; if(id==="gq"||id==="gPerson"){ if(id==="gq") S.gf.q=ev.target.value; else S.gf.person=ev.target.value; clearTimeout(S.gqT); S.gqT=setTimeout(renderGoogleView,200); } });
+$("#googleView").addEventListener("change",ev=>{
+  const id=ev.target.id;
+  if(id==="ghi"){ S.gonlyhi=ev.target.checked; renderGoogleView(); }
+  else if(id==="gMin"){ S.gf.min=+ev.target.value||0; renderGoogleView(); }
+  else if(id==="gAct"){ S.gf.active=+ev.target.value||0; renderGoogleView(); }
+  else if(id==="gNew"){ S.gf.isNew=ev.target.checked; renderGoogleView(); }
+});
+$("#googleView").addEventListener("keydown",ev=>{
+  if(ev.key!=="Enter"&&ev.key!==" ") return; const t=ev.target; if(!t.matches) return;
+  if(t.matches("th[data-gsort]")){ ev.preventDefault(); setGoogleSort(t.dataset.gsort); }
+  else if(t.matches("[data-gkpi]")){ ev.preventDefault(); gApplyKpi(t.dataset.gkpi); }
+  else if(t.matches("#gTbl tr.urow")){ ev.preventDefault(); t.click(); }
+});
 function googlePersonHTML(p){
   if(!S.g.configured||!S.g.events.length) return "";
   const locals=new Set([...p.alts].map(a=>localPart(a))), mine=googleApps().map(a=>({a,st:a.state.get([...a.state.keys()].find(k=>locals.has(localPart(k)))||"")})).filter(x=>x.st&&x.st.on);
@@ -1790,7 +1954,7 @@ $("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; e.ta
   openMapper(rows,f.name); };
 $("#fileApps").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.inventory=parseApps(await f.text()); render(); e.target.value=""; };
 $("#win").onchange=e=>{S.win=+e.target.value;render();};
-$("#fpill").onclick=()=>setFilter(f=>Object.assign(f,emptyFilter()));
+$("#fpill").onclick=()=>{ const sc=pillScope(); if(sc) setFilter(sc,f=>Object.assign(f,emptyFilter())); };
 $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
 
 /* ---------- assistant ---------- */

@@ -65,6 +65,7 @@ http.createServer(async (req, res) => {
   if (url.pathname === "/admin/reports/v1/activity/users/all/applications/token" && req.method === "GET") {
     stats.apiRequests++;
     if (!tokens.has((req.headers.authorization || "").replace(/^Bearer /, ""))) return json(res, 401, { error: { code: 401, message: "Invalid Credentials" } });
+    if (mode === "noreports") return json(res, 401, { error: { code: 401, message: "Access denied. You are not authorized to read activity records.", errors: [{ message: "Access denied. You are not authorized to read activity records.", domain: "global", reason: "authError" }] } });   // the admin has no Reports privilege
     if (mode === "forbidden") return json(res, 403, { error: { code: 403, message: "Not Authorized to access this resource/api" } });
     const from = Date.parse(url.searchParams.get("startTime") || "") || 0, to = Date.parse(url.searchParams.get("endTime") || "") || Infinity;
     const all = log.filter(a => { const t = Date.parse(a.id.time); return t >= from && t <= to; }).sort((a, b) => Date.parse(b.id.time) - Date.parse(a.id.time));   // newest first
