@@ -63,5 +63,20 @@ sleep 3; GK=$(curl -s localhost:8092/api/status | jq_ 'JSON.stringify(j.google)'
 check "google: a wrong key file is explained, no crash"      "service account key file" "$GK"
 check "google: base64-encoded keys work too"                 true "$( ( export GOOGLE_SA_KEY="$(base64 -w0 /tmp/smoke-gkey.json)" GOOGLE_ADMIN_EMAIL=admin@example.com; node -e 'const {loadKey}=require("./google");const k=loadKey(process.env.GOOGLE_SA_KEY);console.log(!!(k&&k.email&&k.key.includes("BEGIN PRIVATE KEY")))' ) )"
 
+# only one of the two set -> which one is missing; both empty (a copied .env.example) -> simply off
+( export GOOGLE_SA_KEY="$(cat /tmp/smoke-gkey.json)" GOOGLE_ADMIN_EMAIL=""
+  OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8091 exec node server.js >/tmp/smoke-server-google5.log 2>&1 ) & PIDS+=($!)
+( export GOOGLE_SA_KEY="" GOOGLE_ADMIN_EMAIL=admin@example.com
+  OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8090 exec node server.js >/tmp/smoke-server-google6.log 2>&1 ) & PIDS+=($!)
+( export GOOGLE_SA_KEY="" GOOGLE_ADMIN_EMAIL=""
+  OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8089 exec node server.js >/tmp/smoke-server-google7.log 2>&1 ) & PIDS+=($!)
+sleep 4
+P1=$(curl -s localhost:8091/api/status | jq_ 'JSON.stringify(j.google)'); P2=$(curl -s localhost:8090/api/status | jq_ 'JSON.stringify(j.google)'); P3=$(curl -s localhost:8089/api/status | jq_ 'JSON.stringify(j.google)')
+check "google: only the key set -> says the admin email is missing"   "GOOGLE_ADMIN_EMAIL is missing" "$P1"
+check "google: ... and stays off, not half-working"                   '"configured":false' "$P1"
+check "google: only the admin email set -> says the key is missing"   "GOOGLE_SA_KEY is missing" "$P2"
+check "google: both empty (an unedited .env.example) -> simply off, no error" true "$(echo "$P3" | jq_ 'j.configured===false&&!j.lastError')"
+check "google: the app keeps running in all three"                    true "$(curl -s localhost:8091/api/status | jq_ 'j.live===true')"
+
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]
