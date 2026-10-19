@@ -1,7 +1,7 @@
 {
-  "name": "okta-health-insights",
+  "name": "sightline",
   "version": "1.0.0",
-  "description": "Live Okta health dashboard with silent-app detection, error insights and an AI troubleshooting assistant",
+  "description": "Sightline: a live IT health dashboard for identity and app activity (Okta, Google Workspace) with error insights, alerts and an AI troubleshooting assistant",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Okta Health Insights — backend
+ * Sightline — backend
  * Zero dependencies (Node 20+). All secrets come from environment variables.
  *
  *  - Polls the Okta System Log + Apps APIs and keeps a rolling in-memory window
@@ -357,7 +357,7 @@ async function assistantUserLookup(i) {
 }
 
 /* --------------------------------------------------------------- assistant */
-const SYSTEM = `You are an expert Okta administrator and identity engineer embedded in an Okta health dashboard. You help the admin troubleshoot using live Okta System Log data.
+const SYSTEM = `You are an expert Okta administrator and identity engineer embedded in Sightline, an IT health dashboard that reads Okta (and optionally Google Workspace) activity. You help the admin troubleshoot using live Okta System Log data.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
 Apply common knowledge: expired/revoked API tokens or OAuth grants in provisioning; license exhaustion in the target app; duplicate or mismatched attributes (email/username) in the target; group rules failing on missing profile attributes; attribute mapping and Okta Expression Language errors; rate limiting (429); sign-on policy denials; lockouts; import schedules; SCIM errors.
 Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.
@@ -611,11 +611,20 @@ function readBody(req, limit = 200000) {
   });
 }
 
+// the logo files: public (no password), a fixed list so nothing else in public/ can be reached
+const BRAND = {
+  "/favicon.svg": ["sightline-mark.svg", "image/svg+xml"], "/favicon-32.png": ["favicon-32.png", "image/png"], "/favicon.ico": ["favicon-32.png", "image/png"],
+  "/apple-touch-icon.png": ["apple-touch-icon.png", "image/png"]
+};
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, "http://x");
     if (url.pathname === "/healthz") return send(req, res, 200, { ok: true });
-    if (!authorized(req)) { res.writeHead(401, { ...SEC_HEADERS, "www-authenticate": 'Basic realm="Okta Health Insights"' }); return res.end("Authentication required"); }
+    if ((req.method === "GET" || req.method === "HEAD") && BRAND[url.pathname]) {
+      try { const [f, type] = BRAND[url.pathname]; const buf = fs.readFileSync(path.join(__dirname, "public", "brand", f)); res.writeHead(200, { ...SEC_HEADERS, "content-type": type, "content-length": buf.length, "cache-control": "public, max-age=86400" }); return res.end(req.method === "HEAD" ? undefined : buf); }
+      catch { res.writeHead(404, SEC_HEADERS); return res.end(); }
+    }
+    if (!authorized(req)) { res.writeHead(401, { ...SEC_HEADERS, "www-authenticate": 'Basic realm="Sightline"' }); return res.end("Authentication required"); }
 
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html"))
       return send(req, res, 200, fs.readFileSync(INDEX), "text/html; charset=utf-8");
@@ -688,7 +697,7 @@ function start() {
   if (!cfg.apiToken && !(cfg.clientId && cfg.privateKey)) console.error("WARNING: no Okta credentials set; polling will fail until OKTA_API_TOKEN or OKTA_CLIENT_ID/OKTA_PRIVATE_KEY is provided.");
   if (!cfg.dashPass) log("NOTE: DASHBOARD_PASSWORD is not set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
-  server.listen(cfg.port, () => log(`Okta Health Insights listening on :${cfg.port} for ${cfg.orgUrl}`));
+  server.listen(cfg.port, () => log(`Sightline listening on :${cfg.port} for ${cfg.orgUrl}`));
   initIngest(); pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
   google.start();
 }

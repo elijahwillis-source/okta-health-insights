@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Okta Health Insights</title>
+<title>Sightline</title>
+<meta name="application-name" content="Sightline">
+<meta name="description" content="Sightline: IT health at a glance. Errors, apps, people and connected Google apps in one place.">
+<meta name="theme-color" content="#121629">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
 :root{
   box-sizing:border-box;
@@ -76,7 +82,7 @@ header.top .sub{color:var(--muted);font-size:12px}
 .stale{opacity:.38;transition:opacity .2s}
 #gTbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}#gTbl th.sortable:hover{color:var(--text)}#gTbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .kpi.click{cursor:pointer}.kpi.click:hover{border-color:var(--accent)}.kpi.click:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.gfb{margin-bottom:12px}.tiny{font-size:11px;color:var(--muted);margin-left:6px;font-weight:600}
+.gfb{margin-bottom:12px}.gmorebar{padding:12px 4px 0;color:var(--muted);font-size:12.5px}.gmorebar button{font-size:12px;padding:2px 10px;margin-left:4px}.tiny{font-size:11px;color:var(--muted);margin-left:6px;font-weight:600}
 #userTbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}#userTbl th.sortable:hover{color:var(--text)}#userTbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .sarrow{color:var(--accent);font-size:10px;margin-left:5px}.umore td{color:var(--muted);font-size:12.5px;padding-top:10px}.umore button{font-size:12px;padding:2px 10px}
 .wrow{margin:4px 0}.mini{font-size:12px;padding:1px 9px;margin-left:6px}
@@ -245,9 +251,9 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 <body>
 <div class="shell" id="shell">
   <nav class="side" id="side" aria-label="Main navigation">
-    <a class="brand" href="#/overview" aria-label="Okta Health Insights, overview">
-      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#E2711D"/><polyline points="3 12.5 8 12.5 10 7 14 17.5 16 12.5 21 12.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="bt"><b>Okta Health</b><small id="orgName">Insights</small></span>
+    <a class="brand" href="#/overview" aria-label="Sightline, overview">
+      <svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect x=".75" y=".75" width="62.5" height="62.5" rx="14.5" fill="#121629" stroke="#2B3157" stroke-width="1.5"/><path d="M8 32 Q32 10 56 32 Q32 54 8 32 Z" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round"/><circle cx="32" cy="32" r="8.5" fill="#2DD4BF"/><circle cx="35" cy="29" r="2.6" fill="#121629"/></svg>
+      <span class="bt"><b>Sightline</b><small id="orgName">IT health</small></span>
     </a>
     <div class="navgrp">
       <a class="navi" href="#/overview" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span class="nl">Overview</span></a>
@@ -292,7 +298,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
     <main>
       <section class="view" id="view-overview" data-view="overview">
-        <div class="vhead"><div><p class="vs">How healthy Okta is right now: errors, busy apps, and what needs a look.</p></div></div>
+        <div class="vhead"><div><p class="vs">How healthy your IT is right now: errors, busy apps, and what needs a look.</p></div></div>
         <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
         <div class="kpis" id="kpis"></div>
         <div class="two">
@@ -407,10 +413,10 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     </main>
   </div>
 
-  <aside class="drawer" id="assistant" aria-label="Okta expert assistant" aria-hidden="true">
+  <aside class="drawer" id="assistant" aria-label="Sightline assistant" aria-hidden="true">
     <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
-      <h2>Okta expert assistant</h2>
+      <h2>Sightline assistant</h2>
       <p class="hint">Knows your loaded data and can query it. Ask why something is failing.</p>
       <div class="msgs" id="msgs"></div>
       <div class="sugg" id="sugg"></div>
@@ -751,7 +757,7 @@ function render(){
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
-  evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView();
+  evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView(true);
   updateFilterPill();
 
   renderTimeline(C);
@@ -1446,7 +1452,7 @@ function showView(v){
   if(!VIEWS[v]) v="overview"; S.view=v;
   document.querySelectorAll(".view").forEach(el=>{ el.hidden= el.dataset.view!==v; });
   document.querySelectorAll(".navi[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
-  updateFilterPill(); $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
+  updateFilterPill(); $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Sightline"; }catch(_){}
   try{ window.scrollTo(0,0); }catch(_){}
   if(S.C&&typeof renderViewExtras==="function") renderViewExtras(v);
 }
@@ -1484,7 +1490,7 @@ function renderDataSrc(){
   const gs=S.g.configured? (S.g.demo? "Google OAuth: sample data" : "Google OAuth: connected as "+esc((S.g.status&&S.g.status.admin)||"")+" · "+fmtN(S.g.events.length)+" events"+((S.g.status&&S.g.status.lastError)?" · <b>problem, see the Google OAuth page</b>":"")) : "Google OAuth: not connected";
   el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "")+'<br>'+gs;
 }
-$("#orgName").textContent="Insights";
+$("#orgName").textContent="IT health";
 
 /* ---------- alerts and notifications ---------- */
 // Rules are checked every time the data refreshes (while this page is open). A rule is one of:
@@ -1781,7 +1787,7 @@ function googleSetupHTML(){
   return msg+'<div class="card gsetup"><h2>Connect Google Workspace</h2><p class="hint">Read only. This shows the apps your people have connected to their Google accounts, and what access each one asked for. It cannot change anything in Google.</p>'+
     (st&&st.lastError? '<div class="gwarn"><b>Not working yet:</b> '+esc(st.lastError)+(st.hint?'<br>'+esc(st.hint):"")+'</div>':"")+
     '<ol><li>In the <b>Google Cloud console</b>, pick or create a project, then open <b>APIs &amp; Services &gt; Library</b> and enable the <b>Admin SDK API</b>.</li>'+
-    '<li>Open <b>IAM &amp; Admin &gt; Service accounts</b> and create a service account (for example <code>okta-health-readonly</code>). Give it <b>no project roles</b>. Under <b>Keys</b>, add a JSON key and download it. Note the account\'s numeric <b>Client ID</b> (shown on its details page).</li>'+
+    '<li>Open <b>IAM &amp; Admin &gt; Service accounts</b> and create a service account (for example <code>sightline-readonly</code>). Give it <b>no project roles</b>. Under <b>Keys</b>, add a JSON key and download it. Note the account\'s numeric <b>Client ID</b> (shown on its details page).</li>'+
     '<li>In the <b>Google Admin console</b> go to <b>Account &gt; Admin roles</b>, create a role that has only the <b>Reports</b> privilege, and assign it to a dedicated admin user, for example <code>audit-reader@yourdomain</code>.</li>'+
     '<li>Still in the Admin console, open <b>Security &gt; Access and data control &gt; API controls &gt; Manage domain-wide delegation</b> and add the Client ID with exactly one scope: <code>https://www.googleapis.com/auth/admin.reports.audit.readonly</code></li>'+
     '<li><b>Add two settings where the app is hosted, then redeploy.</b> They are called environment variables, and no tool needs to understand Google for this: you just add two names and values in the hosting dashboard. In Coolify: open this app, then <b>Configuration &gt; Environment Variables &gt; Add</b>. Make sure each is available at <b>runtime</b>.'+
@@ -1819,22 +1825,28 @@ function googleShown(){
   const shown=apps.filter(a=>gPass(a,f)).sort((a,b)=>{ const x=key(a), y=key(b), c=x<y?-1:x>y?1:0; return c? c*d : (b.rank-a.rank)||(b.people.length-a.people.length)||(b.last-a.last); });
   return {apps,shown};
 }
-function setGoogleSort(k){ const cur=gSortState(); S.gsort= cur.key===k? {key:k,dir:cur.dir==="asc"?"desc":"asc"} : {key:k,dir:k==="app"?"asc":"desc"}; try{ prefs.gsort=S.gsort; savePrefs(); }catch(_){} renderGoogleView(); }
+function setGoogleSort(k){ S.gcap=25; const cur=gSortState(); S.gsort= cur.key===k? {key:k,dir:cur.dir==="asc"?"desc":"asc"} : {key:k,dir:k==="app"?"asc":"desc"}; try{ prefs.gsort=S.gsort; savePrefs(); }catch(_){} renderGoogleView(); }
 function googleKpis(apps){
   const live=apps.filter(a=>a.people.length), people=new Set(); live.forEach(a=>a.people.forEach(p=>people.add(p.who)));
   const lo=S.win? S.ref-S.win : 0, inWin=S.g.events.filter(e=>e.time>=lo);
   return [["Apps with access",fmtN(live.length),"","has"],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok","high"],
     ["New this week",fmtN(live.filter(gIsNew).length),live.some(gIsNew)?"warn":"ok","new"],["Revoked in window",fmtN(inWin.filter(e=>e.type==="revoke").length),""],["Blocked in window",fmtN(inWin.filter(e=>e.type==="deny").length),inWin.some(e=>e.type==="deny")?"warn":""]];
 }
-function gApplyKpi(k){ S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
-function renderGoogleView(){
+function gApplyKpi(k){ S.gcap=25; S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
+// everything the page shows depends on these; if none changed, the automatic refresh leaves the page alone
+function gSig(){ const G=S.g, st=G.status||{}, last=G.events.length? G.events[G.events.length-1].time : 0;
+  return JSON.stringify([G.configured,G.demo,G.events.length,last,S.gf,gSortState(),S.gcap||25,!!S.gmore,[...(S.gopen||[])],!!S.gonlyhi,S.win,st.lastError||"",st.hint||"",!!st.catchingUp,st.admin||"",Math.floor((S.ref||0)/300000)]); }
+function renderGoogleView(auto){
   const el=$("#googleView"), stEl=$("#gStatus"), G=S.g; if(!el) return;
+  if(auto&&gSig()===S.gSigLast&&el.firstChild) return;                  // nothing changed: do not touch the page
+  S.gSigLast=gSig(); const y0=window.scrollY, hadFocus=!!S.gfocus;
   if(!G.configured){ stEl.textContent=""; el.innerHTML=googleSetupHTML(); return; }
   if(S.gfocus) S.gf=gDefault();                       // opened from an alert: make sure that app is not filtered out
   const act=document.activeElement, keep=act&&(act.id==="gq"||act.id==="gPerson")? {id:act.id,pos:act.selectionStart} : null;
+  let cap=S.gcap||25;
   const st=G.status||{}, {apps,shown}=googleShown(), f=S.gf, so=gSortState(), on=gFiltering(f), more=S.gmore||!!(f.min||f.active||f.isNew||(f.person||"").trim());
   stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span>'+(st.catchingUp?"Loading history… ":"")+'Reading the last '+(st.lookbackDays||30)+' days as '+esc(st.admin||"")+' · read-only</span>';
-  if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); }
+  if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); const ix=shown.findIndex(a=>a.key===S.gfocus); if(ix>=cap){ cap=Math.ceil((ix+1)/25)*25; S.gcap=cap; } }
   const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
   const chip=(attr,val,label,cur,n)=>'<button type="button" class="chipbtn'+(cur?" on":"")+'" '+attr+'="'+val+'" aria-pressed="'+cur+'">'+label+(n!==undefined?' <i>'+fmtN(n)+'</i>':"")+'</button>';
   const hasN=apps.filter(a=>a.people.length).length, opt=(v,l,cur)=>'<option value="'+v+'"'+(+cur===v?" selected":"")+'>'+l+'</option>';
@@ -1851,11 +1863,13 @@ function renderGoogleView(){
       '<label class="ctl">Active in the last <select id="gAct">'+opt(0,"any time",f.active)+opt(1,"24 hours",f.active)+opt(7,"7 days",f.active)+opt(30,"30 days",f.active)+'</select></label>'+
       '<label class="ctl"><input type="checkbox" id="gNew"'+(f.isNew?" checked":"")+'> new this week</label>'+
       '<input type="text" id="gPerson" class="fin" placeholder="Apps this person connected, e.g. jane@company.com" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>' : "")+'</div>'+
-    (shown.length? '<div class="scroll"><table id="gTbl"><tr>'+th("app","App","Sort by app name")+th("risk","Risk","Sort by risk")+'<th>Access it asked for</th>'+th("people","People","Sort by how many people currently have access, as far as the log shows")+th("first","First seen","Sort by when the app was first seen in the log")+th("last","Last activity","Sort by the app\'s most recent activity")+'</tr>'+shown.map(a=>googleRow(a)).join("")+'</table></div>' : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
+    (shown.length? '<div class="scroll"><table id="gTbl"><tr>'+th("app","App","Sort by app name")+th("risk","Risk","Sort by risk")+'<th>Access it asked for</th>'+th("people","People","Sort by how many people currently have access, as far as the log shows")+th("first","First seen","Sort by when the app was first seen in the log")+th("last","Last activity","Sort by the app\'s most recent activity")+'</tr>'+shown.slice(0,cap).map(a=>googleRow(a)).join("")+'</table></div>'+
+      (shown.length>25? '<div class="gmorebar">Showing '+fmtN(Math.min(cap,shown.length))+' of '+fmtN(shown.length)+' apps'+(cap<shown.length? ' · <button type="button" class="ghost" data-grows="1">Show '+Math.min(25,shown.length-cap)+' more</button> <button type="button" class="ghost" data-gall="1">Show all</button>' : "")+(cap>25? ' <button type="button" class="ghost" data-gless="1">Show fewer</button>' : "")+'</div>' : "") : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
     '<div class="card"><h2>Recent activity</h2><div class="fb-row" style="margin-bottom:8px"><label class="ctl"><input type="checkbox" id="ghi"'+(S.gonlyhi?" checked":"")+'> only events with high-risk access</label></div>'+
     (recent.length? '<div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th><th>App</th><th>Access</th></tr>'+recent.map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td><span class="lnk" data-k="user" data-v="'+esc(e.actor)+'">'+esc(e.actor)+'</span></td><td><span class="pill '+(GACT[e.type]||["","o"])[1]+'">'+esc((GACT[e.type]||[e.type])[0])+'</span>'+(e.rejection?' <span class="gsub">'+esc(e.rejection)+'</span>':"")+'</td><td>'+esc(e.app||"—")+'</td><td>'+e.scopes.slice(0,4).map(scopeChip).join("")+(e.scopes.length>4?'<span class="gsub">+'+(e.scopes.length-4)+'</span>':"")+'</td></tr>').join("")+'</table></div>' : '<div class="empty">Nothing to show.</div>')+'</div>';
   if(S.gfocus){ const row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===S.gfocus); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60); S.gfocus=""; }
-  if(keep){ const i=$("#"+keep.id); if(i){ try{ i.focus(); i.setSelectionRange(keep.pos,keep.pos); }catch(_){} } }
+  if(keep){ const i=$("#"+keep.id); if(i){ try{ i.focus({preventScroll:true}); i.setSelectionRange(keep.pos,keep.pos); }catch(_){} } }     // put the cursor back WITHOUT scrolling to it
+  if(!hadFocus&&Math.abs(window.scrollY-y0)>2){ try{ window.scrollTo(0,y0); }catch(_){} }                                                              // and never lose your place
 }
 function googleRow(a){
   const open=S.gopen.has(a.key), sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
@@ -1870,22 +1884,25 @@ function googleRow(a){
 $("#googleView").addEventListener("click",ev=>{
   const sh=ev.target.closest("th[data-gsort]"); if(sh){ setGoogleSort(sh.dataset.gsort); return; }
   const kp=ev.target.closest("[data-gkpi]"); if(kp){ gApplyKpi(kp.dataset.gkpi); return; }
-  const rf=ev.target.closest("[data-grisk]"); if(rf){ S.gf.risk=rf.dataset.grisk; renderGoogleView(); return; }
-  const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; renderGoogleView(); return; }
-  const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); renderGoogleView(); return; }
+  const rf=ev.target.closest("[data-grisk]"); if(rf){ S.gf.risk=rf.dataset.grisk; S.gcap=25; renderGoogleView(); return; }
+  const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; S.gcap=25; renderGoogleView(); return; }
+  const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); S.gcap=25; renderGoogleView(); return; }
   if(ev.target.closest("[data-gmore]")){ S.gmore=!S.gmore; renderGoogleView(); return; }
-  if(ev.target.closest("[data-gclear]")){ S.gf=gDefault(); renderGoogleView(); return; }
+  if(ev.target.closest("[data-gclear]")){ S.gf=gDefault(); S.gcap=25; renderGoogleView(); return; }
+  if(ev.target.closest("[data-grows]")){ S.gcap=(S.gcap||25)+25; renderGoogleView(); return; }
+  if(ev.target.closest("[data-gall]")){ S.gcap=1e9; renderGoogleView(); return; }
+  if(ev.target.closest("[data-gless]")){ S.gcap=25; renderGoogleView(); return; }
   const ga=ev.target.closest("[data-gask]"); if(ga){ const a=googleApps().find(x=>x.key===ga.dataset.gask); if(a) ask("Is the Google app “"+a.name+"” (client ID "+a.clientId+") safe for our people to use? It was granted: "+[...a.scopes].map(shortScope).join(", ")+", by "+a.people.length+" people. What does that access allow, what are the risks, and what should I check in the Google Admin console before deciding to allow or block it?"); return; }
   if(ev.target.closest("[data-k]")||ev.target.closest("tr.udet")) return;
   const row=ev.target.closest("#gTbl tr.urow"); if(row){ const k=row.dataset.gk, open=!S.gopen.has(k); if(open) S.gopen.add(k); else S.gopen.delete(k); row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open)); }
 });
-$("#googleView").addEventListener("input",ev=>{ const id=ev.target.id; if(id==="gq"||id==="gPerson"){ if(id==="gq") S.gf.q=ev.target.value; else S.gf.person=ev.target.value; clearTimeout(S.gqT); S.gqT=setTimeout(renderGoogleView,200); } });
+$("#googleView").addEventListener("input",ev=>{ const id=ev.target.id; if(id==="gq"||id==="gPerson"){ if(id==="gq") S.gf.q=ev.target.value; else S.gf.person=ev.target.value; S.gcap=25; clearTimeout(S.gqT); S.gqT=setTimeout(()=>renderGoogleView(),200); } });
 $("#googleView").addEventListener("change",ev=>{
   const id=ev.target.id;
   if(id==="ghi"){ S.gonlyhi=ev.target.checked; renderGoogleView(); }
-  else if(id==="gMin"){ S.gf.min=+ev.target.value||0; renderGoogleView(); }
-  else if(id==="gAct"){ S.gf.active=+ev.target.value||0; renderGoogleView(); }
-  else if(id==="gNew"){ S.gf.isNew=ev.target.checked; renderGoogleView(); }
+  else if(id==="gMin"){ S.gf.min=+ev.target.value||0; S.gcap=25; renderGoogleView(); }
+  else if(id==="gAct"){ S.gf.active=+ev.target.value||0; S.gcap=25; renderGoogleView(); }
+  else if(id==="gNew"){ S.gf.isNew=ev.target.checked; S.gcap=25; renderGoogleView(); }
 });
 $("#googleView").addEventListener("keydown",ev=>{
   if(ev.key!=="Enter"&&ev.key!==" ") return; const t=ev.target; if(!t.matches) return;
@@ -2033,7 +2050,7 @@ $("#send").onclick=()=>{const v=$("#q").value; $("#q").value=""; ask(v);};
 $("#q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#send").click(); }});
 
 function intro(){
-  addMsg("a","Hi — I'm your Okta troubleshooting assistant. I can see a summary of what's loaded here and can search the events. Try one of these, or ask your own question.");
+  addMsg("a","Hi — I'm the Sightline assistant, an expert in Okta and Google Workspace. I can see a summary of what's loaded here and can search the events. Try one of these, or ask your own question.");
   $("#sugg").innerHTML=["Which silent apps should I worry about?","Why are provisioning pushes failing?","What's going on with the users who keep hitting assignment errors?","Give me a health summary for this week"]
     .map(s=>`<button>${esc(s)}</button>`).join("");
   $("#sugg").onclick=e=>{ if(e.target.tagName==="BUTTON") ask(e.target.textContent); };

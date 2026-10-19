@@ -7,7 +7,7 @@ const PORT = +process.env.MOCK_G_PORT || 4030, PAGE = +process.env.MOCK_G_PAGE |
 const ADMIN = process.env.MOCK_G_ADMIN || "admin@example.com", KEYFILE = process.env.MOCK_G_KEYFILE || "/tmp/mock-google-key.json";
 const SCOPE = "https://www.googleapis.com/auth/admin.reports.audit.readonly";
 const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048, publicKeyEncoding: { type: "spki", format: "pem" }, privateKeyEncoding: { type: "pkcs8", format: "pem" } });
-const CLIENT_EMAIL = "okta-health@my-project.iam.gserviceaccount.com";
+const CLIENT_EMAIL = "sightline@my-project.iam.gserviceaccount.com";
 fs.writeFileSync(KEYFILE, JSON.stringify({ type: "service_account", project_id: "my-project", client_email: CLIENT_EMAIL, client_id: "1234567890", private_key: privateKey, token_uri: `http://localhost:${PORT}/token` }));
 
 let mode = "ok", tokens = new Set(), stats = { tokenRequests: 0, apiRequests: 0, rejected: [] }, seq = 1000;
@@ -35,6 +35,15 @@ add("sketchy", user(30), 12, "deny", [{ name: "rejection_type", value: "ADMIN_BL
 add("sketchy", user(31), 3, "request");
 add("acme", user(1), 50, "activity", [{ name: "api_name", value: "script" }, { name: "method_name", value: "script.projects.run" }, { name: "num_response_bytes", intValue: "2048" }, { name: "product_bucket", multiValue: ["APPS_SCRIPT_API"] }]);
 
+// optional: MOCK_G_MANY=110 adds that many extra apps (varied scopes, people and ages), to test a big real-world-sized list
+const MANY = +process.env.MOCK_G_MANY || 0;
+const SCOPE_SETS = [["openid", U + "userinfo.email"], [U + "drive"], [U + "gmail.readonly", "openid"], [U + "calendar.events"], [U + "admin.directory.user.readonly"], [U + "spreadsheets", U + "drive.file"], ["client_channel", "docs.test"], [U + "userinfo.profile"]];
+for (let i = 0; i < MANY; i++) {
+  const key = "many" + i; APPS[key] = { name: i % 9 === 0 ? "" : "Many App " + i, id: `${700000 + i}-many${i}.apps.googleusercontent.com`, scopes: SCOPE_SETS[i % SCOPE_SETS.length] };
+  const people = 1 + (i * 7) % 25;
+  for (let j = 0; j < people; j++) add(key, user(100 + ((i * 3 + j) % 90)), (1 + (i % 28)) * 1440 + j * 7);
+  if (i % 4 === 0) for (let j = 0; j < people; j++) add(key, user(100 + ((i * 3 + j) % 90)), (i % 28) * 1440 + 30, "revoke");      // some end up with nobody
+}
 const b64u = s => Buffer.from(s, "base64");
 function verifyJwt(assertion, audience) {
   const parts = String(assertion || "").split("."); if (parts.length !== 3) return "assertion is not a JWT";

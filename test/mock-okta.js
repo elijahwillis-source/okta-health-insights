@@ -43,6 +43,8 @@ const burst = (minAgo, app, user, reason, type) => ({ uuid: crypto.randomUUID(),
   target: type.startsWith("application.") ? [{ type: "User", alternateId: user, displayName: user }, { type: "AppInstance", displayName: app, id: appId(app) }] : [{ type: "AppInstance", displayName: app, id: appId(app) }] });
 for (let i = 0; i < 14; i++) events.push(burst(2 + i * 2, "ServiceNow", `burst${String(i % 7 + 1).padStart(2, "0")}@example.com`, "Automatic provisioning of user to app failed: Insufficient licenses available", "application.provision.user.push"));
 for (let i = 0; i < 3; i++) events.push(burst(3 + i * 3, "Slack", `burst0${i + 1}@example.com`, "INVALID_CREDENTIALS", "user.authentication.sso"));
+// one fixed person with the very long "member ID ... does not exist" error, so tests about tidying it never depend on chance
+events.push(burst(20, "ServiceNow", "longerr01@example.com", LONG, "application.user_membership.add"));
 events.sort((a, b) => (a.published < b.published ? -1 : 1));
 setInterval(() => events.push(makeEvent(Date.now(), true)), 5000);   // a new event every 5s
 

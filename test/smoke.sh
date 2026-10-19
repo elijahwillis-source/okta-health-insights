@@ -159,5 +159,19 @@ m.state.events.push(ev("2",{type:"User",alternateId:"jane.doe@corp.com"},[{type:
 console.log(JSON.stringify([m.queryEvents({user:"jane.doe@corp.int"},0).totalMatches, m.queryEvents({user:"jane.doe@corp.com"},0).totalMatches, m.queryEvents({user:"nobody"},0).totalMatches]));')
 check "user search: AD login found"            "[1,1,0]" "$UQ"
 
+# --- brand: the name, the sign-in prompt, and the logo files ---
+check "brand: the page is titled Sightline"                       "<title>Sightline</title>" "$(curl -s $A localhost:8099/)"
+check "brand: the old name is gone from the page"                 0 "$(curl -s $A localhost:8099/ | grep -c 'Okta Health')"
+check "brand: the sign-in prompt names Sightline"                 'realm="Sightline"' "$(curl -sI localhost:8099/api/status | tr -d '\r')"
+check "brand: the favicon is served WITHOUT the password"         200 "$(code localhost:8099/favicon.svg)"
+check "brand: ... as an SVG"                                      image/svg+xml "$(curl -sI localhost:8099/favicon.svg | tr -d '\r' | grep -i '^content-type')"
+check "brand: /favicon.ico (what browsers ask for) answers too"   200 "$(code localhost:8099/favicon.ico)"
+check "brand: the phone home-screen icon is served"               200 "$(code localhost:8099/apple-touch-icon.png)"
+check "brand: ... and really is a PNG"                            89504e47 "$(curl -s localhost:8099/apple-touch-icon.png | head -c 4 | od -An -tx1 | tr -d ' \n')"
+check "brand: icons are cached for a day"                         max-age=86400 "$(curl -sI localhost:8099/favicon-32.png | tr -d '\r' | grep -i '^cache-control')"
+check "brand: path tricks do not reach other files (still needs the password)" 401 "$(code --path-as-is localhost:8099/favicon.svg/../server.js)"
+check "brand: ... and the source code is not exposed"             0 "$(curl -s --path-as-is localhost:8099/brand/../server.js | grep -c 'createServer')"
+check "brand: an unlisted file in the brand folder is not served" 401 "$(code localhost:8099/brand/sightline-logo-dark.svg)"
+
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

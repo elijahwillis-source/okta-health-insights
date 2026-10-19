@@ -1,6 +1,8 @@
-# Okta Health Insights
+# Sightline
 
-A live dashboard for Okta health, with an Okta-expert AI assistant built in.
+IT health at a glance. A live dashboard that reads your identity and app activity (Okta, and optionally Google Workspace) and shows what is failing, who is affected and what to do about it, with an expert AI assistant built in. (Previously named Okta Health Insights.)
+
+Brand files (logo, favicon, PNGs for slides) are in `public/brand/`.
 
 - **Silent app tiles**: apps with no events for longer than a threshold you choose
 - **Error hot spots**: apps and error reasons with the most failures
@@ -139,7 +141,7 @@ The **Google OAuth** page shows every app that people have connected to their Go
 **Setup (about 30 to 60 minutes, needs a super admin):**
 
 1. Google Cloud console: pick or create a project, and enable the **Admin SDK API** (APIs & Services > Library).
-2. IAM & Admin > Service accounts: create one (for example `okta-health-readonly`) and give it no roles. Under Keys, add a JSON key. Note its numeric **Client ID** (on the account's details page).
+2. IAM & Admin > Service accounts: create one (for example `sightline-readonly`) and give it no roles. Under Keys, add a JSON key. Note its numeric **Client ID** (on the account's details page).
 3. Admin console > Account > Admin roles: create a role with only the **Reports** privilege and assign it to a dedicated admin user (for example `audit-reader@yourdomain`).
 4. Admin console > Security > Access and data control > API controls > **Manage domain-wide delegation**: add the Client ID with exactly the one scope above.
 5. Add two environment variables in your hosting dashboard (in Coolify: the app > Configuration > Environment Variables), available at runtime, then redeploy: `GOOGLE_ADMIN_EMAIL` (the admin from step 3) and `GOOGLE_SA_KEY` (the JSON key's contents; if pasting the multi-line file causes trouble, paste it base64-encoded, for example `base64 -i key.json | tr -d '\n' | pbcopy` on a Mac). Type the key straight into the hosting dashboard, never into a chat or the repository. Menu names in Google's consoles change from time to time; look for the closest match.
@@ -155,7 +157,7 @@ The **Google OAuth** page shows every app that people have connected to their Go
 | 401 or 403 "not authorized to read activity records" / "Not Authorized to access this resource" | The admin in `GOOGLE_ADMIN_EMAIL` is not a Super Admin and has no role with the Reports privilege (step 3). Check Directory > Users > that user > Admin roles and privileges; changes can take a few minutes |
 | "Admin SDK API has not been used" | Step 1: enable the API, then wait a minute |
 
-**Sorting and filtering the apps table.** Click a heading (App, Risk, People, First seen, Last activity) to sort by it; click again to reverse. The default is highest risk first, and your choice is remembered. Filters, all of which combine: **Risk**; **Access** (someone has it now, or nobody now); **Can reach** (Gmail, Drive, Calendar, Docs & Sheets, Contacts, Admin & directory, Chat & Meet, Google Cloud, or sign-in only; pick several to see apps that reach any of them); under **More filters**: used by 2, 5, 10 or 50+ people, active in the last 24 hours, 7 or 30 days, new this week, and a person's email (the apps that person has connected). The search box matches app names, client IDs and scope names, so typing `gmail` finds every app with a Gmail scope. The "Apps with access", "High-risk apps" and "New this week" boxes at the top are clickable shortcuts. Filters are not remembered between visits, so a forgotten filter can never hide an app. "People" counts the people whose consent appears in the part of the log that was read; an app marked "in use" next to 0 people made API calls but its consent is older than that window.
+**Sorting and filtering the apps table.** Click a heading (App, Risk, People, First seen, Last activity) to sort by it; click again to reverse. The default is highest risk first, and your choice is remembered. Filters, all of which combine: **Risk**; **Access** (someone has it now, or nobody now); **Can reach** (Gmail, Drive, Calendar, Docs & Sheets, Contacts, Admin & directory, Chat & Meet, Google Cloud, or sign-in only; pick several to see apps that reach any of them); under **More filters**: used by 2, 5, 10 or 50+ people, active in the last 24 hours, 7 or 30 days, new this week, and a person's email (the apps that person has connected). The search box matches app names, client IDs and scope names, so typing `gmail` finds every app with a Gmail scope. The "Apps with access", "High-risk apps" and "New this week" boxes at the top are clickable shortcuts. Filters are not remembered between visits, so a forgotten filter can never hide an app. The table shows 25 apps at a time with "Show 25 more", "Show all" and "Show fewer" (sorting and filtering happen first, so the 25 are always the right 25). The page refreshes itself in the background, but it only redraws this table when something actually changed, and it never moves your scroll position or steals the cursor. "People" counts the people whose consent appears in the part of the log that was read; an app marked "in use" next to 0 people made API calls but its consent is older than that window.
 
 Sample data (Data & settings > Use sample data) includes sample Google apps so you can see the page before connecting.
 
