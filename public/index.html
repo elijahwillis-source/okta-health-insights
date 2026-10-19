@@ -70,6 +70,7 @@ header.top .sub{color:var(--muted);font-size:12px}
 .chipbtn{border-radius:99px;padding:4px 11px;font-size:12.5px;background:transparent;display:inline-flex;gap:6px;align-items:center}
 .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}.chipbtn i{font-style:normal;color:var(--muted);font-size:11.5px}.chipbtn.on i{color:inherit}
 .fin{flex:1 1 180px;min-width:150px;padding:5px 9px;font-size:12.5px}
+.fb-note{font-size:12px;color:var(--muted)}
 .fb-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
 .fchip{display:inline-flex;gap:4px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:2px 4px 2px 10px;font-size:12px}
 .fchip button{border:none;background:transparent;color:inherit;padding:0 5px;line-height:1;font-size:15px}
@@ -280,7 +281,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     <main>
       <section class="view" id="view-overview" data-view="overview">
         <div class="vhead"><div><p class="vs">How healthy Okta is right now: errors, busy apps, and what needs a look.</p></div></div>
-        <div class="fbar" data-fbar="compact"></div>
+        <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
         <div class="kpis" id="kpis"></div>
         <div class="two">
           <div class="card"><h2>Apps at a glance</h2><p class="hint">How many apps are in use, quiet or silent.</p><div id="glance"></div></div>
@@ -309,7 +310,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
       <section class="view" id="view-errors" data-view="errors" hidden>
         <div class="vhead"><div><p class="vs">Every failed, denied or errored event, filtered the way you want.</p></div></div>
-        <div class="fbar" data-fbar="full"></div>
+        <div class="fbar" data-fbar="full" data-fscope="errors"></div>
         <div class="card" id="errView"></div>
       </section>
 
@@ -345,7 +346,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
       <section class="view" id="view-people" data-view="people" hidden>
         <div class="vhead"><div><p class="vs">Who is hitting errors, what each error means, and how to fix it.</p></div></div>
-        <div class="fbar" data-fbar="compact"></div>
+        <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
     <div class="card">
       <h2>Users with assignment / provisioning errors</h2>
       <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
@@ -739,7 +740,7 @@ function render(){
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
   evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView();
-  { const on=filterActive(S.fil), pill=$("#fpill"); pill.hidden=!on; if(on){ pill.title="Showing only: "+describeFilter(S.fil)+". Click to show all errors again."; pill.setAttribute("aria-label","Error filters are on ("+describeFilter(S.fil)+"). Click to clear them."); } }
+  updateFilterPill();
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app",C,"apps");
@@ -923,7 +924,8 @@ function catOf(e){
   return (e._c=c);
 }
 const emptyFilter=()=>({cats:[],results:[],apps:[],include:"",exclude:"",person:""});
-S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));
+S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));      // the dashboard (Overview and People)
+S.efil=Object.assign(emptyFilter(),LS.get("okta.efilters.v1",{}));   // the Errors page has its own, so the two never change each other
 const filterActive=f=>!!(f&&(f.cats.length||f.results.length||f.apps.length||(f.include||"").trim()||(f.exclude||"").trim()||(f.person||"").trim()));
 function compileFilter(f){
   if(!filterActive(f)) return null;
@@ -944,8 +946,17 @@ function describeFilter(f){
   if((f.exclude||"").trim()) parts.push("hiding “"+f.exclude.trim()+"”"); if((f.person||"").trim()) parts.push("for "+f.person.trim());
   return parts.length? parts.join(" · ") : "all errors";
 }
-const saveFilters=()=>LS.set("okta.filters.v1",S.fil);
-function setFilter(mut){ mut(S.fil); saveFilters(); S.errShown=50; render(); renderFilterBars(true); }
+const FS=sc=> sc==="errors"? S.efil : S.fil;
+const saveFilters=sc=> sc==="errors"? LS.set("okta.efilters.v1",S.efil) : LS.set("okta.filters.v1",S.fil);
+function setFilter(scope,mut){ mut(FS(scope)); saveFilters(scope); S.errShown=50; if(scope==="errors"){ if(S.C) renderErrorsView(S.C); } else render(); renderFilterBars(true); updateFilterPill(); }
+// the top-bar button shows the filters of the page you are on (Errors has its own; Overview and People share the dashboard's)
+const pillScope=()=> (S.view==="overview"||S.view==="people")? "dash" : S.view==="errors"? "errors" : null;
+function updateFilterPill(){
+  const pill=$("#fpill"), sc=pillScope(), on=!!sc&&filterActive(FS(sc)); pill.hidden=!on; if(!on) return;
+  pill.innerHTML=(sc==="errors"?"Errors page filters on":"Dashboard filters on")+' <span aria-hidden="true">·</span> Clear';
+  pill.title="Showing only: "+describeFilter(FS(sc))+(sc==="errors"? ". These filters only affect the Errors page." : ". These filters affect the Overview and People pages.")+" Click to clear them.";
+  pill.setAttribute("aria-label",(sc==="errors"?"Errors page":"Dashboard")+" filters are on ("+describeFilter(FS(sc))+"). Click to clear them.");
+}
 function filterChips(f){
   const chip=(k,v,label)=>'<span class="fchip">'+esc(label)+'<button type="button" data-fx="'+k+'" data-fv="'+esc(v)+'" aria-label="Remove filter">×</button></span>';
   return f.cats.map(c=>chip("cat",c,CATS[c])).join("")+f.results.map(r=>chip("res",r,r==="FAILURE"?"Failed":r==="DENY"?"Denied":r)).join("")+f.apps.map(a=>chip("app",a,a)).join("")+
@@ -955,7 +966,7 @@ function renderFilterBars(force){
   const C=S.C; const dl=$("#fbApps");
   document.querySelectorAll("[data-fbar]").forEach(host=>{
     if(!force&&host.contains(document.activeElement)&&document.activeElement.tagName==="INPUT") return;      // do not steal focus while typing
-    const f=S.fil, full=host.dataset.fbar==="full", open=full||S.fbarOpen, on=filterActive(f);
+    const sc=host.dataset.fscope||"dash", f=FS(sc), full=host.dataset.fbar==="full", open=full||S.fbarOpen, on=filterActive(f);
     const cc=(C&&C.catCounts)||new Map();
     const head=full? "" : '<div class="fb-row"><button type="button" class="ghost" data-fa="toggle" aria-expanded="'+!!S.fbarOpen+'">'+(S.fbarOpen?"Hide filters":"Filter errors")+'</button>'+
       (on? '<span class="fb-active" data-chips>'+filterChips(f)+'</span><button type="button" class="ghost" data-fa="clear">Clear</button>' : '<span class="fb-active" data-chips>Showing all errors</span>')+'</div>';
@@ -964,32 +975,34 @@ function renderFilterBars(force){
       '<div class="fb-row"><input class="fin" data-ff="app" list="fbApps" placeholder="Add an app…" autocomplete="off" aria-label="Filter by app"><input class="fin" data-ff="include" placeholder="Reason contains…" value="'+esc(f.include||"")+'" aria-label="Reason contains">'+
       '<input class="fin" data-ff="exclude" placeholder="Hide errors containing… (comma separated)" value="'+esc(f.exclude||"")+'" aria-label="Hide errors containing"><input class="fin" data-ff="person" placeholder="Person…" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>'+
       '<div class="fb-row">'+(full? '<span class="fb-active" data-chips>'+(on? filterChips(f) : "No filters on")+'</span>' : '<span class="fb-active"></span>')+'<span class="spacer"></span><button type="button" class="ghost" data-fa="clear"'+(on?"":" disabled")+'>Clear all</button><button type="button" class="primary" data-fa="alert"'+(on?"":" disabled")+'>Create an alert from this</button></div>';
-    host.innerHTML='<div class="fb">'+head+body+'</div>';
+    const note='<div class="fb-note">'+(sc==="errors"? "These filters only affect this page. The Overview and People pages have their own." : "These filters affect the Overview and People pages. The Errors page has its own.")+'</div>';
+    host.innerHTML=('<div class="fb">'+head+body+(open? note : "")+'</div>').replace(/ data-(fc|fx|fa|ff)=/g,' data-fs="'+sc+'" data-$1=');       // every control knows which filter set it belongs to
   });
   if(dl&&C){ dl.innerHTML=top(countBy(C.failsAll||[],appOf),80).map(([a])=>'<option value="'+esc(a)+'"></option>').join(""); }
 }
 document.addEventListener("click",ev=>{
-  const c=ev.target.closest("[data-fc]"); if(c){ const k=c.dataset.fc==="cat"?"cats":"results", v=c.dataset.fv; setFilter(f=>{ const i=f[k].indexOf(v); if(i<0) f[k].push(v); else f[k].splice(i,1); }); return; }
-  const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
+  const c=ev.target.closest("[data-fc]"); if(c){ const k=c.dataset.fc==="cat"?"cats":"results", v=c.dataset.fv; setFilter(c.dataset.fs||"dash",f=>{ const i=f[k].indexOf(v); if(i<0) f[k].push(v); else f[k].splice(i,1); }); return; }
+  const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(x.dataset.fs||"dash",f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
   const a=ev.target.closest("[data-fa]"); if(a){ const k=a.dataset.fa;
     if(k==="toggle"){ S.fbarOpen=!S.fbarOpen; renderFilterBars(true); }
-    else if(k==="clear") setFilter(f=>Object.assign(f,emptyFilter()));
-    else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(S.fil))}); }
+    else if(k==="clear") setFilter(a.dataset.fs||"dash",f=>Object.assign(f,emptyFilter()));
+    else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(FS(a.dataset.fs||"dash")))}); }
 });
 function syncFilterControls(){
-  const on=filterActive(S.fil);
-  document.querySelectorAll('[data-fa="clear"],[data-fa="alert"]').forEach(b=>{ b.disabled=!on; });
-  document.querySelectorAll("[data-chips]").forEach(el=>{ const full=el.closest("[data-fbar]")&&el.closest("[data-fbar]").dataset.fbar==="full"; el.innerHTML= on? filterChips(S.fil) : (full?"No filters on":"Showing all errors"); });
+  document.querySelectorAll('[data-fa="clear"],[data-fa="alert"]').forEach(b=>{ b.disabled=!filterActive(FS(b.dataset.fs||"dash")); });
+  document.querySelectorAll("[data-chips]").forEach(el=>{ const host=el.closest("[data-fbar]"), sc=(host&&host.dataset.fscope)||"dash", full=host&&host.dataset.fbar==="full", on=filterActive(FS(sc));
+    el.innerHTML=(on? filterChips(FS(sc)) : (full?"No filters on":"Showing all errors")).replace(/ data-(fx)=/g,' data-fs="'+sc+'" data-$1='); });
+  updateFilterPill();
 }
 let fTimer=null;
 document.addEventListener("input",ev=>{
-  const i=ev.target.closest&&ev.target.closest("[data-ff]"); if(!i) return; const k=i.dataset.ff, v=i.value;
+  const i=ev.target.closest&&ev.target.closest("[data-ff]"); if(!i) return; const k=i.dataset.ff, v=i.value, sc=i.dataset.fs||"dash", F=FS(sc);
   if(k==="app"){ const m=((S.C&&S.C.failsAll)?[...new Set(S.C.failsAll.map(appOf))]:[]).find(a=>a&&a.toLowerCase()===v.trim().toLowerCase());
-    if(m&&!S.fil.apps.includes(m)){ i.value=""; setFilter(f=>{ f.apps.push(m); }); } return; }
-  S.fil[k]=v; saveFilters(); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; render(); syncFilterControls(); },300);
+    if(m&&!F.apps.includes(m)){ i.value=""; setFilter(sc,f=>{ f.apps.push(m); }); } return; }
+  F[k]=v; saveFilters(sc); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; if(sc==="errors"){ if(S.C) renderErrorsView(S.C); } else render(); syncFilterControls(); },300);
 });
-function showErrorsFor(reason){ S.fil=Object.assign(emptyFilter(),{include:String(reason||"")}); S.errShown=50;     // not saved: a drill-down should not still be there next visit
-  go("errors"); render(); renderFilterBars(true); }
+function showErrorsFor(reason){ S.efil=Object.assign(emptyFilter(),{include:String(reason||"")}); S.errShown=50;     // not saved: a drill-down should not still be there next visit
+  go("errors"); if(S.C) renderErrorsView(S.C); renderFilterBars(true); updateFilterPill(); }
 
 /* ---------- the Errors page ---------- */
 function errBuckets(errs){
@@ -1006,9 +1019,9 @@ function errChart(errs){
 }
 function mutePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,60); }
 function renderErrorsView(C){
-  const el=$("#errView"); const errs=[...C.fails].sort((a,b)=>ts(b)-ts(a));
+  const el=$("#errView"), epred=compileFilter(S.efil); const errs=(epred? C.failsAll.filter(epred) : C.failsAll.slice()).sort((a,b)=>ts(b)-ts(a));
   const people=new Set(errs.map(e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; }).filter(Boolean)).size, apps=new Set(errs.map(appOf).filter(Boolean)).size;
-  const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.fil);
+  const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.efil);
   const byCat=CAT_KEYS.map(k=>[k,errs.filter(e=>catOf(e)===k).length]).filter(x=>x[1]);
   const mx=byCat.length? Math.max(...byCat.map(x=>x[1])) : 1;
   el.innerHTML='<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people),people?"warn":""],["Apps affected",fmtN(apps),""],["Latest error",last?ago(S.ref-last):"—",""]].map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
@@ -1022,12 +1035,12 @@ function renderErrorsView(C){
       '<div style="display:flex;gap:10px;margin-top:10px">'+(shown<errs.length?'<button class="ghost" data-emore="1">Show '+Math.min(50,errs.length-shown)+' more ('+fmtN(errs.length-shown)+' left)</button>':"")+((S.errShown||50)>50&&errs.length>50?'<button class="ghost" data-eless="1">Show fewer</button>':"")+'</div>'
     : '<div class="empty">'+(on?"No errors match these filters in this window. Try removing a filter.":"No errors in this window.")+'</div>');
   S.errRows=errs;
-  const ask1=$("#errAsk"); if(ask1) ask1.onclick=()=>ask("I'm looking at "+fmtN(errs.length)+" errors ("+describeFilter(S.fil)+") affecting "+people+" people and "+apps+" apps. What patterns do you see, and what should I look at first?");
+  const ask1=$("#errAsk"); if(ask1) ask1.onclick=()=>ask("I'm looking at "+fmtN(errs.length)+" errors ("+describeFilter(S.efil)+") affecting "+people+" people and "+apps+" apps. What patterns do you see, and what should I look at first?");
   const csv=$("#errCsv"); if(csv) csv.onclick=()=>exportCsv(errs);
 }
 $("#errView").addEventListener("click",ev=>{
   const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e) ask("Help me with this Okta error: “"+normErr(reasonOf(e))+"”"+(appOf(e)?" (app: "+appOf(e)+")":"")+" from event "+e.eventType+". What does it mean, and what should I do to fix it?"); return; }
-  const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter(f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
+  const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter("errors",f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
@@ -1345,7 +1358,7 @@ function showView(v){
   if(!VIEWS[v]) v="overview"; S.view=v;
   document.querySelectorAll(".view").forEach(el=>{ el.hidden= el.dataset.view!==v; });
   document.querySelectorAll(".navi[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
-  $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
+  updateFilterPill(); $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
   try{ window.scrollTo(0,0); }catch(_){}
   if(S.C&&typeof renderViewExtras==="function") renderViewExtras(v);
 }
@@ -1502,7 +1515,7 @@ function renderLatestAlerts(){
 function markRead(id){ const n=S.notifs.find(x=>x.id===id); if(n&&n.unread){ n.unread=false; saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); } }
 function openNotif(id){
   const n=S.notifs.find(x=>x.id===id); if(!n) return; markRead(id); $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false");
-  if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+  if(n.link&&n.link.view==="errors"){ S.efil=Object.assign(emptyFilter(),n.link.filter||{}); S.errShown=50; go("errors"); if(S.C) renderErrorsView(S.C); renderFilterBars(true); updateFilterPill(); }
   else if(n.link&&n.link.view==="google"){ S.gfocus=n.link.app||""; go("google"); renderGoogleView(); }
   else if(n.link&&n.link.view) go(n.link.view);
 }
@@ -1790,7 +1803,7 @@ $("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; e.ta
   openMapper(rows,f.name); };
 $("#fileApps").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.inventory=parseApps(await f.text()); render(); e.target.value=""; };
 $("#win").onchange=e=>{S.win=+e.target.value;render();};
-$("#fpill").onclick=()=>setFilter(f=>Object.assign(f,emptyFilter()));
+$("#fpill").onclick=()=>{ const sc=pillScope(); if(sc) setFilter(sc,f=>Object.assign(f,emptyFilter())); };
 $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
 
 /* ---------- assistant ---------- */
