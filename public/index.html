@@ -112,6 +112,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .gsetup ol{margin:8px 0 8px 20px;padding:0;display:flex;flex-direction:column;gap:10px}.gsetup li{line-height:1.5}.gsetup code{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0 5px;font-size:12px;overflow-wrap:anywhere}
 .gwarn{border:1px solid var(--warn);background:rgba(255,184,77,.08);border-radius:10px;padding:10px 14px;font-size:13px}
 .nlist+.lnk{display:inline-block;margin-top:12px}
+.fpill{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);border-radius:99px;padding:4px 12px;font-size:12.5px;font-weight:600}
 .glrow{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.glrow>div{display:flex;flex-direction:column;gap:4px}.glrow b{font-size:24px;letter-spacing:-.01em}
 .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}.setbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .alertgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}@media (max-width:1100px){.alertgrid{grid-template-columns:minmax(0,1fr)}}
@@ -258,6 +259,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       </div>
       <div class="spacer"></div>
       <input type="text" id="hsearch" placeholder="Find a user or app…  ( / )" autocomplete="off" aria-label="Find a user or app">
+      <button type="button" id="fpill" class="fpill" hidden>Error filters on <span aria-hidden="true">·</span> Clear</button>
       <label class="ctl">Window
         <select id="win">
           <option value="86400000">Last 24h</option>
@@ -728,19 +730,20 @@ function render(){
   const silentN=C.tiles.filter(t=>t.status==="silent").length;
   $("#kpis").innerHTML = [
     ["Events in window",fmtN(C.win.length),"",""],
-    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied"+(filterActive(S.fil)?" · filtered":""), rate>8?"bad":rate>4?"warn":"ok"],
+    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied"+(filterActive(S.fil)?" · filtered":""), filterActive(S.fil)?"":(rate>8?"bad":rate>4?"warn":"ok")],
     ["Silent apps",S.catchingUp?"…":silentN,S.catchingUp?"waiting for history":"of "+C.tiles.length+" apps", S.catchingUp?"warn":(silentN?"bad":"ok")],
-    ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected", C.assignFails.length?"warn":"ok"],
+    ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected"+(filterActive(S.fil)?" · filtered":""), filterActive(S.fil)?"":(C.assignFails.length?"warn":"ok")],
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
   ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
   evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView();
+  { const on=filterActive(S.fil), pill=$("#fpill"); pill.hidden=!on; if(on){ pill.title="Showing only: "+describeFilter(S.fil)+". Click to show all errors again."; pill.setAttribute("aria-label","Error filters are on ("+describeFilter(S.fil)+"). Click to clear them."); } }
 
   renderTimeline(C);
-  bars("#topApps",C.topApps,"app");
-  bars("#topReasons",C.topReasons,"reason");
+  bars("#topApps",C.topApps,"app",C,"apps");
+  bars("#topReasons",C.topReasons,"reason",C,"reasons");
 
   renderUsersTable(C);
   if(S.uperson) renderPerson();
@@ -856,7 +859,7 @@ function explHTML(st){
 }
 function renderUsersTable(C){
   const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
-  if(!C.users.length){ el.innerHTML='<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>'; return; }
+  if(!C.users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
   el.innerHTML='<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>'+C.users.slice(0,12).map((u,ui)=>{
     const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
     const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
@@ -985,7 +988,8 @@ document.addEventListener("input",ev=>{
     if(m&&!S.fil.apps.includes(m)){ i.value=""; setFilter(f=>{ f.apps.push(m); }); } return; }
   S.fil[k]=v; saveFilters(); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; render(); syncFilterControls(); },300);
 });
-function showErrorsFor(reason){ S.fil=Object.assign(emptyFilter(),{include:String(reason||"")}); saveFilters(); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+function showErrorsFor(reason){ S.fil=Object.assign(emptyFilter(),{include:String(reason||"")}); S.errShown=50;     // not saved: a drill-down should not still be there next visit
+  go("errors"); render(); renderFilterBars(true); }
 
 /* ---------- the Errors page ---------- */
 function errBuckets(errs){
@@ -1028,8 +1032,16 @@ $("#errView").addEventListener("click",ev=>{
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
 function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); }
-function bars(sel,list,kind){
-  const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
+// Why is a list of errors empty? Say so plainly, and offer to clear the filters when they are the cause.
+function emptyErrors(C,what){
+  const on=filterActive(S.fil), clr=on? ' <button type="button" class="ghost" data-fa="clear">Clear filters</button>' : "";
+  if(on&&C.failsAll.length&&!C.fails.length) return '<div class="empty">Your error filters are hiding all '+fmtN(C.failsAll.length)+' errors in this window.'+clr+'</div>';
+  if(C.fails.length&&what==="apps") return '<div class="empty">'+(on? "The "+fmtN(C.fails.length)+" error"+(C.fails.length===1?"":"s")+" matching your filters "+(C.fails.length===1?"is":"are")+" not tied to an app." : "None of the "+fmtN(C.fails.length)+" errors in this window are tied to an app.")+clr+'</div>';
+  if(what==="users"&&on) return '<div class="empty">No assignment or provisioning errors match your filters.'+clr+'</div>';
+  return '<div class="empty">'+(what==="users"?"No assignment or provisioning errors in this window.":"No errors in this window.")+'</div>';
+}
+function bars(sel,list,kind,C,what){
+  const el=$(sel); if(!list.length){ el.innerHTML=emptyErrors(C||S.C||{failsAll:[],fails:[]},what||"reasons"); return; }
   const max=list[0][1];
   el.innerHTML=list.map(([k,v])=>`<div class="row" data-k="${kind}" data-v="${esc(k)}" title="${esc(k)}"><div class="nm">${esc(k)}</div><div class="track"><div class="fill" style="width:${Math.max(3,v/max*100)}%"></div></div><div class="ct">${fmtN(v)}</div></div>`).join("");
 }
@@ -1490,7 +1502,7 @@ function renderLatestAlerts(){
 function markRead(id){ const n=S.notifs.find(x=>x.id===id); if(n&&n.unread){ n.unread=false; saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); } }
 function openNotif(id){
   const n=S.notifs.find(x=>x.id===id); if(!n) return; markRead(id); $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false");
-  if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); saveFilters(); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+  if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
   else if(n.link&&n.link.view==="google"){ S.gfocus=n.link.app||""; go("google"); renderGoogleView(); }
   else if(n.link&&n.link.view) go(n.link.view);
 }
@@ -1778,6 +1790,7 @@ $("#fileLog").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; e.ta
   openMapper(rows,f.name); };
 $("#fileApps").onchange=async e=>{ const f=e.target.files[0]; if(!f) return; S.inventory=parseApps(await f.text()); render(); e.target.value=""; };
 $("#win").onchange=e=>{S.win=+e.target.value;render();};
+$("#fpill").onclick=()=>setFilter(f=>Object.assign(f,emptyFilter()));
 $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
 
 /* ---------- assistant ---------- */
