@@ -56,8 +56,6 @@ function createGoogle(env, log) {
   let key = null, keyError = "";
   try { key = loadKey(cfg.keyRaw); } catch (e) { keyError = e.message; }
   const configured = !!(cfg.keyRaw && cfg.admin);
-  // exactly one of the two is set: say which, instead of silently staying off
-  const partial = !cfg.keyRaw && cfg.admin ? "GOOGLE_ADMIN_EMAIL is set but GOOGLE_SA_KEY is missing (or empty)." : cfg.keyRaw && !cfg.admin ? "GOOGLE_SA_KEY is set but GOOGLE_ADMIN_EMAIL is missing (or empty)." : "";
 
   async function accessToken() {
     if (st.token && Date.now() < st.tokenExp - 120000) return st.token;
@@ -132,7 +130,7 @@ function createGoogle(env, log) {
     start() { if (!configured) return; if (keyError) { st.lastError = keyError; log("Google: " + keyError); return; } log("Google OAuth audit enabled for " + cfg.admin + " (reads the last " + cfg.lookbackDays + " days, then every " + cfg.pollSec + "s)"); loop(); },
     stop() { clearTimeout(timer); },
     status() {
-      return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: partial || keyError || st.lastError, hint: partial ? "Google needs both settings. Add the missing one in your hosting dashboard (environment variables) and redeploy." : keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
+      return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: keyError || st.lastError, hint: keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
         lookbackDays: cfg.lookbackDays, oldest: st.events.length ? st.events[0].time : null, newest: st.events.length ? st.events[st.events.length - 1].time : null, scope: SCOPE };
     },
     events(since) { const s = +since || 0; return s ? st.events.filter(e => e.time > s) : st.events; },
