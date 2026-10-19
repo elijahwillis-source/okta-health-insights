@@ -70,6 +70,11 @@ header.top .sub{color:var(--muted);font-size:12px}
 .chipbtn{border-radius:99px;padding:4px 11px;font-size:12.5px;background:transparent;display:inline-flex;gap:6px;align-items:center}
 .chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}.chipbtn i{font-style:normal;color:var(--muted);font-size:11.5px}.chipbtn.on i{color:inherit}
 .fin{flex:1 1 180px;min-width:150px;padding:5px 9px;font-size:12.5px}
+.usuggest{margin-top:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);overflow:hidden}
+.sg{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:9px 12px;font-size:13px}
+.sg:last-child{border-bottom:none}.sg:hover,.sg:focus-visible{background:var(--accent-soft);outline:none}.sg .ct{color:var(--muted);font-size:12px;white-space:nowrap}.sg.okta{color:var(--accent);font-weight:600}
+.stale{opacity:.38;transition:opacity .2s}
+.sg-h{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 12px 2px}.sg-n{padding:2px 12px 10px;font-size:12.5px;color:var(--muted)}
 .fb-note{font-size:12px;color:var(--muted)}
 .fb-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
 .fchip{display:inline-flex;gap:4px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:2px 4px 2px 10px;font-size:12px}
@@ -347,16 +352,18 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
         <div class="vhead"><div><p class="vs">Who is hitting errors, what each error means, and how to fix it.</p></div></div>
         <div class="card" id="userLookup">
       <h2>Find a person</h2>
-      <p class="hint">Type to narrow the list below as you go. Press Enter or Look up to see everything about one person: failed sign-ins, assignment and provisioning errors, Active Directory failures and the Google apps they connected. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person.</p>
-      <div class="ulrow"><input type="text" id="usearch" placeholder="Search a person, e.g. jane.doe@company.com" autocomplete="off" list="ulist"><datalist id="ulist"></datalist><button id="ugo" class="primary">Look up</button><button id="uclear" class="ghost" type="button">Clear</button></div>
+      <p class="hint">Start typing a name or email: people from the loaded data are suggested, and the list below narrows as you go. A full email address is looked up on its own; otherwise press Enter or Look up to see everything about one person: failed sign-ins, assignment and provisioning errors, Active Directory failures and the Google apps they connected. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person.</p>
+      <div class="ulrow"><input type="text" id="usearch" placeholder="Search a person, e.g. jane.doe@company.com" autocomplete="off"><button id="ugo" class="primary">Look up</button><button id="uclear" class="ghost" type="button">Clear</button></div>
+      <div id="usuggest" class="usuggest" hidden></div>
       <div class="fbar" data-fbar="lookup" data-fscope="person"></div>
       <div id="uresult"></div>
     </div>
 
         <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
-<div class="card">
+<div class="card" id="usersCard">
       <h2>Users with assignment / provisioning errors</h2>
       <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
+      <div id="usersNote" class="hint" hidden></div>
       <div class="scroll"><table id="userTbl"></table></div>
     </div>
       </section>
@@ -860,7 +867,10 @@ function explHTML(st){
 function renderUsersTable(C){
   const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
   const pq=(S.pq||"").trim().toLowerCase(), users=pq? C.users.filter(u=>u.user.toLowerCase().includes(pq)) : C.users;     // what is typed in "Find a person" narrows this list
-  if(!users.length){ el.innerHTML='<tr><td>'+(pq? '<div class="empty">No one in this list matches “'+esc(S.pq.trim())+'”.'+(S.uperson? ' The lookup above shows everything about them.' : ' Press Enter or Look up to search Okta for them.')+'</div>' : emptyErrors(C,"users"))+'</td></tr>'; return; }
+  const note=$("#usersNote");
+  if(!users.length&&pq){ el.hidden=true; el.innerHTML=""; note.hidden=false; note.textContent="None of the people with assignment or provisioning errors match “"+S.pq.trim()+"”. "+(S.pq.trim()===S.lq? (S.uperson? "Everything about them is shown above." : "The search results are shown above.") : "Use the suggestions above, or press Enter to search Okta."); return; }
+  el.hidden=false; note.hidden=!pq; if(pq) note.textContent="Showing "+Math.min(12,users.length)+" of "+users.length+" "+(users.length===1?"person":"people")+" with assignment or provisioning errors matching “"+S.pq.trim()+"”.";
+  if(!users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
   el.innerHTML='<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>'+users.slice(0,12).map((u,ui)=>{
     const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
     const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
@@ -1056,8 +1066,34 @@ function emptyErrors(C,what){
   if(what==="users"&&on) return '<div class="empty">No assignment or provisioning errors match your filters.'+clr+'</div>';
   return '<div class="empty">'+(what==="users"?"No assignment or provisioning errors in this window.":"No errors in this window.")+'</div>';
 }
-$("#usearch").addEventListener("input",()=>{ S.pq=$("#usearch").value; clearTimeout(S.pqT); S.pqT=setTimeout(()=>{ if(S.C) renderUsersTable(S.C); },120); });
-$("#uclear").onclick=()=>{ $("#usearch").value=""; S.pq=""; S.lseq++; S.uperson=null; S.lpool=null; S.lpeople=null; $("#uresult").innerHTML=""; S.pfil=emptyFilter(); renderFilterBars(true); if(S.C) renderUsersTable(S.C); };
+/* ---------- Find a person: suggestions while you type ---------- */
+const EMAIL_RE=/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+function markStale(){ const stale=!!S.lq&&S.pq.trim()!==S.lq; $("#uresult").classList.toggle("stale",stale); $("#userLookup .fbar").classList.toggle("stale",stale); }
+function renderSuggest(){
+  const box=$("#usuggest"), q=(S.pq||"").trim();
+  if(q.length<2||q===S.lq){ box.hidden=true; box.innerHTML=""; return; }          // nothing typed, or this exact text was already looked up
+  const found=findPeopleIn(buildPeople(),q).slice(0,6), live=viaOkta();
+  box.innerHTML=(found.length? '<div class="sg-h">People in the loaded data</div>'+found.map(p=>'<button type="button" class="sg" data-sgp="'+esc([...p.alts][0])+'"><span><b>'+esc(p.name||[...p.alts][0])+'</b> <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+(p.f? fmtN(p.f)+' error'+(p.f===1?"":"s") : 'no errors')+' · '+fmtN(p.n)+' events</span></button>').join("") : "")+
+    '<button type="button" class="sg okta" data-sgq="1"><span>'+(live? 'Search Okta for “'+esc(q)+'”' : 'Look up “'+esc(q)+'”')+'</span><span class="ct">Enter ↵</span></button>'+
+    (found.length? "" : '<div class="sg-n">Nobody in the loaded data matches yet'+(S.catchingUp? " (history is still loading)":"")+'. '+(live? "Searching Okta looks through the whole window, not just what is loaded here." : "Look up searches the events that are loaded.")+'</div>');
+  box.hidden=false;
+}
+$("#usearch").addEventListener("input",()=>{
+  const v=$("#usearch").value; S.pq=v; renderSuggest(); markStale();
+  clearTimeout(S.pqT); S.pqT=setTimeout(()=>{ if(S.C) renderUsersTable(S.C); },120);
+  clearTimeout(S.autoT); const t=v.trim();
+  if(EMAIL_RE.test(t)&&t!==S.lq) S.autoT=setTimeout(()=>{ if($("#usearch").value.trim()===t) lookupUser(t); },700);     // a complete email address needs no button
+});
+$("#usuggest").addEventListener("click",ev=>{
+  const one=ev.target.closest("[data-sgp]"); if(one){ openUser(one.dataset.sgp); return; }
+  if(ev.target.closest("[data-sgq]")) lookupUser($("#usearch").value);
+});
+$("#usearch").addEventListener("keydown",ev=>{ if(ev.key==="ArrowDown"){ const f=document.querySelector("#usuggest .sg"); if(f){ ev.preventDefault(); f.focus(); } } });
+$("#usuggest").addEventListener("keydown",ev=>{
+  const all=[...document.querySelectorAll("#usuggest .sg")], i=all.indexOf(document.activeElement);
+  if(ev.key==="ArrowDown"&&i<all.length-1){ ev.preventDefault(); all[i+1].focus(); } else if(ev.key==="ArrowUp"){ ev.preventDefault(); if(i>0) all[i-1].focus(); else $("#usearch").focus(); } else if(ev.key==="Escape"){ $("#usearch").focus(); }
+});
+$("#uclear").onclick=()=>{ $("#usearch").value=""; S.pq=""; S.lq=""; clearTimeout(S.autoT); renderSuggest(); markStale(); S.lseq++; S.uperson=null; S.lpool=null; S.lpeople=null; $("#uresult").innerHTML=""; S.pfil=emptyFilter(); renderFilterBars(true); if(S.C) renderUsersTable(S.C); };
 function bars(sel,list,kind,C,what){
   const el=$(sel); if(!list.length){ el.innerHTML=emptyErrors(C||S.C||{failsAll:[],fails:[]},what||"reasons"); return; }
   const max=list[0][1];
@@ -1155,10 +1191,13 @@ function summarizePerson(mine){
   return {events:mine.length,fails,assign:assign.length,signin:signin.length,other:fails.length-assign.length-signin.length,
     apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
 }
-function openUser(q){ go("people"); $("#usearch").value=q; S.pq=String(q||"").trim(); if(S.C) renderUsersTable(S.C); lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+function openUser(q){ go("people"); $("#usearch").value=q; S.pq=String(q||"").trim(); S.lq=S.pq; if(S.C) renderUsersTable(S.C); lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 
-async function lookupUser(q){
+// whatever way a lookup ends (found, several matches, nobody), the note under the list is brought up to date
+async function lookupUser(q){ try{ await _lookupUser(q); } finally { if(S.C) renderUsersTable(S.C); } }
+async function _lookupUser(q){
   q=String(q||"").trim(); const res=$("#uresult"), token=++S.lseq;
+  S.lq=q; clearTimeout(S.autoT); renderSuggest(); markStale();
   S.pfil=emptyFilter(); renderFilterBars(true);
   S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource="loaded"; S.lnote=""; S.ltrunc=false; S.lqs=null;
   if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
@@ -1230,10 +1269,7 @@ function renderPerson(){
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
 $("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openFind(v); } });   // always-visible shortcut in the top bar
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
-$("#usearch").addEventListener("input",()=>{    // type-ahead suggestions come from events already loaded
-  const q=$("#usearch").value; const dl=$("#ulist");
-  dl.innerHTML= q.trim().length<2? "" : findPeople(q).slice(0,15).map(p=>'<option value="'+esc([...p.alts][0])+'">'+esc(p.name)+'</option>').join("");
-});
+
 $("#uresult").addEventListener("click",ev=>{
   const b=ev.target.closest("[data-pick]"); if(!b) return;
   const p=(S.lpeople||buildPeople()).get(b.dataset.pick); if(p) pickPerson(p);
