@@ -74,6 +74,8 @@ header.top .sub{color:var(--muted);font-size:12px}
 .sg{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:9px 12px;font-size:13px}
 .sg:last-child{border-bottom:none}.sg:hover,.sg:focus-visible{background:var(--accent-soft);outline:none}.sg .ct{color:var(--muted);font-size:12px;white-space:nowrap}.sg.okta{color:var(--accent);font-weight:600}
 .stale{opacity:.38;transition:opacity .2s}
+.wrow{margin:4px 0}.mini{font-size:12px;padding:1px 9px;margin-left:6px}
+.sg .cpill{margin-right:6px}
 .sg-h{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px 12px 2px}.sg-n{padding:2px 12px 10px;font-size:12.5px;color:var(--muted)}
 .fb-note{font-size:12px;color:var(--muted)}
 .fb-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
@@ -352,18 +354,17 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
         <div class="vhead"><div><p class="vs">Who is hitting errors, what each error means, and how to fix it.</p></div></div>
         <div class="card" id="userLookup">
       <h2>Find a person</h2>
-      <p class="hint">Start typing a name or email: people from the loaded data are suggested, and the list below narrows as you go. A full email address is looked up on its own; otherwise press Enter or Look up to see everything about one person: failed sign-ins, assignment and provisioning errors, Active Directory failures and the Google apps they connected. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person.</p>
+      <p class="hint">Start typing a name or email and pick the person; a full email address is looked up on its own. You get everything about them: failed sign-ins, assignment and provisioning errors, Active Directory failures and the Google apps they connected. Logins with the same name before the @ (for example an Okta email and an AD login) are treated as one person. <b>Clear</b> goes back to the list of people with assignment or provisioning errors.</p>
       <div class="ulrow"><input type="text" id="usearch" placeholder="Search a person, e.g. jane.doe@company.com" autocomplete="off"><button id="ugo" class="primary">Look up</button><button id="uclear" class="ghost" type="button">Clear</button></div>
       <div id="usuggest" class="usuggest" hidden></div>
       <div class="fbar" data-fbar="lookup" data-fscope="person"></div>
       <div id="uresult"></div>
     </div>
 
-        <div class="fbar" data-fbar="compact" data-fscope="dash"></div>
+        <div class="fbar" id="peopleBar" data-fbar="compact" data-fscope="dash"></div>
 <div class="card" id="usersCard">
       <h2>Users with assignment / provisioning errors</h2>
       <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
-      <div id="usersNote" class="hint" hidden></div>
       <div class="scroll"><table id="userTbl"></table></div>
     </div>
       </section>
@@ -866,10 +867,10 @@ function explHTML(st){
 }
 function renderUsersTable(C){
   const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
-  const pq=(S.pq||"").trim().toLowerCase(), users=pq? C.users.filter(u=>u.user.toLowerCase().includes(pq)) : C.users;     // what is typed in "Find a person" narrows this list
-  const note=$("#usersNote");
-  if(!users.length&&pq){ el.hidden=true; el.innerHTML=""; note.hidden=false; note.textContent="None of the people with assignment or provisioning errors match “"+S.pq.trim()+"”. "+(S.pq.trim()===S.lq? (S.uperson? "Everything about them is shown above." : "The search results are shown above.") : "Use the suggestions above, or press Enter to search Okta."); return; }
-  el.hidden=false; note.hidden=!pq; if(pq) note.textContent="Showing "+Math.min(12,users.length)+" of "+users.length+" "+(users.length===1?"person":"people")+" with assignment or provisioning errors matching “"+S.pq.trim()+"”.";
+  // two modes: BROWSING (nothing typed: the list of people with assignment or provisioning errors) and SEARCHING
+  // (something typed or looked up: only the search is shown, so two things never answer at once)
+  const searching=!!((S.pq||"").trim()||S.lq); $("#usersCard").hidden=searching; $("#peopleBar").hidden=searching; if(searching) return;
+  const users=C.users;
   if(!users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
   el.innerHTML='<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>'+users.slice(0,12).map((u,ui)=>{
     const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
@@ -1072,15 +1073,15 @@ function markStale(){ const stale=!!S.lq&&S.pq.trim()!==S.lq; $("#uresult").clas
 function renderSuggest(){
   const box=$("#usuggest"), q=(S.pq||"").trim();
   if(q.length<2||q===S.lq){ box.hidden=true; box.innerHTML=""; return; }          // nothing typed, or this exact text was already looked up
-  const found=findPeopleIn(buildPeople(),q).slice(0,6), live=viaOkta();
-  box.innerHTML=(found.length? '<div class="sg-h">People in the loaded data</div>'+found.map(p=>'<button type="button" class="sg" data-sgp="'+esc([...p.alts][0])+'"><span><b>'+esc(p.name||[...p.alts][0])+'</b> <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+(p.f? fmtN(p.f)+' error'+(p.f===1?"":"s") : 'no errors')+' · '+fmtN(p.n)+' events</span></button>').join("") : "")+
+  const found=findPeopleIn(buildPeople(),q).slice(0,6), live=viaOkta(), asg=new Map(((S.C&&S.C.users)||[]).map(u=>[localPart(u.user),u.n]));
+  box.innerHTML=(found.length? '<div class="sg-h">People in the loaded data</div>'+found.map(p=>'<button type="button" class="sg" data-sgp="'+esc([...p.alts][0])+'"><span><b>'+esc(p.name||[...p.alts][0])+'</b> <span class="ids">'+esc([...p.alts].join(", "))+'</span></span><span class="ct">'+(asg.get(p.local)? '<span class="cpill">'+fmtN(asg.get(p.local))+' assignment</span> ' : "")+(p.f? fmtN(p.f)+' error'+(p.f===1?"":"s") : 'no errors')+' · '+fmtN(p.n)+' events</span></button>').join("") : "")+
     '<button type="button" class="sg okta" data-sgq="1"><span>'+(live? 'Search Okta for “'+esc(q)+'”' : 'Look up “'+esc(q)+'”')+'</span><span class="ct">Enter ↵</span></button>'+
     (found.length? "" : '<div class="sg-n">Nobody in the loaded data matches yet'+(S.catchingUp? " (history is still loading)":"")+'. '+(live? "Searching Okta looks through the whole window, not just what is loaded here." : "Look up searches the events that are loaded.")+'</div>');
   box.hidden=false;
 }
 $("#usearch").addEventListener("input",()=>{
-  const v=$("#usearch").value; S.pq=v; renderSuggest(); markStale();
-  clearTimeout(S.pqT); S.pqT=setTimeout(()=>{ if(S.C) renderUsersTable(S.C); },120);
+  const v=$("#usearch").value; if(!v.trim()){ $("#uclear").onclick(); return; }
+  S.pq=v; renderSuggest(); markStale(); if(S.C) renderUsersTable(S.C);
   clearTimeout(S.autoT); const t=v.trim();
   if(EMAIL_RE.test(t)&&t!==S.lq) S.autoT=setTimeout(()=>{ if($("#usearch").value.trim()===t) lookupUser(t); },700);     // a complete email address needs no button
 });
@@ -1188,6 +1189,7 @@ function summarizePerson(mine){
     return {reason,n,apps};
   });
   const lastFail=fails.reduce((m,e)=>Math.max(m,ts(e)),0);
+  why.forEach(w=>{ w.types=top(countBy(fails.filter(e=>normErr(reasonOf(e))===w.reason),e=>e.eventType),2).map(x=>x[0]); });
   return {events:mine.length,fails,assign:assign.length,signin:signin.length,other:fails.length-assign.length-signin.length,
     apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
 }
@@ -1197,7 +1199,7 @@ function openUser(q){ go("people"); $("#usearch").value=q; S.pq=String(q||"").tr
 async function lookupUser(q){ try{ await _lookupUser(q); } finally { if(S.C) renderUsersTable(S.C); } }
 async function _lookupUser(q){
   q=String(q||"").trim(); const res=$("#uresult"), token=++S.lseq;
-  S.lq=q; clearTimeout(S.autoT); renderSuggest(); markStale();
+  S.lq=q; S.pwxOpen=new Set(); clearTimeout(S.autoT); renderSuggest(); markStale();
   S.pfil=emptyFilter(); renderFilterBars(true);
   S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource="loaded"; S.lnote=""; S.ltrunc=false; S.lqs=null;
   if(q.length<2){ res.innerHTML='<div class="empty">Type at least 2 characters of an email, username or name.</div>'; return; }
@@ -1239,7 +1241,7 @@ function renderPerson(){
     refetchPerson(p,t).catch(err=>{ S.lnote="Couldn’t refresh from Okta ("+err.message+")."; S.ldays=daysForWindow(); }).finally(()=>{ S.lbusy=false; if(S.uperson===p) renderPerson(); });
     return;
   }
-  const mineAll=personEvents(p), ppred=compileFilter(S.pfil);
+  const mineAll=personEvents(p), ppred=compileFilter(S.pfil); S.pwxOpen=S.pwxOpen||new Set();
   S.lcounts.person=countBy(mineAll.filter(isFail),catOf);
   const mine= ppred? mineAll.filter(e=>!isFail(e)||ppred(e)) : mineAll, sm=summarizePerson(mine);        // filters narrow the ERRORS; successful events stay
   const only=$("#ufail")? $("#ufail").checked : true;
@@ -1252,7 +1254,7 @@ function renderPerson(){
     '<div class="ukpis">'+[["Events",fmtN(sm.events),""],["Errors",fmtN(sm.fails.length),sm.fails.length?"bad":""],["Assignment / provisioning",fmtN(sm.assign),sm.assign?"warn":""],
       ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(Date.now()-sm.lastFail):"—",""]]
       .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
-    (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+'</div>').join("")+'</div>'
+    (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map((w,i)=>'<div class="wrow"><div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+' <button type="button" class="ghost mini" data-pwx="'+i+'">What does this mean?</button></div><div class="xexp" id="pwx-'+i+'" hidden></div></div>').join("")+'</div>'
                    : (ppred&&mineAll.some(isFail)? '<div class="empty">No errors match your filters. <button type="button" class="ghost" data-fa="clear" data-fs="person">Clear filters</button></div>' : '<div class="empty">No errors for this person in this window.</div>'))+googlePersonHTML(p)+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
     (S.lsource==="okta"?'<button id="urefresh" class="ghost">Refresh from Okta</button>':"")+
@@ -1264,8 +1266,28 @@ function renderPerson(){
   $("#uask").onclick=()=>ask("Help me troubleshoot the errors for the user "+([...p.alts][0])+". What is going wrong and what should I check in Okta?");
   $("#uexp").onclick=()=>exportCsv(rows);
   if($("#urefresh")) $("#urefresh").onclick=()=>{ S.ldays=-1; renderPerson(); };   // forces a fresh fetch
+  S.pwhy=sm.why; sm.why.forEach((w,i)=>{ if(S.pwxOpen.has(i)) personExplain(i,true); });
   renderFilterBars();
 }
+// "What does this mean?" on a line of the person's results: same assistant, same cache as the list rows
+async function personExplain(i,keepOpen){
+  const w=S.pwhy&&S.pwhy[i], root=$("#uresult"); if(!w) return; if(!S.explain) S.explain=new Map();
+  const el=root.querySelector("#pwx-"+i), btn=root.querySelector('[data-pwx="'+i+'"]'); if(!el) return;
+  const x={norm:w.reason,apps:w.apps.slice(0,1),types:(w.types||[]).slice(0,1)}, ek=errKey(x), st=S.explain.get(ek);
+  if(!keepOpen&&!el.hidden&&(!st||st.state!=="error")){ el.hidden=true; S.pwxOpen.delete(i); btn.textContent="What does this mean?"; return; }
+  if(st&&st.state==="error") S.explain.delete(ek);
+  el.hidden=false; S.pwxOpen.add(i); btn.textContent="Hide explanation";
+  const cur=S.explain.get(ek); if(cur&&(cur.state==="done"||cur.state==="loading")){ el.innerHTML=explHTML(cur); return; }
+  if(!S.assistant){ S.explain.set(ek,{state:"error",text:"The explanation needs the assistant, which is only available when the dashboard is connected to its backend with an Anthropic API key."}); el.innerHTML=explHTML(S.explain.get(ek)); return; }
+  S.explain.set(ek,{state:"loading"}); el.innerHTML=explHTML(S.explain.get(ek));
+  try{
+    const r=await fetch("api/explain-error",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:x.norm,apps:x.apps,eventTypes:x.types,count:w.n,people:1})});
+    const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+    S.explain.set(ek,{state:"done",text:j.text});
+  }catch(err){ S.explain.set(ek,{state:"error",text:"Couldn’t get an explanation ("+err.message+"). Click the button again to retry."}); }
+  const el2=$("#uresult").querySelector("#pwx-"+i); if(el2) el2.innerHTML=explHTML(S.explain.get(ek));
+}
+$("#uresult").addEventListener("click",ev=>{ const b=ev.target.closest("[data-pwx]"); if(b) personExplain(+b.dataset.pwx); });
 $("#ugo").onclick=()=>lookupUser($("#usearch").value);
 $("#hsearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=$("#hsearch").value; if(String(v).trim().length<2) return; openFind(v); } });   // always-visible shortcut in the top bar
 $("#usearch").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); lookupUser($("#usearch").value); } });
