@@ -41,6 +41,7 @@ const cfg = {
 };
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
+const google = require("./google").createGoogle(env, log);
 
 /* ------------------------------------------------------------------- state */
 const state = {
@@ -359,7 +360,8 @@ async function assistantUserLookup(i) {
 const SYSTEM = `You are an expert Okta administrator and identity engineer embedded in an Okta health dashboard. You help the admin troubleshoot using live Okta System Log data.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
 Apply common knowledge: expired/revoked API tokens or OAuth grants in provisioning; license exhaustion in the target app; duplicate or mismatched attributes (email/username) in the target; group rules failing on missing profile attributes; attribute mapping and Okta Expression Language errors; rate limiting (429); sign-on policy denials; lockouts; import schedules; SCIM errors.
-Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.`;
+Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.
+The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. You have no tool for the Google data beyond the summary.`;
 
 const TOOLS = [{
   name: "query_events",
@@ -622,8 +624,15 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true, appLookup: true
+        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status()
       });
+
+    if (req.method === "GET" && url.pathname === "/api/google/events") {
+      if (!google.configured) return send(req, res, 404, { error: "Google Workspace is not connected (GOOGLE_SA_KEY and GOOGLE_ADMIN_EMAIL are not set)." });
+      const ev = google.events(url.searchParams.get("since"));
+      const status = google.status();
+      return send(req, res, 200, { events: ev, total: status.events, serverTime: Date.now(), status });
+    }
 
     if (req.method === "GET" && url.pathname === "/api/events") {
       const since = +url.searchParams.get("since") || 0;
@@ -681,6 +690,7 @@ function start() {
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Okta Health Insights listening on :${cfg.port} for ${cfg.orgUrl}`));
   initIngest(); pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
+  google.start();
 }
 if (require.main === module) start();
-module.exports = { server, queryEvents, state };
+module.exports = { server, queryEvents, state, google };

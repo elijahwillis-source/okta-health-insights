@@ -49,6 +49,10 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `LOOKBACK_DAYS` | no | Default 7 |
 | `MAX_EVENTS` | no | In-memory cap, default 100000 |
 | `OKTA_LOG_FILTER` | no | Narrow the feed on very large orgs |
+| `GOOGLE_SA_KEY` | for Google OAuth | The Google service account key: the JSON file's contents, or the same text base64-encoded. See "Google Workspace OAuth" below |
+| `GOOGLE_ADMIN_EMAIL` | for Google OAuth | The dedicated admin the service account acts as (needs only the Reports privilege) |
+| `GOOGLE_LOOKBACK_DAYS` | no | History to load first (default 30, at most 180; Google keeps 6 months) |
+| `GOOGLE_POLL_SECONDS` | no | How often to check (default 300) |
 | `LOOKUP_MAX_PAGES` | no | Per-user search: pages of 1000 Okta events fetched per search term (default 10) |
 | `LOOKUP_MAX_EVENTS` | no | Per-user search: most events returned to the page (default 5000) |
 | `HEAD_HOURS` | no | Newest window loaded first (default 6). The dashboard is current as soon as this is done |
@@ -112,6 +116,39 @@ Rules are checked each time the data refreshes (about once a minute). A firing b
 
 **Limits to know about.** Rules, filters and notifications are stored in the browser (localStorage), so they belong to one person on one browser, and alerts are only checked while the page is open. Sample data and uploaded files never raise alerts. For alerts that arrive when nobody has the dashboard open (email, Slack, a shared rule set) the checking has to move to the server; that is the natural next step.
 
+## Google Workspace OAuth (which apps people connected to their Google accounts)
+
+The **Google OAuth** page shows every app that people have connected to their Google accounts, what access each one asked for (as plain-English scopes coloured by risk), who connected it, when it first appeared, and who revoked or was blocked. It adds three alert rules (a new app is authorized, high-risk access is granted, many people authorize the same app), and a person's lookup also lists the Google apps they connected. It is read-only and cannot change anything in Google.
+
+**What the data is.** The Admin SDK Reports API "token" audit log. It records *consent*: authorize, request, revoke and deny events, each with the app name, client ID and scopes (and some API activity). It is not a record of every later sign-in with an app. Google reports these events a couple of hours late and keeps them for 6 months, so consents older than that cannot be seen. The page does not show whether Google considers an app trusted or verified; that lives in the Admin console.
+
+**Why a service account with domain-wide delegation.** It is Google's standard server-to-server pattern for reading Workspace data: no person's password or refresh token is stored, it runs unattended, and its reach can be limited tightly:
+
+1. One scope only, `https://www.googleapis.com/auth/admin.reports.audit.readonly` (read-only audit logs).
+2. It acts as a dedicated admin whose role has only the **Reports** privilege, not a super admin.
+3. The service account has no Google Cloud project roles.
+
+**Setup (about 30 to 60 minutes, needs a super admin):**
+
+1. Google Cloud console: pick or create a project, and enable the **Admin SDK API** (APIs & Services > Library).
+2. IAM & Admin > Service accounts: create one (for example `okta-health-readonly`) and give it no roles. Under Keys, add a JSON key. Note its numeric **Client ID** (on the account's details page).
+3. Admin console > Account > Admin roles: create a role with only the **Reports** privilege and assign it to a dedicated admin user (for example `audit-reader@yourdomain`).
+4. Admin console > Security > Access and data control > API controls > **Manage domain-wide delegation**: add the Client ID with exactly the one scope above.
+5. On the server set `GOOGLE_SA_KEY` (the JSON key's contents, or base64 of it) and `GOOGLE_ADMIN_EMAIL`, then redeploy. Menu names in Google's consoles change from time to time; look for the closest match.
+
+**Handling the key.** The key is a credential: keep it only in the deployment's secret settings, never in the repository, and rotate it periodically. The app never sends it to the browser or logs it, and the status and events endpoints do not include it. If your organisation blocks service account keys (the Google Cloud policy "Disable service account key creation"), tell the person who manages that policy what this is for, or ask for the alternative below.
+
+**If something is wrong, the page says what and how to fix it:**
+
+| Message | Meaning |
+|---|---|
+| `unauthorized_client` | Domain-wide delegation is missing or has the wrong Client ID or scope (step 4) |
+| `invalid_grant` | `GOOGLE_ADMIN_EMAIL` is wrong, not an admin, or suspended |
+| 403 from the Reports API | The admin lacks the Reports privilege (step 3) |
+| "Admin SDK API has not been used" | Step 1: enable the API, then wait a minute |
+
+Sample data (Data & settings > Use sample data) includes sample Google apps so you can see the page before connecting.
+
 ## How the error explanations work
 
 Clicking a row sends only the error text, the app name, the event type and two counts to `/api/explain-error`. Ids inside the text (member ids, user ids) are replaced by `<id>` first and repeated segments are collapsed, so the same error for ten people is one cache entry and one question to the model. The model is asked for a fixed shape (what it means, likely causes, how to fix, how to confirm), is told to say what to check instead of guessing, and has no access to your data beyond that text. Treat the answer as guidance from an Okta expert who has not seen your tenant: verify before changing a production integration.
@@ -133,6 +170,13 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `GET /api/app-events?id=…&days=7` | Live per-app errors from Okta's System Log (failures and denies, newest first, max 90 days, up to three ids). Uses the same read-only log permission |
 | `POST /api/explain-error` | `{reason, apps, eventTypes, count, people}` returns `{text, cached}`: a short explanation of one error and how to fix it. No tools, cached 24 hours by error text; shares the assistant rate limit |
 | `POST /api/chat` | `{messages, summary, windowMs}` → `{text}` |
+
+## Tests
+
+```bash
+bash test/smoke.sh          # Okta side: server, endpoints, lookups, assistant (fake Okta, fake Anthropic)
+bash test/smoke-google.sh   # Google side: a strict fake Google that verifies the signed sign-in
+```
 
 ## Roadmap ideas
 

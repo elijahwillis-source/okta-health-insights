@@ -74,6 +74,7 @@ header.top .sub{color:var(--muted);font-size:12px}
 .fchip{display:inline-flex;gap:4px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:2px 4px 2px 10px;font-size:12px}
 .fchip button{border:none;background:transparent;color:inherit;padding:0 5px;line-height:1;font-size:15px}
 button:disabled{opacity:.5;cursor:not-allowed}
+[hidden]{display:none!important}
 .cpill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--muted);white-space:nowrap}
 .catbars{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 22px;margin:12px 0 4px}.cb{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;font-size:12.5px}
 .rowact{white-space:nowrap;text-align:right}.rowact button{font-size:12px;padding:2px 8px;margin-left:4px}
@@ -98,6 +99,18 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .fl{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);flex:1;min-width:140px}.fl input,.fl select{color:var(--text)}.frow{display:flex;gap:10px;flex-wrap:wrap}
 .chkrow{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:4px}.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text)}
 .mact{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.merr{color:var(--bad);font-size:12.5px}
+#gTbl tr.urow{cursor:pointer}#gTbl tr.urow:hover td{background:var(--surface2)}#gTbl tr.urow td:first-child{white-space:nowrap}
+#gTbl tr.udet>td{padding:0;border-bottom:1px solid var(--border)}
+.rk{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
+.rk.high{background:rgba(255,107,107,.16);color:var(--bad)}.rk.medium{background:rgba(255,184,77,.16);color:var(--warn)}.rk.low{background:rgba(63,185,119,.16);color:var(--ok)}
+.sc{display:inline-block;margin:2px 4px 2px 0;padding:1px 8px;border-radius:6px;font-size:11.5px;background:var(--surface2);border:1px solid var(--border);white-space:nowrap}
+.sc.high{border-color:var(--bad)}.sc.medium{border-color:var(--warn)}
+.gsec{margin:10px 0}.gsec>b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+.gscope{display:flex;gap:10px;align-items:baseline;padding:3px 0;font-size:13px}.gscope code{font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.gppl{display:flex;flex-wrap:wrap;gap:6px}.gppl .chip{cursor:pointer}
+.gnew{background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:0 7px;font-size:10.5px;font-weight:700;margin-left:6px}
+.gsetup ol{margin:8px 0 8px 20px;padding:0;display:flex;flex-direction:column;gap:10px}.gsetup li{line-height:1.5}.gsetup code{background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:0 5px;font-size:12px;overflow-wrap:anywhere}
+.gwarn{border:1px solid var(--warn);background:rgba(255,184,77,.08);border-radius:10px;padding:10px 14px;font-size:13px}
 .nlist+.lnk{display:inline-block;margin-top:12px}
 .glrow{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.glrow>div{display:flex;flex-direction:column;gap:4px}.glrow b{font-size:24px;letter-spacing:-.01em}
 .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}.setbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -227,6 +240,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <a class="navi" href="#/errors" data-view="errors"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="nl">Errors</span></a>
       <a class="navi" href="#/apps" data-view="apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="nl">Apps</span></a>
       <a class="navi" href="#/people" data-view="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nl">People</span></a>
+      <a class="navi" href="#/google" data-view="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg><span class="nl">Google OAuth</span></a>
       <a class="navi" href="#/alerts" data-view="alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nl">Alerts</span><span class="navbadge" id="navAlerts" hidden>0</span></a>
     </div>
     <div class="navgrp bottom">
@@ -343,6 +357,11 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <div id="uresult"></div>
     </div>
 
+      </section>
+
+      <section class="view" id="view-google" data-view="google" hidden>
+        <div class="vhead"><div><p class="vs">Which apps people have connected to their Google accounts, and what access each one asked for.</p></div><div id="gStatus" class="ctl"></div></div>
+        <div id="googleView"></div>
       </section>
 
       <section class="view" id="view-alerts" data-view="alerts" hidden>
@@ -717,7 +736,7 @@ function render(){
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
-  evaluateAlerts(C); renderBell(); renderLatestAlerts();
+  evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView();
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app");
@@ -1008,7 +1027,7 @@ $("#errView").addEventListener("click",ev=>{
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
-function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); }
+function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); }
 function bars(sel,list,kind){
   const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
   const max=list[0][1];
@@ -1162,7 +1181,7 @@ function renderPerson(){
       ["Sign-in & password",fmtN(sm.signin),sm.signin?"warn":""],["Apps affected",fmtN(sm.apps),""],["Last error",sm.lastFail?ago(Date.now()-sm.lastFail):"—",""]]
       .map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
     (sm.why.length? '<div class="why"><b>What is going wrong</b>'+sm.why.map(w=>'<div>'+fmtN(w.n)+'× '+esc(w.reason)+(w.apps.length?' <span class="ids">('+esc(w.apps.join(", "))+')</span>':"")+'</div>').join("")+'</div>'
-                   : '<div class="empty">No errors for this person in this window.</div>')+
+                   : '<div class="empty">No errors for this person in this window.</div>')+googlePersonHTML(p)+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
     (S.lsource==="okta"?'<button id="urefresh" class="ghost">Refresh from Okta</button>':"")+
     '<button id="uask" class="ghost">Ask the assistant about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
@@ -1306,7 +1325,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* ---------- app shell: navigation, assistant drawer, preferences ---------- */
-const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",alerts:"Alerts",settings:"Data & settings"};
+const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",alerts:"Alerts",settings:"Data & settings"};
 const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.get("okta.prefs.v1",{}));
 const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
 function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
@@ -1349,7 +1368,8 @@ function renderGlance(C){
 function renderDataSrc(){
   const el=$("#dataSrc"); if(!el) return;
   const src=S.demo? "Sample data (generated, not real)" : S.live? "Live from Okta" : "An uploaded file";
-  el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "");
+  const gs=S.g.configured? (S.g.demo? "Google OAuth: sample data" : "Google OAuth: connected as "+esc((S.g.status&&S.g.status.admin)||"")+" · "+fmtN(S.g.events.length)+" events"+((S.g.status&&S.g.status.lastError)?" · <b>problem, see the Google OAuth page</b>":"")) : "Google OAuth: not connected";
+  el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "")+'<br>'+gs;
 }
 $("#orgName").textContent="Insights";
 
@@ -1359,7 +1379,7 @@ $("#orgName").textContent="Insights";
 //   new    - an error text that was not seen in the earlier history appears
 //   silent - an app moves into the Silent state
 // Each firing becomes a notification (bell, toast, feed). A cooldown stops the same alert repeating.
-const winText=m=> m<60? m+" minutes" : m===60? "hour" : m%60===0? (m/60)+" hours" : m+" minutes";
+const winText=m=> m<60? m+" minutes" : m===60? "hour" : (m>1440&&m%1440===0)? (m/1440)+" days" : m%60===0? (m/60)+" hours" : m+" minutes";
 const lastText=m=> m===60? "the last hour" : "the last "+winText(m);
 function defaultRules(){ const f=(o)=>Object.assign(emptyFilter(),o||{}); return [
   {id:"r-prov",name:"Provisioning failures for one app",type:"spike",enabled:true,filter:f({cats:["provision"]}),n:10,windowMin:60,by:"app",cooldownMin:60},
@@ -1399,6 +1419,7 @@ function evalSilent(r,C){
   return {hits: fresh.length? [{group:"silent",count:fresh.length,names:fresh}] : [], cur};
 }
 function makeNotif(r,h,now){
+  if(r.type&&r.type[0]==="g") return makeGoogleNotif(r,h,now);
   const win=lastText(r.windowMin), f=JSON.parse(JSON.stringify(Object.assign(emptyFilter(),r.filter||{})));
   let body, sev="warn", link={view:"errors",filter:f};
   if(r.type==="spike"){ body=(r.by==="total"? "" : h.group+": ")+fmtN(h.count)+" error"+(h.count===1?"":"s")+" in "+win; sev=h.count>=2*r.n? "bad":"warn";
@@ -1408,12 +1429,12 @@ function makeNotif(r,h,now){
   return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev,link,unread:true};
 }
 function evaluateAlerts(C){
-  if(!S.live||S.demo||!S.events.length) return;
+  if(!S.live||S.demo||(!S.events.length&&!S.g.events.length)) return;
   const now=S.ref, fired=S.astate.fired, out=[]; let silentCur=null;
   const fire=(r,hs)=>{ const list=hs.slice(0,5); list.forEach(h=>{ const key=r.id+"|"+h.group, cool=Math.max(r.cooldownMin||0,r.type==="new"? r.windowMin : 0)*60000;
       if(fired[key]&&now-fired[key]<cool) return; fired[key]=now; const n=makeNotif(r,h,now); if(hs.length>5&&h===list[list.length-1]) n.body+=" (+"+(hs.length-5)+" more)"; out.push(n); }); };
   for(const r of S.rules){ if(!r.enabled) continue;
-    try{ if(r.type==="silent"){ const x=evalSilent(r,C); if(x.cur) silentCur=x.cur; fire(r,x.hits); } else fire(r,evalRule(r,now)); }catch(err){ console.warn("alert rule failed",r.name,err); } }
+    try{ if(r.type==="silent"){ const x=evalSilent(r,C); if(x.cur) silentCur=x.cur; fire(r,x.hits); } else if(r.type&&r.type[0]==="g") fire(r,evalGoogleRule(r,now)); else fire(r,evalRule(r,now)); }catch(err){ console.warn("alert rule failed",r.name,err); } }
   if(silentCur) S.astate.silent=silentCur;
   for(const k of Object.keys(fired)) if(now-fired[k]>3*864e5) delete fired[k];
   if(out.length){ S.notifs=out.concat(S.notifs).slice(0,200); saveNotifs(); }
@@ -1423,6 +1444,7 @@ function evaluateAlerts(C){
   renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView();
 }
 function ruleNow(r){
+  if(r.type&&r.type[0]==="g"){ if(!S.g.configured) return "Google Workspace is not connected yet"; const hs=evalGoogleRule(r,S.ref); return hs.length? hs.length+" app"+(hs.length===1?"":"s")+" match in "+lastText(r.windowMin)+": "+hs.slice(0,2).map(h=>h.app).join(", ") : "Nothing matches in "+lastText(r.windowMin); }
   if(!S.live&&!S.events.length) return "";
   if(r.type==="silent"){ const n=(S.C?S.C.tiles.filter(t=>t.status==="silent").length:0); return n+" app"+(n===1?" is":"s are")+" silent right now"; }
   const hs=evalRule(r,S.ref);
@@ -1434,6 +1456,10 @@ function ruleNow(r){
 }
 function describeRule(r){
   const f=Object.assign(emptyFilter(),r.filter||{});
+  if(r.type&&r.type[0]==="g"){ const rk=r.minRisk==="high"?"high-risk ":r.minRisk==="medium"?"medium or high-risk ":"", ap=r.gApp? " matching “"+r.gApp+"”" : "";
+    if(r.type==="gnew") return "When a new "+rk+"Google app"+ap+" is authorized for the first time (checked over "+lastText(r.windowMin)+")";
+    if(r.type==="grisk") return "When "+(r.minRisk==="high"?"high-risk":r.minRisk==="medium"?"medium or high-risk":"any")+" Google access"+ap+" is granted to an app in "+lastText(r.windowMin);
+    return "When "+r.n+" or more people authorize the same "+rk+"Google app"+ap+" in "+lastText(r.windowMin); }
   if(r.type==="silent") return "When "+(f.apps.length? f.apps.join(", ") : "an app")+" goes silent (no activity past the silence setting)";
   if(r.type==="new") return "When a new kind of error"+(filterActive(f)? " ("+describeFilter(f)+")" : "")+" appears that was not seen earlier";
   return "When "+r.n+" or more "+(filterActive(f)? describeFilter(f)+" " : "")+"errors happen in "+lastText(r.windowMin)+(r.by==="app"?", for one app":r.by==="person"?", for one person":"");
@@ -1448,7 +1474,7 @@ function renderBell(){
 }
 function notifItem(n,full){
   return '<div class="nitem '+n.sev+(n.unread?" unread":"")+'" data-nid="'+esc(n.id)+'" tabindex="0" role="button"><span class="ndot" aria-hidden="true"></span><div class="nbody"><b>'+esc(n.title)+'</b><span>'+esc(n.body)+'</span><small>'+esc(ago(S.ref-n.ts))+(n.unread?" · new":"")+'</small>'+
-    (full? '<div class="nact"><button class="ghost" data-nopen="'+esc(n.id)+'">View</button>'+(n.type==="spike"||n.type==="new"?'<button class="ghost" data-nask="'+esc(n.id)+'">Explain</button>':"")+'<button class="ghost" data-ndel="'+esc(n.id)+'">Dismiss</button></div>' : '')+'</div></div>';
+    (full? '<div class="nact"><button class="ghost" data-nopen="'+esc(n.id)+'">View</button>'+(n.type==="spike"||n.type==="new"||(n.type&&n.type[0]==="g")?'<button class="ghost" data-nask="'+esc(n.id)+'">Explain</button>':"")+'<button class="ghost" data-ndel="'+esc(n.id)+'">Dismiss</button></div>' : '')+'</div></div>';
 }
 function renderNotifPanel(){
   const el=$("#notifPanel"), list=S.notifs.slice(0,8);
@@ -1465,6 +1491,7 @@ function markRead(id){ const n=S.notifs.find(x=>x.id===id); if(n&&n.unread){ n.u
 function openNotif(id){
   const n=S.notifs.find(x=>x.id===id); if(!n) return; markRead(id); $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false");
   if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); saveFilters(); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+  else if(n.link&&n.link.view==="google"){ S.gfocus=n.link.app||""; go("google"); renderGoogleView(); }
   else if(n.link&&n.link.view) go(n.link.view);
 }
 function toast(n){
@@ -1495,21 +1522,29 @@ function openRuleEditor(init){
   const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>';
   root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit rule":"New rule")+'"><h3>'+(editing?"Edit rule":"New alert rule")+'</h3>'+
     '<label class="fl">Name<input type="text" id="rName" value="'+esc(r.name)+'" placeholder="For example: Provisioning failures for one app"></label>'+
-    '<label class="fl">Alert me when<select id="rType">'+opt("spike","there are too many errors",r.type)+opt("new","a new kind of error appears",r.type)+opt("silent","an app goes silent",r.type)+'</select></label>'+
+    '<label class="fl">Alert me when<select id="rType">'+opt("spike","there are too many errors",r.type)+opt("new","a new kind of error appears",r.type)+opt("silent","an app goes silent",r.type)+opt("gnew","a new Google app is authorized",r.type)+opt("grisk","high-risk Google access is granted",r.type)+opt("gspike","many people authorize the same Google app",r.type)+'</select></label>'+
     '<div id="rSpike"><div class="frow"><label class="fl">At least<input type="number" id="rN" min="1" max="100000" value="'+r.n+'"></label><label class="fl">errors in<select id="rWin">'+opt(15,"15 minutes",r.windowMin)+opt(60,"1 hour",r.windowMin)+opt(360,"6 hours",r.windowMin)+opt(1440,"24 hours",r.windowMin)+'</select></label><label class="fl">counted<select id="rBy">'+opt("total","all together",r.by)+opt("app","per app",r.by)+opt("person","per person",r.by)+'</select></label></div></div>'+
     '<div id="rNew"><label class="fl">Compared with the earlier history, looking at<select id="rWin2">'+opt(15,"the last 15 minutes",r.windowMin)+opt(60,"the last hour",r.windowMin)+opt(360,"the last 6 hours",r.windowMin)+opt(1440,"the last 24 hours",r.windowMin)+'</select></label></div>'+
     '<div id="rFilter"><div class="fl">Only count errors that are<div class="chkrow">'+CAT_KEYS.map(k=>chk("cats",k,CATS[k])).join("")+'</div><div class="chkrow">'+chk("results","FAILURE","Failed")+chk("results","DENY","Denied")+'</div></div>'+
       '<div class="frow"><label class="fl">in these apps (comma separated, empty = any)<input type="text" id="rApps" value="'+esc(r.filter.apps.join(", "))+'" list="fbApps"></label><label class="fl">reason contains<input type="text" id="rInc" value="'+esc(r.filter.include||"")+'"></label><label class="fl">hide errors containing<input type="text" id="rExc" value="'+esc(r.filter.exclude||"")+'"></label></div></div>'+
     '<div id="rSilent"><label class="fl">Only for these apps (comma separated, empty = every app)<input type="text" id="rApps2" value="'+esc(r.filter.apps.join(", "))+'" list="fbApps"></label></div>'+
+    '<div id="rGoogle"><div class="frow"><label class="fl">Only apps with at least this risk<select id="rgRisk">'+opt("any","any access",r.minRisk||"any")+opt("medium","medium or high risk",r.minRisk||"any")+opt("high","high risk only",r.minRisk||"any")+'</select></label><label class="fl">App name contains (optional)<input type="text" id="rgApp" value="'+esc(r.gApp||"")+'"></label></div>'+
+      '<div class="frow"><label class="fl" id="rgNLab">At least this many people<input type="number" id="rgN" min="2" max="10000" value="'+(r.type==="gspike"?r.n:5)+'"></label><label class="fl">Look at<select id="rgWin">'+opt(60,"the last hour",r.windowMin)+opt(360,"the last 6 hours",r.windowMin)+opt(1440,"the last 24 hours",r.windowMin)+opt(10080,"the last 7 days",r.windowMin)+'</select></label></div></div>'+
     '<label class="fl" id="rCoolWrap">Do not repeat the same alert for<select id="rCool">'+opt(15,"15 minutes",r.cooldownMin)+opt(60,"1 hour",r.cooldownMin)+opt(360,"6 hours",r.cooldownMin)+opt(1440,"24 hours",r.cooldownMin)+'</select></label>'+
     '<div class="merr" id="rErr" hidden></div><div class="mact"><button class="ghost" id="rCancel">Cancel</button><button class="primary" id="rSave">'+(editing?"Save changes":"Create rule")+'</button></div></div>';
   document.body.appendChild(root);
-  const q=sel=>root.querySelector(sel), sync=()=>{ const t=q("#rType").value; q("#rSpike").hidden=t!=="spike"; q("#rNew").hidden=t!=="new"; q("#rFilter").hidden=t==="silent"; q("#rSilent").hidden=t!=="silent"; q("#rCoolWrap").hidden=t==="silent"; };
+  const q=sel=>root.querySelector(sel), sync=()=>{ const t=q("#rType").value, g=t[0]==="g"; q("#rSpike").hidden=t!=="spike"; q("#rNew").hidden=t!=="new"; q("#rFilter").hidden=t==="silent"||g; q("#rSilent").hidden=t!=="silent"; q("#rGoogle").hidden=!g; q("#rgNLab").hidden=t!=="gspike"; q("#rCoolWrap").hidden=t==="silent"; };
   q("#rType").onchange=sync; sync(); q("#rName").focus();
   const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
   document.addEventListener("keydown",esc2); q("#rCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
   q("#rSave").onclick=()=>{
     const type=q("#rType").value, f=emptyFilter(), list=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+    if(type[0]==="g"){
+      const gn=Math.max(2,Math.floor(+q("#rgN").value)||5), nm=q("#rName").value.trim()||G_TYPES[type];
+      const rule={id:editing||("r-"+Date.now().toString(36)),name:nm,type,enabled:r.enabled!==false,filter:emptyFilter(),n:type==="gspike"?gn:1,windowMin:+q("#rgWin").value||1440,by:"total",cooldownMin:+q("#rCool").value||1440,minRisk:q("#rgRisk").value,gApp:q("#rgApp").value.trim()};
+      const gi=S.rules.findIndex(x=>x.id===rule.id); if(gi>=0) S.rules[gi]=rule; else S.rules.unshift(rule);
+      saveRules(); close(); go("alerts"); renderAlertsView(); evaluateAlerts(S.C||compute()); return;
+    }
     if(type!=="silent"){ root.querySelectorAll("[data-rf]").forEach(c=>{ if(c.checked) f[c.dataset.rf].push(c.value); }); f.apps=list(q("#rApps").value); f.include=q("#rInc").value.trim(); f.exclude=q("#rExc").value.trim(); }
     else f.apps=list(q("#rApps2").value);
     const n=Math.max(1,Math.floor(+q("#rN").value)||0), win=+(type==="new"? q("#rWin2").value : q("#rWin").value), cool=type==="silent"? 0 : +q("#rCool").value;
@@ -1531,7 +1566,7 @@ document.addEventListener("click",ev=>{
   const ed=ev.target.closest("[data-redit]"); if(ed){ const r=S.rules.find(x=>x.id===ed.dataset.redit); if(r) openRuleEditor(JSON.parse(JSON.stringify(r))); return; }
   const dl=ev.target.closest("[data-rdel]"); if(dl){ if(dl.dataset.armed){ S.rules=S.rules.filter(x=>x.id!==dl.dataset.rdel); saveRules(); renderAlertsView(); } else { dl.dataset.armed="1"; dl.textContent="Click again to delete"; setTimeout(()=>{ try{ dl.dataset.armed=""; dl.textContent="Delete"; }catch(_){} },3000); } return; }
   const no=ev.target.closest("[data-nopen]"); if(no){ openNotif(no.dataset.nopen); return; }
-  const na=ev.target.closest("[data-nask]"); if(na){ const n=S.notifs.find(x=>x.id===na.dataset.nask); if(n){ markRead(n.id); ask("An alert fired: “"+n.title+"” — "+n.body+". What is likely going on, and what should I check first?"); } return; }
+  const na=ev.target.closest("[data-nask]"); if(na){ const n=S.notifs.find(x=>x.id===na.dataset.nask); if(n){ markRead(n.id); ask(n.type&&n.type[0]==="g"? "A Google OAuth alert fired: “"+n.title+"” — "+n.body+". Is this app safe to allow? What does the access allow and what should I check in the Google Admin console?" : "An alert fired: “"+n.title+"” — "+n.body+". What is likely going on, and what should I check first?"); } return; }
   const nd=ev.target.closest("[data-ndel]"); if(nd){ S.notifs=S.notifs.filter(x=>x.id!==nd.dataset.ndel); saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
   const ni=ev.target.closest(".nitem[data-nid]"); if(ni&&!ev.target.closest("button")){ openNotif(ni.dataset.nid); }
 });
@@ -1555,10 +1590,176 @@ $("#btnBrowserNotif").onclick=async()=>{
   renderBrowserNotif();
 };
 
+/* ---------- Google Workspace: OAuth apps people have connected ---------- */
+// Source: the Google Admin SDK "token" audit log (read only). It records consent events: who granted an app which scopes,
+// who asked, who revoked, and what an admin blocked. It is not a record of every later sign-in with that app.
+S.g={configured:false,demo:false,events:[],lastTs:0,status:null};
+const RISK_RANK={low:1,medium:2,high:3}, RISK_NAME={1:"low",2:"medium",3:"high"}, RISK_TEXT={low:"Low risk",medium:"Medium risk",high:"High risk"};
+// [pattern on the scope, how risky, what it lets the app do]. This list is this dashboard's own judgement, not Google's.
+const SCOPE_RULES=[
+  [/^openid$/,"low","Confirm who you are (Sign in with Google)"],
+  [/(^|\/)userinfo\.email$|^email$/,"low","See your email address"],
+  [/(^|\/)userinfo\.profile$|^profile$/,"low","See your name and profile picture"],
+  [/^https:\/\/mail\.google\.com\/?$/,"high","Read, send, delete and manage ALL your Gmail"],
+  [/gmail\.(modify|full)/,"high","Read, change and delete your Gmail"],
+  [/gmail\.readonly/,"high","Read all your Gmail"],
+  [/gmail\.(send|compose|insert)/,"high","Send email as you, or create drafts"],
+  [/gmail\.settings/,"high","Change Gmail settings such as filters and forwarding"],
+  [/gmail\.(labels|metadata)/,"medium","See or manage Gmail labels and message details"],
+  [/auth\/drive$/,"high","Read, edit and delete ALL your Google Drive files"],
+  [/auth\/drive\.readonly$/,"high","Read all your Google Drive files"],
+  [/auth\/drive\.file$/,"low","Only files this app creates or that you open with it"],
+  [/auth\/drive\.appdata$/,"low","Its own hidden settings folder in your Drive"],
+  [/auth\/drive\.(metadata|activity)/,"medium","See file names, owners and activity in your Drive"],
+  [/auth\/calendar(\.events)?$/,"medium","See, edit, share and delete your calendar events"],
+  [/auth\/calendar\.(readonly|events\.readonly|calendarlist)/,"medium","See your calendars and events"],
+  [/auth\/(contacts|directory)/,"medium","See your contacts or your organisation's directory"],
+  [/auth\/(spreadsheets|documents|presentations|forms)/,"medium","Read and edit your Sheets, Docs, Slides or Forms"],
+  [/auth\/(admin\.|cloud-identity|apps\.)/,"high","Manage Google Workspace admin data (users, groups, settings)"],
+  [/auth\/cloud-platform/,"high","Manage your Google Cloud resources"],
+  [/auth\/script\./,"medium","Run Apps Script on your behalf"],
+  [/auth\/(chat|meetings|tasks|youtube|photoslibrary|keep)/,"medium","Use your Chat, Meet, Tasks, YouTube, Photos or Keep data"],
+  [/auth\/(groups|cloudplatformprojects)/,"medium","See or manage groups and projects"]
+];
+function scopeInfo(sc){ sc=String(sc||""); for(const [re,risk,label] of SCOPE_RULES) if(re.test(sc)) return {risk,label,known:true}; return {risk:"medium",label:"Not in this dashboard's list: check what it allows before trusting it",known:false}; }
+const shortScope=sc=>String(sc||"").replace(/^https:\/\/www\.googleapis\.com\/auth\//,"").replace(/^https:\/\//,"");
+function googleApps(){
+  const G=S.g, ck=G.events.length+":"+(G.events.length? G.events[G.events.length-1].time : 0); if(G._ck===ck&&G._apps) return G._apps;
+  const m=new Map();
+  for(const e of G.events){ if(!e.clientId&&!e.app) continue; const key=e.clientId||e.app; let a=m.get(key);
+    if(!a){ a={key,clientId:e.clientId,name:e.app||e.clientId,scopes:new Set(),state:new Map(),first:Infinity,firstAny:Infinity,last:0,grants:0,revokes:0,denies:0,requests:0,calls:0,events:[]}; m.set(key,a); }
+    a.events.push(e); a.last=Math.max(a.last,e.time); a.firstAny=Math.min(a.firstAny,e.time); if(e.app) a.name=e.app; e.scopes.forEach(x=>a.scopes.add(x));
+    if(e.type==="authorize"){ a.grants++; a.first=Math.min(a.first,e.time); a.state.set(e.actor,{on:true,time:e.time,scopes:e.scopes}); }
+    else if(e.type==="revoke"){ a.revokes++; const prev=a.state.get(e.actor); a.state.set(e.actor,{on:false,time:e.time,scopes:(prev&&prev.scopes)||e.scopes}); }
+    else if(e.type==="deny") a.denies++; else if(e.type==="request") a.requests++; else a.calls++; }
+  const apps=[...m.values()].map(a=>{ a.people=[...a.state].filter(([,v])=>v.on).map(([who,v])=>({who,time:v.time,scopes:v.scopes})).sort((x,y)=>y.time-x.time);
+    if(!isFinite(a.first)) a.first=a.firstAny; a.rank=Math.max(1,...[...a.scopes].map(x=>RISK_RANK[scopeInfo(x).risk])); a.riskName=RISK_NAME[a.rank]; return a; })
+    .sort((a,b)=>b.rank-a.rank||b.people.length-a.people.length||b.last-a.last);
+  G._ck=ck; G._apps=apps; return apps;
+}
+function gIsNew(a){ const G=S.g, old=G.events.length? G.events[0].time : 0; return a.first>=S.ref-7*864e5 && a.first>old+3*864e5; }
+async function refreshGoogle(st){
+  const g=st&&st.google; if(!g||!g.configured){ S.g.configured=false; S.g.status=g||null; return; }
+  S.g.configured=true; S.g.demo=false; S.g.status=g;
+  try{
+    const r=await fetch("api/google/events?since="+(S.g.lastTs? S.g.lastTs-60000 : 0)); if(!r.ok) throw new Error("HTTP "+r.status);
+    const j=await r.json(), have=new Set(S.g.events.map(e=>e.id)); let added=0;
+    for(const e of j.events){ if(have.has(e.id)) continue; S.g.events.push(e); added++; if(e.time>S.g.lastTs) S.g.lastTs=e.time; }
+    if(added) S.g.events.sort((a,b)=>a.time-b.time);
+    S.g.status=j.status||g; ensureGoogleRules();
+  }catch(err){ S.g.status=Object.assign({},g,{lastError:g.lastError||("Could not read the Google events ("+err.message+")")}); }
+}
+function makeGoogleDemo(){
+  const now=Date.now(), M=60000, D=1440*M, U="https://www.googleapis.com/auth/", ev=[]; let n=0;
+  const A={acme:["Acme CRM Sync","111111111111-acmecrm.apps.googleusercontent.com",["openid",U+"userinfo.email",U+"drive"]],cal:["Calendly","222222222222-calendly.apps.googleusercontent.com",["openid",U+"userinfo.email",U+"calendar.events"]],
+    notes:["Notes Helper","333333333333-noteshelper.apps.googleusercontent.com",["openid",U+"userinfo.email",U+"userinfo.profile"]],pdf:["Sketchy PDF Tool","444444444444-sketchypdf.apps.googleusercontent.com",["https://mail.google.com/",U+"drive"]],
+    zoom:["Zoom Scheduler","555555555555-zoomsched.apps.googleusercontent.com",["openid",U+"userinfo.email",U+"calendar.readonly"]]};
+  const add=(k,who,ago,type,extra)=>{ const a=A[k]; ev.push(Object.assign({id:"gd"+(++n),time:now-ago,actor:"user"+String(who).padStart(2,"0")+"@example.com",ip:"203.0.113."+(n%200),type:type||"authorize",app:a[0],clientId:a[1],scopes:a[2],rejection:"",api:"",method:""},extra||{})); };
+  for(let i=1;i<=5;i++) add("acme",i,(4+i*3)*D); for(let i=1;i<=8;i++) add("cal",i,i*2*D); for(let i=1;i<=12;i++) add("notes",i,(i+1)*D*0.7); for(let i=1;i<=4;i++) add("zoom",i,(i*3+1)*D);
+  add("cal",2,2.5*D,"revoke"); add("cal",4,5*D,"revoke"); for(let i=0;i<6;i++) add("pdf",20+i,(5+i*8)*M); add("pdf",30,12*M,"deny",{rejection:"ADMIN_BLOCKED"}); add("pdf",31,3*M,"request");
+  ev.sort((a,b)=>a.time-b.time); return ev;
+}
+function googleDemoOn(){ S.g.configured=true; S.g.demo=true; S.g.events=makeGoogleDemo(); S.g.lastTs=0; S.g._ck=null; S.g.status={configured:true,admin:"sample data",events:S.g.events.length,lookbackDays:30,oldest:S.g.events[0].time,newest:S.g.events[S.g.events.length-1].time,lastError:"",hint:"",catchingUp:false}; }
+function googleOff(){ S.g.configured=false; S.g.demo=false; S.g.events=[]; S.g.lastTs=0; S.g._ck=null; S.g.status=null; }
+const GACT={authorize:["Granted access","o"],request:["Asked for access","o"],revoke:["Revoked","o"],deny:["Blocked","f"],activity:["Used the API","o"]};
+const scopeChip=sc=>'<span class="sc '+scopeInfo(sc).risk+'" title="'+esc(sc)+'">'+esc(shortScope(sc))+'</span>';
+function googleSetupHTML(){
+  const st=S.g.status; const msg=S.demo? '<div class="banner">Sample data does not include Google. Connect Google Workspace on the live server to see real apps here.</div>' : "";
+  return msg+'<div class="card gsetup"><h2>Connect Google Workspace</h2><p class="hint">Read only. This shows the apps your people have connected to their Google accounts, and what access each one asked for. It cannot change anything in Google.</p>'+
+    (st&&st.lastError? '<div class="gwarn"><b>Not working yet:</b> '+esc(st.lastError)+(st.hint?'<br>'+esc(st.hint):"")+'</div>':"")+
+    '<ol><li>In the <b>Google Cloud console</b>, pick or create a project, then open <b>APIs &amp; Services &gt; Library</b> and enable the <b>Admin SDK API</b>.</li>'+
+    '<li>Open <b>IAM &amp; Admin &gt; Service accounts</b> and create a service account (for example <code>okta-health-readonly</code>). Give it <b>no project roles</b>. Under <b>Keys</b>, add a JSON key and download it. Note the account\'s numeric <b>Client ID</b> (shown on its details page).</li>'+
+    '<li>In the <b>Google Admin console</b> go to <b>Account &gt; Admin roles</b>, create a role that has only the <b>Reports</b> privilege, and assign it to a dedicated admin user, for example <code>audit-reader@yourdomain</code>.</li>'+
+    '<li>Still in the Admin console, open <b>Security &gt; Access and data control &gt; API controls &gt; Manage domain-wide delegation</b> and add the Client ID with exactly one scope: <code>https://www.googleapis.com/auth/admin.reports.audit.readonly</code></li>'+
+    '<li>On the server, set two environment variables and redeploy: <code>GOOGLE_SA_KEY</code> (the contents of the JSON key, or the same text base64-encoded) and <code>GOOGLE_ADMIN_EMAIL</code> (the admin from step 3). Optional: <code>GOOGLE_LOOKBACK_DAYS</code> (default 30, at most 180).</li></ol>'+
+    '<p class="hint">Google keeps these logs for 6 months and reports them a couple of hours late. Menu names in Google\'s consoles change from time to time, so look for the closest match.</p></div>';
+}
+function googleKpis(apps){
+  const live=apps.filter(a=>a.people.length), people=new Set(); live.forEach(a=>a.people.forEach(p=>people.add(p.who)));
+  const lo=S.win? S.ref-S.win : 0, inWin=S.g.events.filter(e=>e.time>=lo);
+  return [["Apps with access",fmtN(live.length),""],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok"],
+    ["New this week",fmtN(live.filter(gIsNew).length),live.some(gIsNew)?"warn":"ok"],["Revoked in window",fmtN(inWin.filter(e=>e.type==="revoke").length),""],["Blocked in window",fmtN(inWin.filter(e=>e.type==="deny").length),inWin.some(e=>e.type==="deny")?"warn":""]];
+}
+function renderGoogleView(){
+  const el=$("#googleView"), stEl=$("#gStatus"), G=S.g; if(!el) return;
+  if(!G.configured){ stEl.textContent=""; el.innerHTML=googleSetupHTML(); return; }
+  const st=G.status||{}, apps=googleApps(), q=(S.gq||"").trim().toLowerCase(), rf=S.grisk||"all";
+  stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span>'+(st.catchingUp?"Loading history… ":"")+'Reading the last '+(st.lookbackDays||30)+' days as '+esc(st.admin||"")+' · read-only</span>';
+  const shown=apps.filter(a=>(rf==="all"||(rf==="high"&&a.rank===3)||(rf==="medium"&&a.rank===2)||(rf==="low"&&a.rank===1))&&(!q||(a.name+" "+a.clientId).toLowerCase().includes(q)));
+  if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); }
+  const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
+  el.innerHTML=(st.lastError? '<div class="gwarn"><b>Google problem:</b> '+esc(st.lastError)+(st.hint?'<br>'+esc(st.hint):"")+'</div>':"")+
+    '<div class="kpis">'+googleKpis(apps).map(k=>'<div class="kpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
+    '<div class="card"><h2>Apps connected to Google accounts</h2><p class="hint">Sorted by how much access the app asked for. “Risk” is this dashboard’s own reading of the scopes, not Google’s. Click an app to see exactly what it can do and who connected it.</p>'+
+    '<div class="fb-row" style="margin-bottom:10px"><span class="fb-l">Risk</span>'+[["all","All"],["high","High"],["medium","Medium"],["low","Low"]].map(([k,l])=>'<button type="button" class="chipbtn'+(rf===k?" on":"")+'" data-grisk="'+k+'" aria-pressed="'+(rf===k)+'">'+l+'</button>').join("")+
+    '<input type="text" id="gq" class="fin" placeholder="Search apps…" value="'+esc(S.gq||"")+'" aria-label="Search apps"><span class="ctl">'+fmtN(shown.length)+' of '+fmtN(apps.length)+'</span></div>'+
+    (shown.length? '<div class="scroll"><table id="gTbl"><tr><th>App</th><th>Risk</th><th>Access it asked for</th><th>People</th><th>First seen</th><th>Last activity</th></tr>'+shown.map(a=>googleRow(a)).join("")+'</table></div>' : '<div class="empty">'+(apps.length?"No apps match.":"No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
+    '<div class="card"><h2>Recent activity</h2><div class="fb-row" style="margin-bottom:8px"><label class="ctl"><input type="checkbox" id="ghi"'+(S.gonlyhi?" checked":"")+'> only events with high-risk access</label></div>'+
+    (recent.length? '<div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th><th>App</th><th>Access</th></tr>'+recent.map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td><span class="lnk" data-k="user" data-v="'+esc(e.actor)+'">'+esc(e.actor)+'</span></td><td><span class="pill '+(GACT[e.type]||["","o"])[1]+'">'+esc((GACT[e.type]||[e.type])[0])+'</span>'+(e.rejection?' <span class="gsub">'+esc(e.rejection)+'</span>':"")+'</td><td>'+esc(e.app||"—")+'</td><td>'+e.scopes.slice(0,4).map(scopeChip).join("")+(e.scopes.length>4?'<span class="gsub">+'+(e.scopes.length-4)+'</span>':"")+'</td></tr>').join("")+'</table></div>' : '<div class="empty">Nothing to show.</div>')+'</div>';
+  if(S.gfocus){ const row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===S.gfocus); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60); S.gfocus=""; }
+}
+function googleRow(a){
+  const open=S.gopen.has(a.key), sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
+  const detail='<div class="xhead"><span>Client ID <code>'+esc(a.clientId||"—")+'</code></span><span><button class="ghost" data-gask="'+esc(a.key)+'">Is this app safe?</button></span></div>'+
+    '<div class="gsec"><b>What it can do</b>'+sc.map(x=>{ const i=scopeInfo(x); return '<div class="gscope"><span class="rk '+i.risk+'">'+RISK_TEXT[i.risk].replace(" risk","")+'</span><span>'+esc(i.label)+'<br><code>'+esc(x)+'</code></span></div>'; }).join("")+'</div>'+
+    '<div class="gsec"><b>People with access ('+fmtN(a.people.length)+')</b>'+(a.people.length? '<div class="gppl">'+a.people.slice(0,30).map(p=>'<span class="chip" data-k="user" data-v="'+esc(p.who)+'" title="Connected '+esc(new Date(p.time).toLocaleString())+'">'+esc(p.who)+'</span>').join("")+(a.people.length>30?'<span class="gsub">and '+(a.people.length-30)+' more</span>':"")+'</div>' : '<span class="gsub">Nobody currently (everyone revoked, or it was only requested or blocked).</span>')+'</div>'+
+    '<div class="gsec"><b>Recent activity</b><div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th></tr>'+a.events.slice(-8).reverse().map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td>'+esc(e.actor)+'</td><td>'+esc((GACT[e.type]||[e.type])[0])+(e.rejection?' ('+esc(e.rejection)+')':"")+'</td></tr>').join("")+'</table></div></div>'+
+    '<p class="gsub">To allow, limit or block this app, use the Google Admin console (Security &gt; API controls). This dashboard is read-only.</p>';
+  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
+    '<tr class="udet"><td colspan="6"><div class="xbody"><div class="xinner"><div class="xpad">'+detail+'</div></div></div></td></tr>';
+}
+$("#googleView").addEventListener("click",ev=>{
+  const rf=ev.target.closest("[data-grisk]"); if(rf){ S.grisk=rf.dataset.grisk; renderGoogleView(); return; }
+  const ga=ev.target.closest("[data-gask]"); if(ga){ const a=googleApps().find(x=>x.key===ga.dataset.gask); if(a) ask("Is the Google app “"+a.name+"” (client ID "+a.clientId+") safe for our people to use? It was granted: "+[...a.scopes].map(shortScope).join(", ")+", by "+a.people.length+" people. What does that access allow, what are the risks, and what should I check in the Google Admin console before deciding to allow or block it?"); return; }
+  if(ev.target.closest("[data-k]")||ev.target.closest("tr.udet")) return;
+  const row=ev.target.closest("#gTbl tr.urow"); if(row){ const k=row.dataset.gk, open=!S.gopen.has(k); if(open) S.gopen.add(k); else S.gopen.delete(k); row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open)); }
+});
+$("#googleView").addEventListener("input",ev=>{ if(ev.target.id==="gq"){ S.gq=ev.target.value; clearTimeout(S.gqT); S.gqT=setTimeout(()=>{ renderGoogleView(); const i=$("#gq"); if(i){ i.focus(); try{ i.setSelectionRange(i.value.length,i.value.length); }catch(_){} } },200); } });
+$("#googleView").addEventListener("change",ev=>{ if(ev.target.id==="ghi"){ S.gonlyhi=ev.target.checked; renderGoogleView(); } });
+$("#googleView").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("#gTbl tr.urow")){ ev.preventDefault(); ev.target.click(); } });
+function googlePersonHTML(p){
+  if(!S.g.configured||!S.g.events.length) return "";
+  const locals=new Set([...p.alts].map(a=>localPart(a))), mine=googleApps().map(a=>({a,st:a.state.get([...a.state.keys()].find(k=>locals.has(localPart(k)))||"")})).filter(x=>x.st&&x.st.on);
+  if(!mine.length) return "";
+  return '<div class="why"><b>Google apps this person has connected</b>'+mine.map(x=>'<div><span class="rk '+x.a.riskName+'">'+esc(RISK_TEXT[x.a.riskName])+'</span> '+esc(x.a.name)+' <span class="ids">('+esc([...x.a.scopes].slice(0,3).map(shortScope).join(", "))+(x.a.scopes.size>3?" +"+(x.a.scopes.size-3):"")+') · '+esc(ago(S.ref-x.st.time))+'</span></div>').join("")+'</div>';
+}
+function googleSummary(){
+  if(!S.g.configured) return {connected:false};
+  const apps=googleApps().filter(a=>a.people.length);
+  return {connected:true,sampleData:S.g.demo,note:"Google OAuth consent log: who connected which app and which scopes it asked for. Not a log of every sign-in.",appCount:apps.length,highRiskApps:apps.filter(a=>a.rank===3).length,newThisWeek:apps.filter(gIsNew).map(a=>a.name),
+    apps:apps.slice(0,15).map(a=>({name:a.name,clientId:a.clientId,risk:a.riskName,people:a.people.length,firstSeen:new Date(a.first).toISOString(),scopes:[...a.scopes].map(shortScope)}))};
+}
+/* Google alert rules */
+const G_TYPES={gnew:"A new Google app is authorized",grisk:"High-risk Google access is granted",gspike:"Many people authorize the same Google app"};
+const G_NEED={any:1,medium:2,high:3};
+function gStarterRules(){ const b={enabled:true,filter:emptyFilter(),n:1,by:"total",windowMin:1440,cooldownMin:1440,gApp:""};
+  return [Object.assign({},b,{id:"r-gnew",name:G_TYPES.gnew,type:"gnew",minRisk:"medium"}),Object.assign({},b,{id:"r-grisk",name:G_TYPES.grisk,type:"grisk",minRisk:"high"}),Object.assign({},b,{id:"r-gspike",name:G_TYPES.gspike,type:"gspike",minRisk:"any",n:5})]; }
+function ensureGoogleRules(){ if(LS.get("okta.grules.v1",false)||S.rules.some(r=>r.type&&r.type[0]==="g")) return; S.rules=S.rules.concat(gStarterRules().map(r=>Object.assign({},r,{filter:emptyFilter()}))); saveRules(); LS.set("okta.grules.v1",true); }
+function evalGoogleRule(r,now){
+  const G=S.g; if(!G.configured||!G.events.length) return [];
+  const cut=now-r.windowMin*60000, need=G_NEED[r.minRisk||"any"]||1, text=String(r.gApp||"").toLowerCase(), out=[], haveOlder=G.events[0].time<cut-864e5;
+  for(const a of googleApps()){
+    if(text&&!(a.name+" "+a.clientId).toLowerCase().includes(text)) continue;
+    const grants=a.events.filter(e=>e.type==="authorize"&&e.time>=cut&&e.time<=now+60000), who=[...new Set(grants.map(e=>e.actor))];
+    if(r.type==="gnew"){ if(haveOlder&&a.first>=cut&&a.first<=now+60000&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length||1}); }
+    else if(r.type==="grisk"){ const hit=grants.filter(e=>e.scopes.some(x=>RISK_RANK[scopeInfo(x).risk]>=need)), ppl=[...new Set(hit.map(e=>e.actor))];
+      if(ppl.length){ const sc=[...new Set(hit.flatMap(e=>e.scopes).filter(x=>RISK_RANK[scopeInfo(x).risk]>=need))]; out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:ppl.length,scopes:sc}); } }
+    else if(r.type==="gspike"){ if(who.length>=r.n&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length}); }
+  }
+  return out.sort((x,y)=>y.rank-x.rank||y.people-x.people);
+}
+function makeGoogleNotif(r,h,now){
+  const win=lastText(r.windowMin), who=h.people+" "+(h.people===1?"person":"people"), risk=RISK_NAME[h.rank]; let body;
+  if(r.type==="gnew") body=h.app+" was authorized by "+who+" · "+risk+"-risk access";
+  else if(r.type==="grisk") body=h.app+" was granted "+h.scopes.slice(0,3).map(shortScope).join(", ")+(h.scopes.length>3?" +"+(h.scopes.length-3):"")+" by "+who;
+  else body=h.app+": "+who+" authorized it in "+win;
+  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev:h.rank>=3?"bad":h.rank===2?"warn":"info",link:{view:"google",app:h.group},unread:true};
+}
+
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
-  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML=""; S.aapp=null; S.aevents=null; S.appsIdx=null; $("#aresult").innerHTML="";
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML=""; if(S.demo) googleDemoOn(); else googleOff(); S.aapp=null; S.aevents=null; S.appsIdx=null; $("#aresult").innerHTML="";
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }
@@ -1627,7 +1828,7 @@ function summary(){
     topErrorReasons:C.topReasons.map(([reason,n])=>({reason,n})),
     topFailingEventTypes:C.topTypes.map(([type,n])=>({type,n})),
     usersWithAssignmentErrors:C.users.slice(0,8).map(u=>({user:u.user,errors:u.n,apps:top(u.apps,3).map(x=>x[0]),topReason:(top(u.reasons,1)[0]||[])[0]})),
-    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp, errorFiltersActive:filterActive(S.fil)};
+    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp, errorFiltersActive:filterActive(S.fil), google:googleSummary()};
 }
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
@@ -1684,6 +1885,7 @@ async function refreshLive(){
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
+    await refreshGoogle(st);
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);
