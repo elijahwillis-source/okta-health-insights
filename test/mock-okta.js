@@ -48,10 +48,21 @@ events.push(burst(20, "ServiceNow", "longerr01@example.com", LONG, "application.
 events.sort((a, b) => (a.published < b.published ? -1 : 1));
 setInterval(() => events.push(makeEvent(Date.now(), true)), 5000);   // a new event every 5s
 
+const RL = +process.env.MOCK_RL || 0, rlHits = [], rlStats = { requests: 0, rejected: 0, maxPerMinute: 0 };
 http.createServer((req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   const json = (o, h = {}) => { res.writeHead(200, { "content-type": "application/json", ...h }); res.end(JSON.stringify(o)); };
+  if (u.pathname === "/_rlstats") return json({ ...rlStats, limit: RL });
   if (u.pathname === "/api/v1/logs") {
+    // optional: MOCK_RL=24 makes the System Log behave like a token limited to 24 requests a minute (headers, then 429)
+    let rlHeaders = {};
+    if (RL) {
+      const now = Date.now(); while (rlHits.length && now - rlHits[0] > 60000) rlHits.shift(); rlStats.requests++;
+      const reset = Math.ceil(((rlHits[0] || now) + 60000) / 1000);
+      if (rlHits.length >= RL) { rlStats.rejected++; res.writeHead(429, { "content-type": "application/json", "x-rate-limit-limit": RL, "x-rate-limit-remaining": 0, "x-rate-limit-reset": reset }); return res.end(JSON.stringify({ errorCode: "E0000047", errorSummary: "API call exceeded rate limit due to too many requests." })); }
+      rlHits.push(now); rlStats.maxPerMinute = Math.max(rlStats.maxPerMinute, rlHits.length);
+      if (!process.env.MOCK_RL_NOHEADERS) rlHeaders = { "x-rate-limit-limit": RL, "x-rate-limit-remaining": RL - rlHits.length, "x-rate-limit-reset": Math.ceil((rlHits[0] + 60000) / 1000) };     // MOCK_RL_NOHEADERS=1: only the 429 tells you
+    }
     const since = u.searchParams.get("since") || "1970-01-01T00:00:00.000Z";
     const until = u.searchParams.get("until");
     const q = (u.searchParams.get("q") || "").toLowerCase().split(/\s+/).filter(Boolean);   // keyword search: every keyword must appear somewhere
@@ -66,8 +77,8 @@ http.createServer((req, res) => {
     const page = pool.slice(after, after + limit);
     const next = `http://localhost:${PORT}/api/v1/logs?since=${encodeURIComponent(since)}${until ? "&until=" + encodeURIComponent(until) : ""}${q.length ? "&q=" + encodeURIComponent(q.join(" ")) : ""}${desc ? "&sortOrder=DESCENDING" : ""}&limit=${limit}&after=${after + page.length}`;
     // like the real API: polling queries always get a next link; bounded queries lose it at the end
-    if ((until || desc) && after + page.length >= pool.length) return json(page);
-    return json(page, { link: `<${next}>; rel="next"` });
+    if ((until || desc) && after + page.length >= pool.length) return json(page, rlHeaders);
+    return json(page, { link: `<${next}>; rel="next"`, ...rlHeaders });
   }
   if (u.pathname === "/api/v1/apps") {
     // labels with stray whitespace (as the real API sometimes returns) plus one blank label

@@ -1488,7 +1488,10 @@ function renderDataSrc(){
   const el=$("#dataSrc"); if(!el) return;
   const src=S.demo? "Sample data (generated, not real)" : S.live? "Live from Okta" : "An uploaded file";
   const gs=S.g.configured? (S.g.demo? "Google OAuth: sample data" : "Google OAuth: connected as "+esc((S.g.status&&S.g.status.admin)||"")+" · "+fmtN(S.g.events.length)+" events"+((S.g.status&&S.g.status.lastError)?" · <b>problem, see the Google OAuth page</b>":"")) : "Google OAuth: not connected";
-  el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "")+'<br>'+gs;
+  const rl=S.rl, recent=rl&&rl.rejected&&rl.lastRejected&&(Date.now()-rl.lastRejected<15*60000);
+  const okta=!S.live||!rl? "" : '<br>Okta requests: '+fmtN(rl.usedLastMinute)+' in the last minute (Sightline keeps to '+fmtN(rl.budgetRpm)+(rl.slowedDown?', slowed down from '+fmtN(rl.maxRpm):'')+' a minute)'+(rl.oktaRemaining!==null&&rl.oktaLimit? '. Okta reports '+fmtN(rl.oktaRemaining)+' of '+fmtN(rl.oktaLimit)+' left in this window' : '')+'.'+
+    (recent? '<br><b>Okta rejected '+fmtN(rl.rejected)+' request'+(rl.rejected===1?'':'s')+' as “too many requests”, most recently '+esc(ago(Date.now()-rl.lastRejected))+'.</b> Sightline has slowed down. If this API token is also used by another tool, give Sightline its own token (Okta: Security > API > Tokens) so they stop competing.' : "");
+  el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "")+okta+'<br>'+gs;
 }
 $("#orgName").textContent="IT health";
 
@@ -2074,9 +2077,9 @@ async function refreshLive(){
     const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup); S.appLookupApi=!!(st&&st.appLookup);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
-    const cu=st&&st.catchUp; S.catchPct=cu? cu.pct : null;
+    const cu=st&&st.catchUp; S.catchPct=cu? cu.pct : null; S.rl=(st&&st.rateLimit)||null;
     S.note = st&&st.lastError ? "Okta polling problem: "+st.lastError
-           : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+"Apps not seen yet show as “waiting” instead of silent until this finishes."
+           : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+(st&&st.rateLimit&&st.rateLimit.budgetRpm<=120? "Paced to about "+st.rateLimit.budgetRpm+" requests a minute so Okta’s rate limit is not exceeded, so this takes a while. ":"")+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
     await refreshGoogle(st);

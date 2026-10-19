@@ -25,6 +25,10 @@ const cfg = {
   scopes: env.OKTA_SCOPES || "okta.logs.read okta.apps.read",
   logFilter: env.OKTA_LOG_FILTER || "",
   pollSec: Math.max(15, +env.POLL_INTERVAL_SECONDS || 60),
+  // How fast Sightline may talk to Okta, so it never trips the API token's rate limit (a token gets 50% of an endpoint's limit by default,
+  // for example 60 requests a minute on the System Log). Lower this if the token is shared with another tool.
+  rpm: Math.max(6, +env.OKTA_MAX_RPM || 30),
+  pageSize: Math.min(1000, Math.max(10, +env.OKTA_PAGE_SIZE || 1000)),
   lookbackDays: +env.LOOKBACK_DAYS || 7,
   maxEvents: +env.MAX_EVENTS || 100000,
   maxPagesPerPoll: Math.max(2, +env.MAX_PAGES_PER_POLL || 50),
@@ -79,14 +83,51 @@ async function authHeader() {
   return "Bearer " + oauth.token;
 }
 
-async function oktaGet(url, attempt = 0) {
+/* ------------------------------------------------------------ staying inside Okta's rate limit */
+// Every Okta call goes through gate(). "bg" is the history backfill (it gets only part of the budget so the live page and
+// lookups are never starved); "fg" is everything else. Okta's own headers and any 429 adjust the pace as we go.
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const rl = { budget: cfg.rpm, sent: [], limit: null, remaining: null, resetAt: null, holdUntil: 0, hits429: 0, last429: null, recoverAt: 0, waitedMs: 0 };
+async function gate(kind) {
+  for (;;) {
+    const now = Date.now();
+    while (rl.sent.length && now - rl.sent[0] > 60000) rl.sent.shift();
+    if (rl.budget < cfg.rpm && now > rl.recoverAt) { rl.budget = Math.min(cfg.rpm, rl.budget + 1); rl.recoverAt = now + 60000; }     // slowly speed up again after a back-off
+    const reserve = Math.max(2, Math.floor(rl.budget / 4)), cap = kind === "bg" ? Math.max(1, rl.budget - reserve) : rl.budget;
+    let wait = rl.holdUntil > now ? rl.holdUntil - now : 0;
+    if (rl.sent.length >= cap) wait = Math.max(wait, rl.sent[rl.sent.length - cap] + 60000 - now + 20);
+    if (wait <= 0) { rl.sent.push(now); return; }
+    const w = Math.min(wait, 5000); rl.waitedMs += w; await sleep(w);
+  }
+}
+function noteHeaders(r) {
+  const lim = +r.headers.get("x-rate-limit-limit"), rem = r.headers.get("x-rate-limit-remaining"), reset = +r.headers.get("x-rate-limit-reset");
+  if (lim) rl.limit = lim; if (rem !== null && rem !== "") rl.remaining = +rem; if (reset) rl.resetAt = reset * 1000;
+  if (lim && rem !== null && rem !== "" && +rem <= Math.max(2, Math.floor(lim * 0.1)) && reset) rl.holdUntil = Math.max(rl.holdUntil, reset * 1000 + 250);       // nearly empty: wait for the window to reset
+}
+function note429(r) {
+  rl.hits429++; rl.last429 = Date.now();
+  const base = rl.sent.length >= 6 ? Math.min(rl.budget, rl.sent.length) : rl.budget;       // halve what we were REALLY doing, not just the ceiling
+  rl.budget = Math.max(6, Math.floor(base / 2)); rl.recoverAt = Date.now() + 5 * 60000;
+  const reset = +r.headers.get("x-rate-limit-reset") * 1000; if (reset) rl.holdUntil = Math.max(rl.holdUntil, reset + 500);
+  log(`Okta said "too many requests" (${rl.hits429} so far); slowing to ${rl.budget} requests a minute`);
+}
+function rateStatus() {
+  const now = Date.now(); while (rl.sent.length && now - rl.sent[0] > 60000) rl.sent.shift();
+  return { maxRpm: cfg.rpm, budgetRpm: rl.budget, usedLastMinute: rl.sent.length, oktaLimit: rl.limit, oktaRemaining: rl.remaining, rejected: rl.hits429, lastRejected: rl.last429, waitedSeconds: Math.round(rl.waitedMs / 1000), slowedDown: rl.budget < cfg.rpm };
+}
+
+async function oktaGet(url, attempt = 0, kind = "fg") {
+  await gate(kind);
   const r = await fetch(url, { headers: { accept: "application/json", authorization: await authHeader() } });
+  noteHeaders(r);
   if (r.status === 429 && attempt < 4) {
+    note429(r);
     const reset = +r.headers.get("x-rate-limit-reset") * 1000;
     const wait = Math.min(60000, Math.max(1500, reset ? reset - Date.now() + 500 : 5000));
     log("Okta rate limit hit, waiting", Math.round(wait / 1000) + "s");
-    await new Promise(res => setTimeout(res, wait));
-    return oktaGet(url, attempt + 1);
+    await sleep(wait);
+    return oktaGet(url, attempt + 1, kind);
   }
   if (!r.ok) {
     const t = await r.text().catch(() => "");
@@ -124,12 +165,12 @@ const byPublished = (a, b) => (a.published < b.published ? -1 : a.published > b.
 const bf = { floor: null, until: null, active: null, done: false };
 
 // Fetch one range of the System Log (ascending) and ingest it. `finished` means the range is exhausted.
-async function fetchRange(sinceIso, untilIso) {
+async function fetchRange(sinceIso, untilIso, kind = "fg") {
   let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(sinceIso)}` + (untilIso ? `&until=${encodeURIComponent(untilIso)}` : "") +
-    `&limit=1000&sortOrder=ASCENDING` + (cfg.logFilter ? `&filter=${encodeURIComponent(cfg.logFilter)}` : "");
+    `&limit=${cfg.pageSize}&sortOrder=ASCENDING` + (cfg.logFilter ? `&filter=${encodeURIComponent(cfg.logFilter)}` : "");
   let pages = 0, last = null, finished = false, outOfOrder = false;
   while (url) {
-    const { json, next } = await oktaGet(url); pages++;
+    const { json, next } = await oktaGet(url, 0, kind); pages++;
     if (!json.length) { finished = true; break; }                // an empty page means we are caught up with this range
     for (const raw of json) {
       if (!last || raw.published > last) last = raw.published;   // resume point, even if every event was a duplicate
@@ -162,7 +203,7 @@ async function stepBackfill() {
     bf.active = { since, until: bf.until, cursor: since };
   }
   const a = bf.active;
-  const r = await fetchRange(a.cursor, a.until);
+  const r = await fetchRange(a.cursor, a.until, "bg");
   if (r.last && r.last > a.cursor) a.cursor = r.last;
   if (r.finished) {                                               // chunk done: move the boundary back
     bf.until = a.since; bf.active = null;
@@ -633,7 +674,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status()
+        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus()
       });
 
     if (req.method === "GET" && url.pathname === "/api/google/events") {
@@ -702,4 +743,4 @@ function start() {
   google.start();
 }
 if (require.main === module) start();
-module.exports = { server, queryEvents, state, google };
+module.exports = { server, queryEvents, state, google, pacing: { rl, gate, noteHeaders, note429, rateStatus, cfg } };

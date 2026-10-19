@@ -52,6 +52,8 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `LOOKBACK_DAYS` | no | Default 7 |
 | `MAX_EVENTS` | no | In-memory cap, default 100000 |
 | `OKTA_LOG_FILTER` | no | Narrow the feed on very large orgs |
+| `OKTA_MAX_RPM` | no | The most requests a minute Sightline may send to Okta (default 30, minimum 6). See "Okta rate limits" below |
+| `OKTA_PAGE_SIZE` | no | Events per request when loading the System Log (default and maximum 1000) |
 | `GOOGLE_SA_KEY` | for Google OAuth | The Google service account key: the JSON file's contents, or the same text base64-encoded. See "Google Workspace OAuth" below |
 | `GOOGLE_ADMIN_EMAIL` | for Google OAuth | The dedicated admin the service account acts as (needs only the Reports privilege) |
 | `GOOGLE_LOOKBACK_DAYS` | no | History to load first (default 30, at most 180; Google keeps 6 months) |
@@ -103,6 +105,21 @@ Open `/api/diagnostics` on the deployed service and check:
 - **Apps page: the app lookup is first**, above the App activity sections.
 - **Filters on both lookups.** Once you look up an app or a person, a filter bar appears with the error type (with counts for that app or person), failed or denied, "reason contains", "hide errors containing", and a person (app lookup) or an app (person lookup). They only change that lookup's results, are never saved, and reset when you look up something else. They do not touch the dashboard or Errors page filters.
 - Long errors (for example one that lists dozens of member ids) are shown on one line with the ids removed and repeats collapsed, with the original in the tooltip, everywhere.
+
+## Okta rate limits ("This API token has made too many requests")
+
+Okta limits how fast an API token may call each endpoint. By default a token gets **50% of an endpoint's limit** (for the System Log, usually 60 requests a minute). Go over it and Okta rejects the request and writes "This API token has made too many requests" to the System Log, naming the token.
+
+**What Sightline does so it does not cause that:**
+- It keeps to `OKTA_MAX_RPM` requests a minute (default 30), and the history load gets only part of that budget, so the live page and your lookups always have room.
+- It reads Okta's `x-rate-limit-*` headers on every reply and waits for the window to reset when the allowance is nearly used.
+- If Okta ever does answer "too many requests", it halves its real pace, says so in the server log, and speeds up again slowly.
+- Data & settings shows the requests per minute, what Okta reports as left, and a warning if anything was rejected recently. The "Loading history…" banner mentions the pace; a full week of history for a busy org is over a thousand requests, so it takes a while, and that is expected.
+
+**If you see the warning in the System Log, check these:**
+1. **Which tool is that token for?** The System Log entry names the token. If the name is another tool's (for example a runbook automation), Sightline and that tool are sharing one token and one allowance. Create a separate token for Sightline (Okta: Security > API > Tokens), owned by an admin with the read-only administrator role, and put it in `OKTA_API_TOKEN`.
+2. **Is it Sightline?** Search the server log for `too many requests`. If it is there, Sightline is the one being limited; lower `OKTA_MAX_RPM`, or raise the token's share (Security > API > Tokens > the token > Token rate limits) if your policy allows.
+3. Okta does not email anyone about these events, so the System Log (or this page) is the only place they show up.
 
 ## How the user search works
 
