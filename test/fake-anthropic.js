@@ -11,6 +11,11 @@ http.createServer((q, r) => {
     const lastIsToolResult = Array.isArray(last.content) && last.content[0] && last.content[0].type === "tool_result";
     const lastIsNudge = typeof last.content === "string" && last.content.includes("Please answer now");
     r.writeHead(200, { "content-type": "application/json" });
+    if (typeof j.system === "string" && j.system.includes("explaining ONE error") && !first.includes("EXPLAIN-TEST")) {
+      global.__x = (global.__x || 0) + 1; const t = (/Error text: "([^"]*)"/.exec(String(j.messages[0].content)) || [, "?"])[1];
+      return r.end(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "**What it means**: Fake explanation #" + global.__x + " for: " + t.slice(0, 70) + "\n**Likely causes**:\n- The target app rejected the request\n- A mapping is out of date\n**How to fix**:\n1. Open Applications > Applications > [app] > Provisioning\n2. Retry the push for the person\n**How to confirm**: the System Log event shows SUCCESS." }] }));
+    }
+    if (first.includes("EXPLAIN-TEST")) { global.__n = (global.__n || 0) + 1; return r.end(JSON.stringify({ stop_reason: "end_turn", content: [{ type: "text", text: "**What it means**: EXPLAIN OK call#" + global.__n + "\n**How to fix**:\n1. Check the app" }] })); }
     const toolCall = () => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t9", name: "query_events", input: { result: "ANY_FAILURE", limit: 1 } }] });
     if (first.includes("always-empty")) return r.end(JSON.stringify(lastIsToolResult || lastIsNudge ? { stop_reason: "end_turn", content: [] } : toolCall()));
     if (first.includes("empty-reply")) return r.end(JSON.stringify(lastIsNudge ? { stop_reason: "end_turn", content: [{ type: "text", text: "RECOVERED" }] } : lastIsToolResult ? { stop_reason: "end_turn", content: [] } : toolCall()));

@@ -7,7 +7,8 @@ const crypto = require("crypto");
 
 const APPS = ["Salesforce", "Slack", "Workday", "ServiceNow", "GitHub Enterprise", "Zoom", "Box", "Jira Cloud"];
 const USERS = Array.from({ length: 25 }, (_, i) => `user${String(i + 1).padStart(2, "0")}@example.com`);
-const REASONS = ["Automatic provisioning of user to app failed: Insufficient licenses available",
+const LONG = "Bad Request. Errors reported by remote server: " + Array.from({ length: 14 }, (_, i) => `member ID "${(0x65a1939f412e490f + i * 7919).toString(16).padStart(24, "0")}" does not exist`).join("; ");
+const REASONS = [LONG, "Automatic provisioning of user to app failed: Insufficient licenses available",
   "Automatic provisioning of user to app failed: 401 Unauthorized — API token expired", "INVALID_CREDENTIALS", "User is not assigned to the application"];
 const PORT = +process.env.MOCK_PORT || 4010;
 const pick = a => a[Math.floor(Math.random() * a.length)];

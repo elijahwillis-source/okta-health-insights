@@ -118,6 +118,16 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .sugg button{font-size:12px;padding:4px 9px;border-radius:99px}
 .inp{display:flex;gap:8px;margin-top:6px}
 .inp input{flex:1}
+#userTbl tr.urow{cursor:pointer}#userTbl tr.urow td:first-child{white-space:nowrap}#userTbl tr.urow:hover td{background:var(--surface2)}
+.uchev{display:inline-block;width:14px;color:var(--muted);transition:transform .35s cubic-bezier(.2,.8,.2,1)}tr.urow.open .uchev{transform:rotate(90deg);color:var(--accent)}
+#userTbl tr.udet>td{padding:0;border-bottom:1px solid var(--border)}
+.xbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s cubic-bezier(.2,.8,.2,1)}tr.urow.open+tr.udet .xbody{grid-template-rows:1fr}
+.xinner{min-height:0;overflow:hidden}.xpad{padding:6px 14px 14px}
+.xhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;margin:4px 0 6px}
+.xerr{border:1px solid var(--border);border-radius:10px;background:var(--surface2);margin:8px 0;padding:10px 12px}
+.xerr .rs{font-size:13px;overflow-wrap:anywhere}.xbtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.xbtn button{font-size:12.5px;padding:4px 10px}
+.xexp{margin-top:8px;padding:10px 12px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;white-space:pre-wrap;font-size:13px;overflow-wrap:anywhere}.xexp[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){.xbody,.uchev{transition:none}}
 .ulrow{display:flex;gap:8px;margin-bottom:10px}.ulrow input{flex:1;min-width:0}
 .ukpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
 .ukpi{background:var(--surface2);border-radius:10px;padding:8px 10px}.ukpi .l{font-size:11.5px;color:var(--muted)}.ukpi .v{font-size:20px;font-weight:650}
@@ -208,7 +218,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
     <div class="card">
       <h2>Users with assignment / provisioning errors</h2>
-      <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user.</p>
+      <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
       <div class="scroll"><table id="userTbl"></table></div>
     </div>
 
@@ -568,11 +578,7 @@ function render(){
   bars("#topApps",C.topApps,"app");
   bars("#topReasons",C.topReasons,"reason");
 
-  $("#userTbl").innerHTML = C.users.length? `<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>`+
-    C.users.slice(0,12).map(u=>{
-      const apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—"; const r=top(u.reasons,1)[0];
-      return `<tr class="click" data-k="user" data-v="${esc(u.user)}"><td>${esc(u.user)}</td><td><span class="pill f">${u.n}</span></td><td>${apps}</td><td>${esc(r?r[0]:"")}</td><td>${ago(S.ref-u.last)}</td></tr>`;}).join("")
-    : '<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>';
+  renderUsersTable(C);
   renderDrill();
   if(S.uperson) renderPerson();
   if(S.aapp) renderApp();
@@ -658,6 +664,84 @@ $("#appsCard").addEventListener("click",ev=>{
   const mo=ev.target.closest("[data-more]"); if(mo){ appsAct("more",mo.dataset.more); return; }
   const le=ev.target.closest("[data-less]"); if(le){ appsAct("less",le.dataset.less); }
 });
+
+/* ---------- users with assignment / provisioning errors: expandable, each error explained ---------- */
+// Clicking a row slides open that person's errors. Each error can be explained by the assistant (what it
+// means, likely causes, how to fix, how to confirm). Explanations are fetched on demand, cached on the server
+// and in the page, and keyed by the error text with ids removed so identical errors share one answer.
+function normErr(r){
+  const t=String(r==null?"":r).replace(/"[0-9a-f]{12,}"/gi,'"<id>"').replace(/\b[0-9a-f]{20,}\b/gi,"<id>").replace(/\b0[0-9a-z]{2}[A-Za-z0-9]{17}\b/g,"<id>");
+  const out=[]; for(const p of t.split(/;\s*/)){ const l=out[out.length-1];
+    if(l&&(l.t===p||l.u===p)) l.n++;
+    else if(l&&l.n===1&&l.t.length>p.length&&l.t.endsWith(p)){ l.n++; l.u=p; }       // the first copy is glued to a prefix
+    else out.push({t:p,n:1,u:null}); }
+  return out.map(x=>x.n>1? x.t+" (repeated "+x.n+" times)" : x.t).join("; ").slice(0,600);
+}
+function userErrors(u,C){
+  const m=new Map();
+  for(const e of C.assignFails){ if((userOf(e)||"(unknown)")!==u.user) continue;
+    const norm=normErr(reasonOf(e)); let o=m.get(norm); if(!o){ o={norm,count:0,apps:new Map(),types:new Map()}; m.set(norm,o); }
+    o.count++; const a=appOf(e); if(a) o.apps.set(a,(o.apps.get(a)||0)+1); o.types.set(e.eventType,(o.types.get(e.eventType)||0)+1); }
+  return [...m.values()].sort((a,b)=>b.count-a.count).slice(0,5).map(o=>({norm:o.norm,count:o.count,apps:top(o.apps,3).map(x=>x[0]),types:top(o.types,3).map(x=>x[0])}));
+}
+function errImpact(norm,C){ let n=0; const ppl=new Set(); for(const e of C.assignFails){ if(normErr(reasonOf(e))===norm){ n++; const u=userOf(e); if(u) ppl.add(localPart(u)); } } return {n,people:ppl.size}; }
+const errKey=x=>x.norm+"|"+(x.apps[0]||"");
+function explHTML(st){
+  if(!st) return "";
+  if(st.state==="loading") return '<span class="gsub">Asking the assistant…</span>';
+  return md(st.text||"");
+}
+function renderUsersTable(C){
+  const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
+  if(!C.users.length){ el.innerHTML='<tr><td class="empty">No assignment or provisioning errors in this window.</td></tr>'; return; }
+  el.innerHTML='<tr><th>User</th><th>Errors</th><th>Apps</th><th>Most common reason</th><th>Last</th></tr>'+C.users.slice(0,12).map((u,ui)=>{
+    const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
+    const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
+      return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
+        '<div class="gsub">'+esc(x.apps.join(", ")||"—")+(x.types.length?' · '+esc(x.types.join(", ")):"")+'</div></div>'+
+        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask the assistant</button></div>'+
+        '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
+    return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" data-first="'+ui+'_0" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'+
+      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("");
+}
+async function loadExplanation(key){
+  const x=S.xerr&&S.xerr.get(key); if(!x) return; const ek=errKey(x);
+  const paint=()=>{ const el=$("#userTbl").querySelector("#xe-"+key); if(el) el.innerHTML=explHTML(S.explain.get(ek)); };
+  const st=S.explain.get(ek); if(st&&(st.state==="done"||st.state==="loading")){ paint(); return; }
+  if(!S.assistant){ S.explain.set(ek,{state:"error",text:"The explanation needs the assistant, which is only available when the dashboard is connected to its backend with an Anthropic API key."}); paint(); return; }
+  S.explain.set(ek,{state:"loading"}); paint();
+  try{
+    const imp=errImpact(x.norm,S.C||{assignFails:[]});
+    const r=await fetch("api/explain-error",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:x.norm,apps:x.apps.slice(0,1),eventTypes:x.types.slice(0,1),count:imp.n,people:imp.people})});
+    const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
+    S.explain.set(ek,{state:"done",text:j.text});
+  }catch(err){ S.explain.set(ek,{state:"error",text:"Couldn’t get an explanation ("+err.message+"). Click the button again to retry."}); }
+  paint();
+}
+async function explainToggle(key){
+  const x=S.xerr.get(key); if(!x) return; const ek=errKey(x), root=$("#userTbl");
+  const el=root.querySelector("#xe-"+key), btn=root.querySelector('[data-explain="'+key+'"]'), st=S.explain.get(ek);
+  if(S.xshown.has(ek)&&(!st||st.state!=="error")){ S.xshown.delete(ek); if(el) el.hidden=true; if(btn) btn.textContent="What does this mean?"; return; }
+  if(st&&st.state==="error") S.explain.delete(ek);     // retry after a failure
+  S.xshown.add(ek); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation";
+  await loadExplanation(key);
+}
+function toggleUserRow(user){
+  const root=$("#userTbl"); const open=!S.uopen.has(user); if(open) S.uopen.add(user); else S.uopen.delete(user);
+  const row=[...root.querySelectorAll("tr.urow")].find(r=>r.dataset.u===user); if(!row) return;
+  row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open));
+  if(open&&S.xerr){ const key=row.dataset.first, x=S.xerr.get(key);      // first time open: explain the most common error straight away
+    if(x){ const ek=errKey(x); if(!S.xshown.has(ek)){ S.xshown.add(ek); const el=root.querySelector("#xe-"+key), btn=root.querySelector('[data-explain="'+key+'"]'); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation"; } loadExplanation(key); } }
+}
+$("#userTbl").addEventListener("click",ev=>{
+  const ex=ev.target.closest("[data-explain]"); if(ex){ explainToggle(ex.dataset.explain); return; }
+  const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#userTbl").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
+  const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x) ask("Help me with this Okta error: “"+x.norm+"”"+(x.apps.length?" (app: "+x.apps.join(", ")+")":"")+". What does it mean, and what exactly should I do to fix it?"); return; }
+  const lk=ev.target.closest("[data-lookup]"); if(lk){ openUser(lk.dataset.lookup); return; }
+  if(ev.target.closest("tr.udet")) return;          // clicks inside the opened details never collapse them
+  const row=ev.target.closest("tr.urow"); if(row) toggleUserRow(row.dataset.u);
+});
+$("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
 
 function bars(sel,list,kind){
   const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }

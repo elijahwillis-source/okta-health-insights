@@ -455,6 +455,47 @@ function queryEvents(i, windowMs) {
   return { totalMatches: hits.length, events: hits.slice(0, lim).map(e => ({ time: e.published, result: e.outcome && e.outcome.result, eventType: e.eventType, app: appOf(e), user: userOf(e), reason: (e.outcome && e.outcome.reason) || null })) };
 }
 
+/* --------------------------------------------------------- explain one error */
+// "What does this error mean and how do I fix it?" for a single error message. A focused prompt with no tools,
+// cached by error text, so the same error (for example the same provisioning failure for ten people) is
+// explained once.
+const explainCache = new Map();
+const EXPLAIN_SYSTEM = `You are an expert Okta administrator explaining ONE error from Okta's System Log (usually a provisioning, assignment or sign-in error) to an IT admin.
+Answer in exactly this shape, in plain words, under 180 words, with no preamble and no questions:
+**What it means**: one or two sentences.
+**Likely causes**: up to three short bullets starting with "- ".
+**How to fix**: numbered steps. Use real Okta Admin Console paths where they apply (for example Applications > Applications > [app] > Provisioning > To App, Directory > People > [person] > Applications, Reports > System Log) and name what to check in the target app.
+**How to confirm**: one line, for example which System Log event should now show SUCCESS.
+Be honest about what you cannot know from the message alone: say what to check instead of guessing. Placeholders like <id> stand for ids that were removed.`;
+const cleanStr = (v, n) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, n);
+
+async function explainError(body) {
+  if (!cfg.anthropicKey) { const e = new Error("Assistant is not configured (ANTHROPIC_API_KEY is not set)."); e.status = 503; throw e; }
+  body = body || {};
+  const reason = cleanStr(body.reason, 800);
+  if (reason.length < 3) { const e = new Error("Provide the error text as 'reason'."); e.status = 400; throw e; }
+  const list = (v, n, m) => (Array.isArray(v) ? v : []).slice(0, n).map(x => cleanStr(x, m)).filter(Boolean);
+  const apps = list(body.apps, 3, 80), types = list(body.eventTypes, 3, 120);
+  const count = Math.max(0, Math.floor(+body.count) || 0), people = Math.max(0, Math.floor(+body.people) || 0);
+  const key = [reason.toLowerCase(), apps.join("|").toLowerCase(), types.join("|").toLowerCase()].join("##");
+  const hit = explainCache.get(key);
+  if (hit && Date.now() - hit.at < 24 * 36e5) return { text: hit.text, cached: true };
+  const content = `Error text: "${reason}"\n` + (apps.length ? `App: ${apps.join(", ")}\n` : "") + (types.length ? `System Log event type: ${types.join(", ")}\n` : "") +
+    (count ? `Seen ${count} time${count === 1 ? "" : "s"}${people ? `, affecting ${people} ${people === 1 ? "person" : "people"}` : ""}, recently.\n` : "") + "Explain this error and how to fix it.";
+  const r = await fetch(cfg.anthropicUrl + "/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": cfg.anthropicKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: cfg.model, max_tokens: 700, system: EXPLAIN_SYSTEM, messages: [{ role: "user", content }] })
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error("Anthropic API error: " + (data.error && data.error.message || r.status)); e.status = 502; throw e; }
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+  if (!text) { const e = new Error("The assistant returned no explanation. Try again."); e.status = 502; throw e; }
+  explainCache.set(key, { at: Date.now(), text });
+  if (explainCache.size > 300) explainCache.delete(explainCache.keys().next().value);
+  return { text, cached: false };
+}
+
 async function chat(body) {
   if (!cfg.anthropicKey) { const e = new Error("Assistant is not configured (ANTHROPIC_API_KEY is not set)."); e.status = 503; throw e; }
   const windowMs = +body.windowMs || 0;
@@ -613,6 +654,11 @@ const server = http.createServer(async (req, res) => {
       if (!ids.length) return send(req, res, 400, { error: "Provide ?id=<app id> (one to three)." });
       const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
       return send(req, res, 200, await appSearchCached(ids, days));
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/explain-error") {
+      if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
+      return send(req, res, 200, await explainError(await readBody(req)));
     }
 
     if (req.method === "POST" && url.pathname === "/api/chat") {

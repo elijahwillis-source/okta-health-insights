@@ -136,6 +136,20 @@ sleep 2
 NF=$(curl -s "localhost:8089/api/app-events?id=$SN&days=7")
 check "app errors: works if Okta rejects the filter" true "$(echo "$NF" | jq_ 'j.serverFiltered===false&&j.count>0&&j.events.every(e=>e.outcome.result==="FAILURE")')"
 
+# --- explain one error ---
+post() { curl -s $A -XPOST localhost:8099/api/explain-error -H 'content-type: application/json' -d "$1"; }
+E1=$(post '{"reason":"EXPLAIN-TEST Failed to update user password","apps":["ServiceNow UD"],"eventTypes":["application.provision.user.push"],"count":51,"people":3}')
+check "explain: returns an explanation"          "EXPLAIN OK" "$E1"
+check "explain: first call is not cached"        false "$(echo "$E1" | jq_ 'j.cached')"
+E2=$(post '{"reason":"EXPLAIN-TEST Failed to update user password","apps":["ServiceNow UD"],"eventTypes":["application.provision.user.push"],"count":99,"people":9}')
+check "explain: same error is served from cache" true "$(echo "$E2" | jq_ 'j.cached===true')"
+check "explain: cached text is identical"        true "$([ "$(echo "$E1" | jq_ 'j.text')" = "$(echo "$E2" | jq_ 'j.text')" ] && echo true || echo false)"
+E3=$(post '{"reason":"EXPLAIN-TEST a different error"}')
+T1=$(echo "$E1" | jq_ 'j.text'); T3=$(echo "$E3" | jq_ 'j.text')
+check "explain: a different error gets its own answer" true "$([ "$T1" != "$T3" ] && [ "$(echo "$E3" | jq_ 'j.cached')" = "false" ] && echo true || echo false)"
+check "explain: missing reason -> 400"           400 "$(code $A -XPOST localhost:8099/api/explain-error -H 'content-type: application/json' -d '{"apps":["x"]}')"
+check "explain: needs the password"              401 "$(code -XPOST localhost:8099/api/explain-error -H 'content-type: application/json' -d '{"reason":"abc"}')"
+
 # --- assistant's user search matches ANY login of a person (Okta email or AD AppUser login) ---
 UQ=$(node -e '
 const m=require("./server.js"); const ev=(id,actor,target)=>({id,published:new Date().toISOString(),eventType:"x",outcome:{result:"FAILURE",reason:"r"},actor,target});

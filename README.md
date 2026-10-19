@@ -7,6 +7,7 @@ A live dashboard for Okta health, with an Okta-expert AI assistant built in.
 - **Assignment / provisioning errors**: grouped by user
 - **User lookup**: search by email, username or name and the server asks Okta's System Log for that person directly (live, up to 90 days), so it works right after a deploy and does not depend on what has been loaded. Shows every error tied to them (failed sign-ins, assignment and provisioning errors, AD failures), their top reasons and a CSV export. Logins with the same name before the @ (an Okta email and an AD login) are treated as one person. The assistant can do the same lookup
 - **App activity**: instead of a wall of tiles, apps are grouped into expandable sections by state (Silent, Quiet, Active, and Waiting while history loads). Each header says in plain words what the state means and how many apps are in it; the page opens with only the apps that need attention showing, ten at a time, and any section slides open to list the rest. There is a search box, Expand all and Collapse all, and sortable columns. Motion is skipped for people who prefer reduced motion
+- **Explained errors**: in "Users with assignment / provisioning errors", clicking a row slides open that person's errors. The most common one is explained straight away (what it means, likely causes, how to fix, how to confirm); the others have a "What does this mean?" button, and "Ask the assistant" sends the specific error to the chat. Explanations are cached for 24 hours, so the same error is only explained once
 - **App lookup**: search an app (or click an app tile or bar) to see every failure and deny it has produced, live from Okta for up to 90 days: how many, which reasons, how many people each affects, errors per day and the latest events. The assistant can do the same lookup
 - **Drill-down + CSV export** on anything you click
 - **Assistant**: ask it to troubleshoot; it can search the live events itself
@@ -94,6 +95,10 @@ Searching a person calls `GET /api/user-events`, which runs Okta's System Log ke
 
 Searching an app resolves its Okta app id from the app list (or from the events), then `GET /api/app-events` asks Okta for that app's failures and denies: `target.id eq "<id>"` (sign-ins and provisioning) and `actor.id eq "<id>"` (OAuth clients), each combined with `outcome.result` FAILURE or DENY, newest first. If Okta rejects the combined filter the server fetches the app's events and keeps the errors itself, and the card says so. Results are cached for 60 seconds and share the 30-searches-a-minute limit with the user search. Without the backend (an uploaded file, sample data) the card lists the errors in the events already loaded.
 
+## How the error explanations work
+
+Clicking a row sends only the error text, the app name, the event type and two counts to `/api/explain-error`. Ids inside the text (member ids, user ids) are replaced by `<id>` first and repeated segments are collapsed, so the same error for ten people is one cache entry and one question to the model. The model is asked for a fixed shape (what it means, likely causes, how to fix, how to confirm), is told to say what to check instead of guessing, and has no access to your data beyond that text. Treat the answer as guidance from an Okta expert who has not seen your tenant: verify before changing a production integration.
+
 ## Privacy
 
 Events are kept in memory only, and are not written to disk. When someone uses the assistant, the dashboard summary and any events it looks up are sent to the Anthropic API. If that isn't acceptable for your data, leave `ANTHROPIC_API_KEY` unset and the assistant is switched off.
@@ -109,6 +114,7 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `GET /api/diagnostics` | Why an app shows "No events": polling state, buffer size, apps with no events, and names that look duplicated |
 | `GET /api/user-events?q=…&q=…&days=7` | Live per-user search of Okta's System Log (newest first, max 90 days). Uses the same read-only log permission; ignores `OKTA_LOG_FILTER` |
 | `GET /api/app-events?id=…&days=7` | Live per-app errors from Okta's System Log (failures and denies, newest first, max 90 days, up to three ids). Uses the same read-only log permission |
+| `POST /api/explain-error` | `{reason, apps, eventTypes, count, people}` returns `{text, cached}`: a short explanation of one error and how to fix it. No tools, cached 24 hours by error text; shares the assistant rate limit |
 | `POST /api/chat` | `{messages, summary, windowMs}` → `{text}` |
 
 ## Roadmap ideas
