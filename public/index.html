@@ -35,18 +35,88 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
-header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
-header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
-header .sub{color:var(--muted);font-size:12px}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;background:var(--bg);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header.top h1{font-size:17px;margin:0;font-weight:650;letter-spacing:-.01em}
+header.top .sub{color:var(--muted);font-size:12px}
+#hsearch{min-width:240px}
 .spacer{flex:1}
+/* ---- app shell ---- */
+:root{--navw:236px}
+.shell{display:grid;grid-template-columns:var(--navw) minmax(0,1fr);min-height:100vh;transition:grid-template-columns .25s cubic-bezier(.2,.8,.2,1)}
+.shell.collapsed{--navw:68px}
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:14px 12px;background:var(--surface);border-right:1px solid var(--border);overflow-x:hidden;overflow-y:auto;z-index:20}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 6px 16px;text-decoration:none;color:var(--text)}
+.brand .logo{flex:none;width:34px;height:34px}.brand b{display:block;font-size:15px;letter-spacing:-.01em;white-space:nowrap}
+.brand small{display:block;font-size:11.5px;color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.navgrp{display:flex;flex-direction:column;gap:2px}.navgrp.bottom{margin-top:auto;border-top:1px solid var(--border);padding-top:10px}
+.navi{display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border-radius:9px;border:none;background:transparent;color:var(--muted);font:inherit;font-size:13.5px;font-weight:550;text-decoration:none;cursor:pointer;text-align:left;position:relative;white-space:nowrap}
+.navi svg{flex:none;width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.navi:hover{background:var(--surface2);color:var(--text);border:none}.navi.active{background:var(--accent-soft);color:var(--accent)}
+.navi:focus-visible,.iconbtn:focus-visible,.brand:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.navbadge{margin-left:auto;background:var(--bad);color:#fff;border-radius:99px;font-size:11px;font-weight:700;padding:1px 7px;min-width:20px;text-align:center}
+.shell.collapsed .nl,.shell.collapsed .bt{display:none}.shell.collapsed .brand{justify-content:center;padding-left:0;padding-right:0}
+.shell.collapsed .navi{justify-content:center;padding:10px 0}.shell.collapsed .navbadge{position:absolute;top:2px;right:8px;margin:0;font-size:10px;padding:0 5px;min-width:16px}
+.shell.collapsed #navCollapse svg{transform:rotate(180deg)}
+.content{min-width:0;display:flex;flex-direction:column}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border-radius:9px;position:relative;background:var(--surface)}
+.iconbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.belln{position:absolute;top:-5px;right:-5px;background:var(--bad);color:#fff;border-radius:99px;font-size:10.5px;font-weight:700;padding:0 5px;min-width:17px;line-height:17px;text-align:center}
+.bellwrap{position:relative}
+.view{display:flex;flex-direction:column;gap:16px}.view[hidden]{display:none}
+.vhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.vs{margin:0;color:var(--muted);font-size:13.5px}
+.fb{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:10px}
+.fb-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.fb-l{font-size:12px;color:var(--muted);font-weight:600}.fb-sep{width:1px;height:20px;background:var(--border);margin:0 6px}
+.chipbtn{border-radius:99px;padding:4px 11px;font-size:12.5px;background:transparent;display:inline-flex;gap:6px;align-items:center}
+.chipbtn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}.chipbtn i{font-style:normal;color:var(--muted);font-size:11.5px}.chipbtn.on i{color:inherit}
+.fin{flex:1 1 180px;min-width:150px;padding:5px 9px;font-size:12.5px}
+.fb-active{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--muted)}
+.fchip{display:inline-flex;gap:4px;align-items:center;background:var(--accent-soft);color:var(--accent);border-radius:99px;padding:2px 4px 2px 10px;font-size:12px}
+.fchip button{border:none;background:transparent;color:inherit;padding:0 5px;line-height:1;font-size:15px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.cpill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600;background:var(--surface2);color:var(--muted);white-space:nowrap}
+.catbars{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 22px;margin:12px 0 4px}.cb{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;font-size:12.5px}
+.rowact{white-space:nowrap;text-align:right}.rowact button{font-size:12px;padding:2px 8px;margin-left:4px}
+.nitem,.toast{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left}
+.nitem:hover{background:var(--surface2)}.nitem.unread{background:var(--accent-soft)}.nitem.unread:hover{filter:brightness(1.05)}
+.ndot{flex:none;width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--muted)}.warn .ndot{background:var(--warn)}.bad .ndot{background:var(--bad)}.info .ndot{background:var(--accent)}
+.nbody{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:13px}.nbody b{font-size:13px}.nbody span{color:var(--muted);overflow-wrap:anywhere}.nbody small{color:var(--muted);font-size:11.5px}
+.nact{display:flex;gap:6px;margin-top:6px}.nact button{font-size:12px;padding:2px 9px}
+#notifPanel{position:absolute;right:0;top:44px;width:min(400px,92vw);background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.28);z-index:60;overflow:hidden}
+#notifPanel[hidden]{display:none}.nhead,.nfoot,.nhead2{display:flex;align-items:center;gap:8px;padding:10px 12px}.nhead{border-bottom:1px solid var(--border)}.nfoot{border-top:1px solid var(--border)}.nhead2{padding:0 0 10px}
+.nlist{display:flex;flex-direction:column;gap:2px;max-height:min(420px,60vh);overflow:auto;padding:4px}.nlist.flat{max-height:none;padding:0}
+.toast{background:var(--surface);border:1px solid var(--border);box-shadow:0 10px 30px rgba(0,0,0,.35);animation:toastIn .35s cubic-bezier(.2,.8,.2,1)}.toast .x{margin-left:auto;border:none;background:transparent;font-size:18px;line-height:1;padding:0 4px;color:var(--muted)}
+.toast.bad{border-color:var(--bad)}.toast.warn{border-color:var(--warn)}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.toast{animation:none}}
+.rule{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--border)}.rule:last-child{border-bottom:none}.rule.off .rbody{opacity:.55}
+.rbody{flex:1;min-width:0;font-size:13px}.rnow{margin-top:4px;font-size:12px;color:var(--accent)}.ract{display:flex;gap:6px}.ract button{font-size:12px;padding:3px 10px}
+.sw{position:relative;flex:none;width:36px;height:20px;margin-top:2px}.sw input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer;z-index:1}.sw span{position:absolute;inset:0;background:var(--border);border-radius:99px;transition:background .2s}
+.sw span::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}.sw input:checked+span{background:var(--ok)}.sw input:checked+span::after{transform:translateX(16px)}
+.sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.modal{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;width:min(640px,100%);max-height:94vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.mcard h3{margin:0;font-size:17px}
+.fl{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);flex:1;min-width:140px}.fl input,.fl select{color:var(--text)}.frow{display:flex;gap:10px;flex-wrap:wrap}
+.chkrow{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:4px}.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text)}
+.mact{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.merr{color:var(--bad);font-size:12.5px}
+.nlist+.lnk{display:inline-block;margin-top:12px}
+.glrow{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.glrow>div{display:flex;flex-direction:column;gap:4px}.glrow b{font-size:24px;letter-spacing:-.01em}
+.setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}.setbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.alertgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}@media (max-width:1100px){.alertgrid{grid-template-columns:minmax(0,1fr)}}
+/* ---- assistant drawer ---- */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:40;background:var(--surface);border-left:1px solid var(--border);box-shadow:-12px 0 32px rgba(0,0,0,.18);transform:translateX(104%);transition:transform .32s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;visibility:hidden}
+.drawer.open{transform:none;visibility:visible}
+.drawer .dclose{position:absolute;top:10px;right:12px;z-index:2;background:transparent;border:none}
+#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(380px,calc(100vw - 36px))}
+@media (max-width:900px){:root{--navw:68px}.nl,.bt{display:none}.navi{justify-content:center;padding:10px 0}.brand{justify-content:center}header.top{padding:10px 14px}main{padding:16px 14px 40px}#hsearch{min-width:0;flex:1}}
+@media (prefers-reduced-motion:reduce){.shell,.drawer{transition:none}}
 .ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 select,button,input[type=text]{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
 button{cursor:pointer}
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button.ghost{background:transparent}
-main{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16px 20px;max-width:1700px;margin:0 auto}
-@media (max-width:1100px){main{grid-template-columns:minmax(0,1fr)}}
+main{padding:20px 24px 48px;max-width:1560px;width:100%;margin:0 auto}
+#banner{padding:12px 24px 0;max-width:1560px;margin:0 auto;width:100%}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:0}
 .card h2{font-size:13px;margin:0 0 2px;font-weight:650;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
@@ -106,8 +176,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .empty{color:var(--muted);font-size:13px;padding:8px 0}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px}
 /* assistant */
-.chat{position:sticky;top:calc(env(safe-area-inset-top,0px) + 62px);display:flex;flex-direction:column;height:calc(100vh - 90px);min-height:420px}
-@media (max-width:1100px){.chat{position:static;height:560px}}
+.chat{display:flex;flex-direction:column;height:100%;min-height:0;border:none;border-radius:0;background:transparent;padding:14px 16px 16px}
 .chat .msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px 8px}
 .msg{padding:9px 12px;border-radius:12px;max-width:94%;font-size:13px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
 .msg.u{align-self:flex-end;background:var(--accent);color:#fff}
@@ -147,56 +216,60 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>Okta Health Insights</h1>
-    <div class="sub" id="asof">Loading…</div>
-  </div>
-  <div class="spacer"></div>
-  <label class="ctl">Window
-    <select id="win">
-      <option value="86400000">Last 24h</option>
-      <option value="259200000">Last 3 days</option>
-      <option value="604800000" selected>Last 7 days</option>
-      <option value="2592000000">Last 30 days</option>
-      <option value="0">All loaded</option>
-    </select>
-  </label>
-  <label class="ctl">App silent after
-    <select id="sil">
-      <option value="604800000" selected>7 days</option>
-      <option value="1209600000">14 days</option>
-      <option value="2592000000">30 days</option>
-    </select>
-  </label>
-  <input type="text" id="hsearch" placeholder="Find a user or app…" autocomplete="off" aria-label="Find a user or app" style="min-width:230px">
-  <button id="btnLive" class="primary" hidden>Live data</button>
-  <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
-  <button id="btnApps" class="ghost">Load app list (optional)</button>
-  <button id="btnDemo" class="ghost">Sample data</button>
-  <button id="btnDeck" class="ghost" title="Copies the figures behind the presentation slides. Contains no names or emails.">Copy data for slides</button>
-  <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.csv,.tsv,.txt" hidden>
-  <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
-  <div id="map" hidden><div class="mbody"></div></div>
-</header>
-
-<main>
-  <div class="col">
-    <div id="banner"></div>
-    <div class="kpis" id="kpis"></div>
-
-    <div class="card" id="appsCard">
-      <h2>App activity</h2>
-      <p class="hint" id="appsIntro"></p>
-      <div id="appsSummary"></div>
-      <div class="ctl" style="gap:10px;margin:14px 0 12px;flex-wrap:wrap">
-        <input type="text" id="appq" placeholder="Search apps…" autocomplete="off" aria-label="Search apps">
-        <button class="ghost" id="appexp">Expand all</button><button class="ghost" id="appcol">Collapse all</button>
-        <span id="appcount"></span>
-      </div>
-      <div id="appsAcc"></div>
+<div class="shell" id="shell">
+  <nav class="side" id="side" aria-label="Main navigation">
+    <a class="brand" href="#/overview" aria-label="Okta Health Insights, overview">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="6" fill="#E2711D"/><polyline points="3 12.5 8 12.5 10 7 14 17.5 16 12.5 21 12.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="bt"><b>Okta Health</b><small id="orgName">Insights</small></span>
+    </a>
+    <div class="navgrp">
+      <a class="navi" href="#/overview" data-view="overview"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg><span class="nl">Overview</span></a>
+      <a class="navi" href="#/errors" data-view="errors"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="nl">Errors</span></a>
+      <a class="navi" href="#/apps" data-view="apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="nl">Apps</span></a>
+      <a class="navi" href="#/people" data-view="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nl">People</span></a>
+      <a class="navi" href="#/alerts" data-view="alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nl">Alerts</span><span class="navbadge" id="navAlerts" hidden>0</span></a>
     </div>
+    <div class="navgrp bottom">
+      <button class="navi" id="navAssistant" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="nl">Assistant</span></button>
+      <a class="navi" href="#/settings" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span class="nl">Data &amp; settings</span></a>
+      <button class="navi" id="navCollapse" type="button" aria-label="Collapse the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg><span class="nl">Collapse</span></button>
+    </div>
+  </nav>
 
+  <div class="content">
+    <header class="top">
+      <div class="ttl">
+        <h1 id="pageTitle">Overview</h1>
+        <div class="sub" id="asof">Loading…</div>
+      </div>
+      <div class="spacer"></div>
+      <input type="text" id="hsearch" placeholder="Find a user or app…  ( / )" autocomplete="off" aria-label="Find a user or app">
+      <label class="ctl">Window
+        <select id="win">
+          <option value="86400000">Last 24h</option>
+          <option value="259200000">Last 3 days</option>
+          <option value="604800000" selected>Last 7 days</option>
+          <option value="2592000000">Last 30 days</option>
+          <option value="0">All loaded</option>
+        </select>
+      </label>
+      <div class="bellwrap">
+        <button class="iconbtn" id="bell" type="button" aria-label="Notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="belln" id="bellN" hidden>0</span></button>
+        <div id="notifPanel" role="dialog" aria-label="Notifications" hidden></div>
+      </div>
+      <button class="iconbtn" id="topAssistant" type="button" aria-label="Open the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
+    </header>
+    <div id="banner"></div>
+
+    <main>
+      <section class="view" id="view-overview" data-view="overview">
+        <div class="vhead"><div><p class="vs">How healthy Okta is right now: errors, busy apps, and what needs a look.</p></div></div>
+        <div class="fbar" data-fbar="compact"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="two">
+          <div class="card"><h2>Apps at a glance</h2><p class="hint">How many apps are in use, quiet or silent.</p><div id="glance"></div></div>
+          <div class="card"><h2>Latest alerts</h2><p class="hint">The most recent notifications from your alert rules.</p><div id="latestAlerts"></div></div>
+        </div>
     <div class="card">
       <h2>Event volume &amp; failures</h2>
       <div class="legend"><span><i class="dot" style="background:var(--bar)"></i>All events</span><span><i class="dot" style="background:var(--barfail)"></i>Failures</span></div>
@@ -216,6 +289,47 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       </div>
     </div>
 
+      </section>
+
+      <section class="view" id="view-errors" data-view="errors" hidden>
+        <div class="vhead"><div><p class="vs">Every failed, denied or errored event, filtered the way you want.</p></div></div>
+        <div class="fbar" data-fbar="full"></div>
+        <div class="card" id="errView"></div>
+      </section>
+
+      <section class="view" id="view-apps" data-view="apps" hidden>
+        <div class="vhead"><div><p class="vs">Which apps are being used, and what is going wrong in each one.</p></div>
+          <label class="ctl">App silent after
+            <select id="sil">
+              <option value="604800000" selected>7 days</option>
+              <option value="1209600000">14 days</option>
+              <option value="2592000000">30 days</option>
+            </select>
+          </label></div>
+    <div class="card" id="appsCard">
+      <h2>App activity</h2>
+      <p class="hint" id="appsIntro"></p>
+      <div id="appsSummary"></div>
+      <div class="ctl" style="gap:10px;margin:14px 0 12px;flex-wrap:wrap">
+        <input type="text" id="appq" placeholder="Search apps…" autocomplete="off" aria-label="Search apps">
+        <button class="ghost" id="appexp">Expand all</button><button class="ghost" id="appcol">Collapse all</button>
+        <span id="appcount"></span>
+      </div>
+      <div id="appsAcc"></div>
+    </div>
+
+    <div class="card" id="appLookup">
+      <h2>App lookup</h2>
+      <p class="hint">Search an app to see every error it has produced: failed sign-ins, provisioning and sync failures, and token errors, with the reasons and who is affected. Clicking an app tile or bar above opens it here.</p>
+      <div class="ulrow"><input type="text" id="asearch" placeholder="Search an app, e.g. Salesforce" autocomplete="off" list="alist"><datalist id="alist"></datalist><button id="ago" class="primary">Look up</button></div>
+      <div id="aresult"></div>
+    </div>
+
+      </section>
+
+      <section class="view" id="view-people" data-view="people" hidden>
+        <div class="vhead"><div><p class="vs">Who is hitting errors, what each error means, and how to fix it.</p></div></div>
+        <div class="fbar" data-fbar="compact"></div>
     <div class="card">
       <h2>Users with assignment / provisioning errors</h2>
       <p class="hint">Failed app assignments, group membership changes, provisioning pushes and imports, grouped by user. Click a row to see what each error means and how to fix it.</p>
@@ -229,20 +343,38 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <div id="uresult"></div>
     </div>
 
-    <div class="card" id="appLookup">
-      <h2>App lookup</h2>
-      <p class="hint">Search an app to see every error it has produced: failed sign-ins, provisioning and sync failures, and token errors, with the reasons and who is affected. Clicking an app tile or bar above opens it here.</p>
-      <div class="ulrow"><input type="text" id="asearch" placeholder="Search an app, e.g. Salesforce" autocomplete="off" list="alist"><datalist id="alist"></datalist><button id="ago" class="primary">Look up</button></div>
-      <div id="aresult"></div>
-    </div>
+      </section>
 
-    <div class="card" id="drill">
-      <h2>Drill-down</h2>
-      <div id="drillBody"><div class="empty">Click an app tile, bar, user or reason above to see the underlying events.</div></div>
-    </div>
+      <section class="view" id="view-alerts" data-view="alerts" hidden>
+        <div class="vhead"><div><p class="vs">Get told in the app when certain errors show up.</p></div><div id="alertsTools"></div></div>
+        <div class="alertgrid"><div class="card"><h2>Rules</h2><p class="hint">What to watch for. Rules are checked every time the data refreshes.</p><div id="rulesList"></div></div>
+        <div class="card"><h2>Notifications</h2><div id="notifFeed"></div></div></div>
+      </section>
+
+      <section class="view" id="view-settings" data-view="settings" hidden>
+        <div class="vhead"><div><p class="vs">Where the data comes from, exports, and how the app looks.</p></div></div>
+        <div class="setgrid">
+          <div class="card"><h2>Data source</h2><div id="dataSrc" class="hint"></div>
+            <div class="setbtns">
+              <button id="btnLive" class="primary" hidden>Switch to live data</button>
+              <button id="btnLog" class="ghost">Load export file (JSON or CSV)</button>
+              <button id="btnApps" class="ghost">Load app list (optional)</button>
+              <button id="btnDemo" class="ghost">Use sample data</button>
+            </div></div>
+          <div class="card"><h2>Export</h2><p class="hint">Copies the figures behind a presentation. It contains no names or emails.</p>
+            <div class="setbtns"><button id="btnDeck" class="ghost">Copy data for slides</button></div></div>
+          <div class="card"><h2>Appearance</h2>
+            <label class="ctl" style="margin-top:6px">Theme
+              <select id="themeSel"><option value="auto">Match my device</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div>
+          <div class="card"><h2>Notifications</h2><p class="hint">In-app alerts always work while this page is open. You can also get a desktop notification.</p>
+            <div class="setbtns"><button id="btnBrowserNotif" class="ghost">Turn on desktop notifications</button></div><div id="browserNotifState" class="hint" style="margin-top:8px"></div></div>
+        </div>
+      </section>
+    </main>
   </div>
 
-  <aside class="col">
+  <aside class="drawer" id="assistant" aria-label="Okta expert assistant" aria-hidden="true">
+    <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
       <h2>Okta expert assistant</h2>
       <p class="hint">Knows your loaded data and can query it. Ask why something is failing.</p>
@@ -251,7 +383,12 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <div class="inp"><input type="text" id="q" placeholder="Ask about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
     </div>
   </aside>
-</main>
+</div>
+<datalist id="fbApps"></datalist>
+<div id="toasts" aria-live="polite"></div>
+  <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.csv,.tsv,.txt" hidden>
+  <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
+  <div id="map" hidden><div class="mbody"></div></div>
 
 <script>
 (function(){
@@ -291,6 +428,11 @@ function ago(ms){
 function countBy(arr,fn){ const m=new Map(); for(const x of arr){ const k=fn(x); if(k==null) continue; m.set(k,(m.get(k)||0)+1);} return m; }
 function top(m,n){ return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,n); }
 function fmtN(n){ return n.toLocaleString(); }
+// small wrapper over localStorage (it can be unavailable or full, and must never break the page)
+const LS={
+  get(k,d){ try{ const v=localStorage.getItem(k); return v==null? d : JSON.parse(v); }catch(_){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(_){ return false; } }
+};
 
 /* ---------- demo data (generated, deterministic) ---------- */
 function makeDemo(){
@@ -526,10 +668,11 @@ function openMapper(rows,fname,file,delim){
 }
 
 /* ---------- compute ---------- */
-function compute(){
+function compute(opts){
   const all=S.events; const ref=S.ref;
   const win=S.win? all.filter(e=>ts(e)>=ref-S.win) : all;
-  const fails=win.filter(isFail);
+  const failsAll=win.filter(isFail), pred=(opts&&opts.noFilter)? null : compileFilter(S.fil);
+  const fails= pred? failsAll.filter(pred) : failsAll;      // the filters choose which errors the dashboard shows
   // app stats
   const appNames=new Set(); all.forEach(e=>{const a=appOf(e); if(a) appNames.add(a);}); S.inventory.forEach(a=>appNames.add(a));
   const lastSeen=new Map(); for(const e of all){ const a=appOf(e); if(!a) continue; const t=ts(e); if(!lastSeen.has(a)||t>lastSeen.get(a)) lastSeen.set(a,t); }
@@ -537,7 +680,7 @@ function compute(){
     const label=new Map((S.invItems||[]).map(x=>[x.id,String(x.label||"").trim()]));
     for(const x of S.seen){ const nm=label.get(x.id)||String(x.name||"").trim(); if(!nm) continue; appNames.add(nm); if(!lastSeen.has(nm)||x.last>lastSeen.get(nm)) lastSeen.set(nm,x.last); }
   }
-  const winCount=countBy(win,appOf), failCount=countBy(fails,appOf);
+  const winCount=countBy(win,appOf), failCount=countBy(failsAll,appOf), failCountF=countBy(fails,appOf);   // tiles show every error; rankings follow the filters
   const tiles=[...appNames].map(name=>{
     const ls=lastSeen.get(name); const gap=ls==null?Infinity:ref-ls;
     let status = gap>S.sil?"silent":(gap>S.sil/2?"slow":"ok");
@@ -551,7 +694,7 @@ function compute(){
     o.n++; const a=appOf(e); if(a) o.apps.set(a,(o.apps.get(a)||0)+1); const r=reasonOf(e); o.reasons.set(r,(o.reasons.get(r)||0)+1); o.last=Math.max(o.last,ts(e)); }
   const users=[...byUser.values()].sort((a,b)=>b.n-a.n);
   return {win,fails,tiles,assignFails,users,
-    topApps:top(failCount,8), topReasons:top(countBy(fails,reasonOf),8), topTypes:top(countBy(fails,e=>e.eventType),6),
+    failsAll,topApps:top(failCountF,8), topReasons:top(countBy(fails,reasonOf),8), topTypes:top(countBy(fails,e=>e.eventType),6),catCounts:countBy(failsAll,catOf),
     uniqueUsers:new Set(win.map(userOf).filter(Boolean)).size};
 }
 
@@ -566,20 +709,21 @@ function render(){
   const silentN=C.tiles.filter(t=>t.status==="silent").length;
   $("#kpis").innerHTML = [
     ["Events in window",fmtN(C.win.length),"",""],
-    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied", rate>8?"bad":rate>4?"warn":"ok"],
+    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied"+(filterActive(S.fil)?" · filtered":""), rate>8?"bad":rate>4?"warn":"ok"],
     ["Silent apps",S.catchingUp?"…":silentN,S.catchingUp?"waiting for history":"of "+C.tiles.length+" apps", S.catchingUp?"warn":(silentN?"bad":"ok")],
     ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected", C.assignFails.length?"warn":"ok"],
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
   ].map(k=>`<div class="kpi ${k[3]}"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d">${k[2]}</div></div>`).join("");
 
   renderAppsPanel(C);
+  renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
+  evaluateAlerts(C); renderBell(); renderLatestAlerts();
 
   renderTimeline(C);
   bars("#topApps",C.topApps,"app");
   bars("#topReasons",C.topReasons,"reason");
 
   renderUsersTable(C);
-  renderDrill();
   if(S.uperson) renderPerson();
   if(S.aapp) renderApp();
 }
@@ -743,6 +887,128 @@ $("#userTbl").addEventListener("click",ev=>{
 });
 $("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
 
+/* ---------- error filters ---------- */
+const CATS={signin:"Sign-in & password",provision:"Provisioning & assignment",token:"Token & OAuth",access:"Access denied",other:"Other"};
+const CAT_KEYS=["signin","provision","token","access","other"];
+function catOf(e){
+  if(e._c) return e._c;
+  const t=e.eventType||"", r=reasonOf(e); let c;
+  if(isAssign(e)) c="provision";
+  else if(/^app\.oauth2|token|oauth/i.test(t)||/refresh_token|invalid_grant|login_required|consent_required|interaction_required/i.test(r)) c="token";
+  else if((e.outcome&&e.outcome.result==="DENY")||/unauthorized access|not assigned|not authorized|access denied|policy/i.test(r)) c="access";
+  else if(/authentication|session|sso|mfa|password|lockout|account\.lock|auth_via/i.test(t)||/password|credential|locked/i.test(r)) c="signin";
+  else c="other";
+  return (e._c=c);
+}
+const emptyFilter=()=>({cats:[],results:[],apps:[],include:"",exclude:"",person:""});
+S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));
+const filterActive=f=>!!(f&&(f.cats.length||f.results.length||f.apps.length||(f.include||"").trim()||(f.exclude||"").trim()||(f.person||"").trim()));
+function compileFilter(f){
+  if(!filterActive(f)) return null;
+  const cats=new Set(f.cats), res=new Set(f.results), apps=new Set(f.apps), inc=(f.include||"").trim().toLowerCase(), per=(f.person||"").trim().toLowerCase();
+  const exc=(f.exclude||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+  return e=>{
+    if(cats.size&&!cats.has(catOf(e))) return false;
+    if(res.size&&!res.has(e.outcome&&e.outcome.result)) return false;
+    if(apps.size&&!apps.has(appOf(e))) return false;
+    if(inc||exc.length){ const hay=(reasonOf(e)+" "+(e.eventType||"")).toLowerCase(); if(inc&&!hay.includes(inc)) return false; for(const t of exc) if(hay.includes(t)) return false; }
+    if(per&&!idRefs(e).some(([a,n])=>a.toLowerCase().includes(per)||String(n||"").toLowerCase().includes(per))) return false;
+    return true;
+  };
+}
+function describeFilter(f){
+  const parts=[]; if(f.cats.length) parts.push(f.cats.map(c=>CATS[c]).join(" or ")); if(f.results.length) parts.push(f.results.map(r=>r.toLowerCase()).join(" or "));
+  if(f.apps.length) parts.push("in "+f.apps.join(", ")); if((f.include||"").trim()) parts.push("reason contains “"+f.include.trim()+"”");
+  if((f.exclude||"").trim()) parts.push("hiding “"+f.exclude.trim()+"”"); if((f.person||"").trim()) parts.push("for "+f.person.trim());
+  return parts.length? parts.join(" · ") : "all errors";
+}
+const saveFilters=()=>LS.set("okta.filters.v1",S.fil);
+function setFilter(mut){ mut(S.fil); saveFilters(); S.errShown=50; render(); renderFilterBars(true); }
+function filterChips(f){
+  const chip=(k,v,label)=>'<span class="fchip">'+esc(label)+'<button type="button" data-fx="'+k+'" data-fv="'+esc(v)+'" aria-label="Remove filter">×</button></span>';
+  return f.cats.map(c=>chip("cat",c,CATS[c])).join("")+f.results.map(r=>chip("res",r,r==="FAILURE"?"Failed":r==="DENY"?"Denied":r)).join("")+f.apps.map(a=>chip("app",a,a)).join("")+
+    ((f.include||"").trim()?chip("include","","Reason contains “"+f.include.trim()+"”"):"")+((f.exclude||"").trim()?chip("exclude","","Hiding “"+f.exclude.trim()+"”"):"")+((f.person||"").trim()?chip("person","","Person: "+f.person.trim()):"");
+}
+function renderFilterBars(force){
+  const C=S.C; const dl=$("#fbApps");
+  document.querySelectorAll("[data-fbar]").forEach(host=>{
+    if(!force&&host.contains(document.activeElement)&&document.activeElement.tagName==="INPUT") return;      // do not steal focus while typing
+    const f=S.fil, full=host.dataset.fbar==="full", open=full||S.fbarOpen, on=filterActive(f);
+    const cc=(C&&C.catCounts)||new Map();
+    const head=full? "" : '<div class="fb-row"><button type="button" class="ghost" data-fa="toggle" aria-expanded="'+!!S.fbarOpen+'">'+(S.fbarOpen?"Hide filters":"Filter errors")+'</button>'+
+      (on? '<span class="fb-active" data-chips>'+filterChips(f)+'</span><button type="button" class="ghost" data-fa="clear">Clear</button>' : '<span class="fb-active" data-chips>Showing all errors</span>')+'</div>';
+    const body=!open? "" : '<div class="fb-row"><span class="fb-l">Type</span>'+CAT_KEYS.map(k=>'<button type="button" class="chipbtn'+(f.cats.includes(k)?" on":"")+'" data-fc="cat" data-fv="'+k+'" aria-pressed="'+f.cats.includes(k)+'">'+CATS[k]+' <i>'+fmtN(cc.get(k)||0)+'</i></button>').join("")+
+      '<span class="fb-sep"></span><span class="fb-l">Result</span>'+[["FAILURE","Failed"],["DENY","Denied"]].map(([k,l])=>'<button type="button" class="chipbtn'+(f.results.includes(k)?" on":"")+'" data-fc="res" data-fv="'+k+'" aria-pressed="'+f.results.includes(k)+'">'+l+'</button>').join("")+'</div>'+
+      '<div class="fb-row"><input class="fin" data-ff="app" list="fbApps" placeholder="Add an app…" autocomplete="off" aria-label="Filter by app"><input class="fin" data-ff="include" placeholder="Reason contains…" value="'+esc(f.include||"")+'" aria-label="Reason contains">'+
+      '<input class="fin" data-ff="exclude" placeholder="Hide errors containing… (comma separated)" value="'+esc(f.exclude||"")+'" aria-label="Hide errors containing"><input class="fin" data-ff="person" placeholder="Person…" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>'+
+      '<div class="fb-row">'+(full? '<span class="fb-active" data-chips>'+(on? filterChips(f) : "No filters on")+'</span>' : '<span class="fb-active"></span>')+'<span class="spacer"></span><button type="button" class="ghost" data-fa="clear"'+(on?"":" disabled")+'>Clear all</button><button type="button" class="primary" data-fa="alert"'+(on?"":" disabled")+'>Create an alert from this</button></div>';
+    host.innerHTML='<div class="fb">'+head+body+'</div>';
+  });
+  if(dl&&C){ dl.innerHTML=top(countBy(C.failsAll||[],appOf),80).map(([a])=>'<option value="'+esc(a)+'"></option>').join(""); }
+}
+document.addEventListener("click",ev=>{
+  const c=ev.target.closest("[data-fc]"); if(c){ const k=c.dataset.fc==="cat"?"cats":"results", v=c.dataset.fv; setFilter(f=>{ const i=f[k].indexOf(v); if(i<0) f[k].push(v); else f[k].splice(i,1); }); return; }
+  const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
+  const a=ev.target.closest("[data-fa]"); if(a){ const k=a.dataset.fa;
+    if(k==="toggle"){ S.fbarOpen=!S.fbarOpen; renderFilterBars(true); }
+    else if(k==="clear") setFilter(f=>Object.assign(f,emptyFilter()));
+    else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(S.fil))}); }
+});
+function syncFilterControls(){
+  const on=filterActive(S.fil);
+  document.querySelectorAll('[data-fa="clear"],[data-fa="alert"]').forEach(b=>{ b.disabled=!on; });
+  document.querySelectorAll("[data-chips]").forEach(el=>{ const full=el.closest("[data-fbar]")&&el.closest("[data-fbar]").dataset.fbar==="full"; el.innerHTML= on? filterChips(S.fil) : (full?"No filters on":"Showing all errors"); });
+}
+let fTimer=null;
+document.addEventListener("input",ev=>{
+  const i=ev.target.closest&&ev.target.closest("[data-ff]"); if(!i) return; const k=i.dataset.ff, v=i.value;
+  if(k==="app"){ const m=((S.C&&S.C.failsAll)?[...new Set(S.C.failsAll.map(appOf))]:[]).find(a=>a&&a.toLowerCase()===v.trim().toLowerCase());
+    if(m&&!S.fil.apps.includes(m)){ i.value=""; setFilter(f=>{ f.apps.push(m); }); } return; }
+  S.fil[k]=v; saveFilters(); syncFilterControls(); clearTimeout(fTimer); fTimer=setTimeout(()=>{ S.errShown=50; render(); syncFilterControls(); },300);
+});
+function showErrorsFor(reason){ S.fil=Object.assign(emptyFilter(),{include:String(reason||"")}); saveFilters(); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+
+/* ---------- the Errors page ---------- */
+function errBuckets(errs){
+  const hourly= S.win? S.win<=3*864e5 : false, step=hourly?36e5:864e5;
+  let t0=S.win? S.ref-S.win : errs.reduce((m,e)=>Math.min(m,ts(e)),Infinity); if(!isFinite(t0)) t0=S.ref-864e5;
+  const start=Math.floor(t0/step)*step, n=Math.max(1,Math.min(120,Math.ceil((S.ref-start)/step)+1)), c=new Array(n).fill(0);
+  for(const e of errs){ const i=Math.floor((ts(e)-start)/step); if(i>=0&&i<n) c[i]++; }
+  return {c,start,step,hourly};
+}
+function errChart(errs){
+  const {c,start,step,hourly}=errBuckets(errs), n=c.length, mx=Math.max(1,...c), W=900, H=84, bw=W/n;
+  return '<svg width="100%" viewBox="0 0 '+W+' '+(H+4)+'" role="img" aria-label="Errors over time">'+c.map((v,i)=>{ const h=Math.max(v?3:1,v/mx*H);
+    return '<rect x="'+(i*bw+1).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+Math.max(2,bw-2).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" style="fill:'+(v?"var(--barfail)":"var(--border)")+'"><title>'+esc(new Date(start+i*step).toLocaleString(undefined,hourly?{month:"short",day:"numeric",hour:"numeric"}:{month:"short",day:"numeric"}))+': '+v+' errors</title></rect>'; }).join("")+'</svg>';
+}
+function mutePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,60); }
+function renderErrorsView(C){
+  const el=$("#errView"); const errs=[...C.fails].sort((a,b)=>ts(b)-ts(a));
+  const people=new Set(errs.map(e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; }).filter(Boolean)).size, apps=new Set(errs.map(appOf).filter(Boolean)).size;
+  const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.fil);
+  const byCat=CAT_KEYS.map(k=>[k,errs.filter(e=>catOf(e)===k).length]).filter(x=>x[1]);
+  const mx=byCat.length? Math.max(...byCat.map(x=>x[1])) : 1;
+  el.innerHTML='<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people),people?"warn":""],["Apps affected",fmtN(apps),""],["Latest error",last?ago(S.ref-last):"—",""]].map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
+    (errs.length? '<div class="ids">Errors over time</div>'+errChart(errs)+
+      '<div class="catbars">'+byCat.map(([k,n])=>'<div class="cb"><span>'+CATS[k]+'</span><div class="track"><div class="fill" style="width:'+Math.max(3,n/mx*100)+'%"></div></div><b>'+fmtN(n)+'</b></div>').join("")+'</div>' : '')+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px"><span class="ctl">'+fmtN(errs.length)+' error'+(errs.length===1?"":"s")+(on?" matching your filters":" in the window")+'</span><span class="spacer"></span>'+
+    (errs.length?'<button id="errAsk" class="ghost">Ask the assistant about these</button><button id="errCsv" class="ghost">Export CSV</button>':'')+'</div>'+
+    (errs.length? '<div class="scroll"><table><tr><th>Time</th><th>Type</th><th>Result</th><th>App</th><th>Person</th><th>Reason</th><th></th></tr>'+
+      errs.slice(0,shown).map((e,i)=>{ const r=idRefs(e)[0], rs=normErr(reasonOf(e)); return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="cpill">'+esc(CATS[catOf(e)])+'</span></td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td>'+esc(appOf(e)||"—")+'</td><td>'+esc(r? r[0] : "—")+'</td><td title="'+esc(rs)+'">'+esc(rs.length>140? rs.slice(0,140)+"…" : rs)+'</td>'+
+        '<td class="rowact"><button class="ghost" data-eexplain="'+i+'">Explain</button><button class="ghost" data-ehide="'+i+'" title="Hide errors like this one">Hide</button></td></tr>'; }).join("")+'</table></div>'+
+      '<div style="display:flex;gap:10px;margin-top:10px">'+(shown<errs.length?'<button class="ghost" data-emore="1">Show '+Math.min(50,errs.length-shown)+' more ('+fmtN(errs.length-shown)+' left)</button>':"")+((S.errShown||50)>50&&errs.length>50?'<button class="ghost" data-eless="1">Show fewer</button>':"")+'</div>'
+    : '<div class="empty">'+(on?"No errors match these filters in this window. Try removing a filter.":"No errors in this window.")+'</div>');
+  S.errRows=errs;
+  const ask1=$("#errAsk"); if(ask1) ask1.onclick=()=>ask("I'm looking at "+fmtN(errs.length)+" errors ("+describeFilter(S.fil)+") affecting "+people+" people and "+apps+" apps. What patterns do you see, and what should I look at first?");
+  const csv=$("#errCsv"); if(csv) csv.onclick=()=>exportCsv(errs);
+}
+$("#errView").addEventListener("click",ev=>{
+  const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e) ask("Help me with this Okta error: “"+normErr(reasonOf(e))+"”"+(appOf(e)?" (app: "+appOf(e)+")":"")+" from event "+e.eventType+". What does it mean, and what should I do to fix it?"); return; }
+  const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter(f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
+  if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
+  if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
+});
+function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); }
 function bars(sel,list,kind){
   const el=$(sel); if(!list.length){ el.innerHTML='<div class="empty">No errors in this window.</div>'; return; }
   const max=list[0][1];
@@ -754,8 +1020,8 @@ function renderTimeline(C){
   let t0=Infinity; for(const e of C.win){ const t=ts(e); if(t<t0) t0=t; } const t1=S.ref;
   const hourly=(t1-t0)<=3*864e5+36e5; const step=hourly?36e5:864e5;
   const start=Math.floor(t0/step)*step, n=Math.max(1,Math.ceil((t1-start)/step)+1);
-  const tot=new Array(n).fill(0), bad=new Array(n).fill(0);
-  for(const e of C.win){ const i=Math.min(n-1,Math.floor((ts(e)-start)/step)); tot[i]++; if(isFail(e)) bad[i]++; }
+  const tot=new Array(n).fill(0), bad=new Array(n).fill(0), fset=new Set(C.fails);
+  for(const e of C.win){ const i=Math.min(n-1,Math.floor((ts(e)-start)/step)); tot[i]++; if(fset.has(e)) bad[i]++; }
   const max=Math.max(...tot,1), W=Math.max(640,n*(hourly?14:34)), H=170, pad=22, bw=(W-8)/n;
   let g="";
   for(let i=0;i<n;i++){
@@ -769,36 +1035,6 @@ function renderTimeline(C){
 }
 
 /* ---------- drill-down ---------- */
-function matches(e,f){
-  if(f.k==="app") return appOf(e)===f.v;
-  if(f.k==="user") return userOf(e)===f.v && isAssign(e);
-  if(f.k==="reason") return reasonOf(e)===f.v;
-  return false;
-}
-function renderDrill(){
-  const b=$("#drillBody"); const f=S.filter;
-  if(!f){ b.innerHTML='<div class="empty">Click an app tile, bar, user or reason above to see the underlying events.</div>'; return; }
-  const pool=(S.win? S.events.filter(e=>ts(e)>=S.ref-S.win):S.events);
-  const failedOnly=$("#failOnly")? $("#failOnly").checked : (f.k!=="app" || false);
-  let rows = f.k==="app"? S.events.filter(e=>matches(e,f)) : pool.filter(e=>matches(e,f));
-  if(failedOnly) rows=rows.filter(isFail);
-  rows=rows.sort((a,b)=>ts(b)-ts(a));
-  b.innerHTML=`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
-    <span class="chip">${esc(f.k)}: ${esc(f.v.length>60?f.v.slice(0,60)+"…":f.v)}<button id="clr" aria-label="Clear">×</button></span>
-    <label class="ctl"><input type="checkbox" id="failOnly" ${failedOnly?"checked":""}> failures only</label>
-    <span class="ctl">${fmtN(rows.length)} events</span><span class="spacer"></span>
-    <button id="askAbout" class="ghost">Ask the assistant about this</button>
-    <button id="exportCsv" class="ghost">Export CSV</button></div>
-    <div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>User</th><th>Source</th><th>Reason</th></tr>`+
-    (rows.slice(0,60).map(e=>`<tr><td class="mono">${esc(new Date(e.published).toLocaleString())}</td>
-      <td><span class="pill ${isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o")}">${esc(e.outcome&&e.outcome.result||"—")}</span></td>
-      <td class="mono">${esc(e.eventType)}</td><td>${esc(appOf(e)||"—")}</td><td>${esc(userOf(e)||"—")}</td><td class="mono">${esc(e.ip? (e.ip+(e.city&&e.city!=="null"?" · "+e.city:"")) : "—")}</td><td>${esc(e.outcome&&e.outcome.reason||"")}</td></tr>`).join("")||'<tr><td colspan="7" class="empty">No matching events.</td></tr>')+
-    `</table></div>${rows.length>60?'<div class="empty">Showing the 60 most recent.</div>':""}`;
-  $("#clr").onclick=()=>{S.filter=null;renderDrill();};
-  $("#failOnly").onchange=renderDrill;
-  $("#askAbout").onclick=()=>ask(`Help me troubleshoot the ${f.k} “${f.v}”. What's going wrong and what should I check in Okta?`);
-  $("#exportCsv").onclick=()=>exportCsv(rows);
-}
 /* ---------- user lookup ---------- */
 // Searching a person asks the server to query Okta's System Log for THEM (live, up to 90 days), so it
 // works right after a deploy and does not depend on what has been loaded. Without the backend (file
@@ -870,7 +1106,7 @@ function summarizePerson(mine){
   return {events:mine.length,fails,assign:assign.length,signin:signin.length,other:fails.length-assign.length-signin.length,
     apps:new Set(fails.map(appOf).filter(Boolean)).size,lastFail,why};
 }
-function openUser(q){ $("#usearch").value=q; lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+function openUser(q){ go("people"); $("#usearch").value=q; lookupUser(q); $("#userLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 
 async function lookupUser(q){
   q=String(q||"").trim(); const res=$("#uresult"), token=++S.lseq;
@@ -977,7 +1213,7 @@ async function fetchAppErrors(app){
   if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
   return {events:j.events||[],truncated:!!j.truncated,filtered:j.serverFiltered!==false,days};
 }
-function openApp(q){ $("#asearch").value=q; lookupApp(q); $("#appLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
+function openApp(q){ go("apps"); $("#asearch").value=q; lookupApp(q); $("#appLookup").scrollIntoView({behavior:"smooth",block:"nearest"}); }
 async function lookupApp(q){
   q=String(q||"").trim(); const res=$("#aresult"); ++S.aseq;
   S.aapp=null; S.aevents=null; S.asource="loaded"; S.anote="";
@@ -1066,13 +1302,263 @@ document.addEventListener("click",ev=>{
   const t=ev.target.closest("[data-k]"); if(!t) return;
   if(t.dataset.k==="user"){ openUser(t.dataset.v); return; }
   if(t.dataset.k==="app"){ openApp(t.dataset.v); return; }
-  S.filter={k:t.dataset.k,v:t.dataset.v}; renderDrill(); $("#drill").scrollIntoView({behavior:"smooth",block:"nearest"});
+  if(t.dataset.k==="reason"){ showErrorsFor(t.dataset.v); return; }
 });
+
+/* ---------- app shell: navigation, assistant drawer, preferences ---------- */
+const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",alerts:"Alerts",settings:"Data & settings"};
+const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.get("okta.prefs.v1",{}));
+const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
+function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
+function showView(v){
+  if(!VIEWS[v]) v="overview"; S.view=v;
+  document.querySelectorAll(".view").forEach(el=>{ el.hidden= el.dataset.view!==v; });
+  document.querySelectorAll(".navi[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Okta Health"; }catch(_){}
+  try{ window.scrollTo(0,0); }catch(_){}
+  if(S.C&&typeof renderViewExtras==="function") renderViewExtras(v);
+}
+function go(v){ try{ if(currentView()!==v) location.hash="#/"+v; }catch(_){} showView(v); }
+try{ window.addEventListener("hashchange",()=>showView(currentView())); }catch(_){}
+function openAssistant(on){
+  const d=$("#assistant"); const open= on===undefined? !d.classList.contains("open") : !!on;
+  d.classList.toggle("open",open); d.setAttribute("aria-hidden",String(!open));
+  if(open) setTimeout(()=>{ try{ $("#q").focus(); }catch(_){} },280);
+}
+$("#navAssistant").onclick=()=>openAssistant(); $("#topAssistant").onclick=()=>openAssistant(); $("#dclose").onclick=()=>openAssistant(false);
+function applyPrefs(){
+  const root=document.documentElement;
+  if(prefs.theme==="auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prefs.theme);
+  $("#shell").classList.toggle("collapsed",!!prefs.collapsed);
+  $("#navCollapse").setAttribute("aria-label",prefs.collapsed?"Expand the menu":"Collapse the menu");
+  $("#themeSel").value=prefs.theme;
+}
+$("#navCollapse").onclick=()=>{ prefs.collapsed=!prefs.collapsed; savePrefs(); applyPrefs(); };
+$("#themeSel").onchange=e=>{ prefs.theme=e.target.value; savePrefs(); applyPrefs(); };
+document.addEventListener("keydown",e=>{
+  const tag=(e.target&&e.target.tagName)||"";
+  if(e.key==="/"&&!/INPUT|TEXTAREA|SELECT/.test(tag)){ e.preventDefault(); $("#hsearch").focus(); }
+  if(e.key==="Escape") openAssistant(false);
+});
+function renderGlance(C){
+  const cnt={silent:0,slow:0,pending:0,ok:0}; C.tiles.forEach(t=>{ cnt[t.status]++; }); const total=C.tiles.length;
+  $("#glance").innerHTML= total? '<div class="sbar" role="img" aria-label="'+cnt.ok+' active, '+cnt.slow+' quiet, '+cnt.silent+' silent'+(cnt.pending?', '+cnt.pending+' waiting':'')+' of '+total+' apps">'+["ok","slow","silent","pending"].filter(k=>cnt[k]).map(k=>'<i class="'+k+'" style="flex:'+cnt[k]+'"></i>').join("")+'</div>'+
+    '<div class="glrow">'+[["ok","Active"],["slow","Quiet"],["silent","Silent"]].concat(cnt.pending? [["pending","Waiting"]] : []).map(([k,l])=>'<div><span class="pill '+APP_STATES[k].cls+'">'+l+'</span><b>'+fmtN(cnt[k])+'</b></div>').join("")+'</div><a class="lnk" href="#/apps">See all apps →</a>'
+    : '<div class="empty">No apps found in the loaded events.</div>';
+}
+function renderDataSrc(){
+  const el=$("#dataSrc"); if(!el) return;
+  const src=S.demo? "Sample data (generated, not real)" : S.live? "Live from Okta" : "An uploaded file";
+  el.innerHTML='<b>'+esc(src)+'</b> · '+fmtN(S.events.length)+' events held'+(S.live&&S.catchingUp? ' · history '+(S.catchPct==null?"loading":S.catchPct+"% loaded") : "")+(S.live&&!S.catchingUp? ' · history complete' : "");
+}
+$("#orgName").textContent="Insights";
+
+/* ---------- alerts and notifications ---------- */
+// Rules are checked every time the data refreshes (while this page is open). A rule is one of:
+//   spike  - at least N matching errors within a time window (in total, per app, or per person)
+//   new    - an error text that was not seen in the earlier history appears
+//   silent - an app moves into the Silent state
+// Each firing becomes a notification (bell, toast, feed). A cooldown stops the same alert repeating.
+const winText=m=> m<60? m+" minutes" : m===60? "hour" : m%60===0? (m/60)+" hours" : m+" minutes";
+const lastText=m=> m===60? "the last hour" : "the last "+winText(m);
+function defaultRules(){ const f=(o)=>Object.assign(emptyFilter(),o||{}); return [
+  {id:"r-prov",name:"Provisioning failures for one app",type:"spike",enabled:true,filter:f({cats:["provision"]}),n:10,windowMin:60,by:"app",cooldownMin:60},
+  {id:"r-person",name:"One person hitting many errors",type:"spike",enabled:true,filter:f(),n:20,windowMin:60,by:"person",cooldownMin:120},
+  {id:"r-token",name:"Token and OAuth errors",type:"spike",enabled:true,filter:f({cats:["token"]}),n:25,windowMin:60,by:"total",cooldownMin:60},
+  {id:"r-new",name:"A new kind of error appears",type:"new",enabled:true,filter:f(),n:1,windowMin:60,by:"total",cooldownMin:60},
+  {id:"r-silent",name:"An app goes silent",type:"silent",enabled:true,filter:f(),n:1,windowMin:60,by:"total",cooldownMin:0} ]; }
+function loadRules(){ let r=LS.get("okta.rules.v1",null); if(!Array.isArray(r)||!r.length) r=defaultRules(); return r.map(x=>Object.assign({n:10,windowMin:60,by:"total",cooldownMin:60,enabled:true},x,{filter:Object.assign(emptyFilter(),x.filter||{})})); }
+S.rules=loadRules(); S.notifs=LS.get("okta.notifs.v1",[]); S.astate=Object.assign({fired:{},silent:null},LS.get("okta.alertstate.v1",{}));
+const saveRules=()=>LS.set("okta.rules.v1",S.rules), saveNotifs=()=>LS.set("okta.notifs.v1",S.notifs.slice(0,200)), saveAState=()=>LS.set("okta.alertstate.v1",S.astate);
+
+function recentFails(minutes,now,pred){
+  const cut=now-minutes*60000, out=[]; for(const e of S.events){ const t=ts(e); if(t<cut||t>now+60000) continue; if(isFail(e)&&(!pred||pred(e))) out.push(e); } return out;
+}
+function evalRule(r,now){
+  const pred=compileFilter(Object.assign(emptyFilter(),r.filter||{}));
+  if(r.type==="spike"){
+    const ev=recentFails(r.windowMin,now,pred), m=new Map();
+    for(const e of ev){ let k; if(r.by==="app") k=appOf(e)||"(no app)"; else if(r.by==="person"){ const x=idRefs(e)[0]; k=x? x[0] : "(no person)"; } else k="all"; m.set(k,(m.get(k)||0)+1); }
+    return [...m].filter(([,c])=>c>=r.n).sort((a,b)=>b[1]-a[1]).map(([k,c])=>({group:k,count:c,total:ev.length}));
+  }
+  if(r.type==="new"){
+    if(S.catchingUp) return [];
+    const cut=now-r.windowMin*60000, older=new Set(), recent=new Map();
+    for(const e of S.events){ if(!isFail(e)||(pred&&!pred(e))) continue; const t=ts(e), n=normErr(reasonOf(e));
+      if(t<cut) older.add(n); else if(t<=now+60000){ let o=recent.get(n); if(!o){ o={n,count:0,app:appOf(e),raw:reasonOf(e)}; recent.set(n,o); } o.count++; } }
+    if(!older.size) return [];                       // no earlier history to compare with: nothing can be called new
+    return [...recent.values()].filter(x=>!older.has(x.n)).map(x=>({group:x.n,count:x.count,app:x.app,raw:x.raw}));
+  }
+  return [];
+}
+function evalSilent(r,C){
+  if(S.catchingUp) return {hits:[],cur:null};
+  const cur=C.tiles.filter(t=>t.status==="silent").map(t=>t.name), base=S.astate.silent;
+  if(base==null) return {hits:[],cur};                 // first run: remember what is silent now, say nothing
+  const known=new Set(base), only=new Set((r.filter&&r.filter.apps)||[]), fresh=cur.filter(n=>!known.has(n)&&(!only.size||only.has(n)));
+  return {hits: fresh.length? [{group:"silent",count:fresh.length,names:fresh}] : [], cur};
+}
+function makeNotif(r,h,now){
+  const win=lastText(r.windowMin), f=JSON.parse(JSON.stringify(Object.assign(emptyFilter(),r.filter||{})));
+  let body, sev="warn", link={view:"errors",filter:f};
+  if(r.type==="spike"){ body=(r.by==="total"? "" : h.group+": ")+fmtN(h.count)+" error"+(h.count===1?"":"s")+" in "+win; sev=h.count>=2*r.n? "bad":"warn";
+    if(r.by==="app") f.apps=[h.group]; else if(r.by==="person") f.person=h.group; }
+  else if(r.type==="new"){ body="New: "+h.group.slice(0,150)+(h.app?" ("+h.app+")":"")+" · "+h.count+"×"; f.include=mutePhrase({outcome:{reason:h.raw},displayMessage:h.raw,eventType:""}); }
+  else { const n=h.names; body=(n.length<=3? n.join(", ") : n.slice(0,3).join(", ")+" and "+(n.length-3)+" more")+(n.length===1?" went silent":" went silent"); sev="info"; link={view:"apps"}; }
+  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev,link,unread:true};
+}
+function evaluateAlerts(C){
+  if(!S.live||S.demo||!S.events.length) return;
+  const now=S.ref, fired=S.astate.fired, out=[]; let silentCur=null;
+  const fire=(r,hs)=>{ const list=hs.slice(0,5); list.forEach(h=>{ const key=r.id+"|"+h.group, cool=Math.max(r.cooldownMin||0,r.type==="new"? r.windowMin : 0)*60000;
+      if(fired[key]&&now-fired[key]<cool) return; fired[key]=now; const n=makeNotif(r,h,now); if(hs.length>5&&h===list[list.length-1]) n.body+=" (+"+(hs.length-5)+" more)"; out.push(n); }); };
+  for(const r of S.rules){ if(!r.enabled) continue;
+    try{ if(r.type==="silent"){ const x=evalSilent(r,C); if(x.cur) silentCur=x.cur; fire(r,x.hits); } else fire(r,evalRule(r,now)); }catch(err){ console.warn("alert rule failed",r.name,err); } }
+  if(silentCur) S.astate.silent=silentCur;
+  for(const k of Object.keys(fired)) if(now-fired[k]>3*864e5) delete fired[k];
+  if(out.length){ S.notifs=out.concat(S.notifs).slice(0,200); saveNotifs(); }
+  saveAState();
+  if(out.length&&S.alertsPrimed) announce(out);       // the very first check after opening stays quiet: those are existing conditions
+  S.alertsPrimed=true;
+  renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView();
+}
+function ruleNow(r){
+  if(!S.live&&!S.events.length) return "";
+  if(r.type==="silent"){ const n=(S.C?S.C.tiles.filter(t=>t.status==="silent").length:0); return n+" app"+(n===1?" is":"s are")+" silent right now"; }
+  const hs=evalRule(r,S.ref);
+  if(r.type==="new") return hs.length? hs.length+" new kind"+(hs.length===1?"":"s")+" of error in "+lastText(r.windowMin) : "Nothing new in "+lastText(r.windowMin);
+  const pred=compileFilter(Object.assign(emptyFilter(),r.filter||{})), ev=recentFails(r.windowMin,S.ref,pred);
+  if(r.by==="total") return fmtN(ev.length)+" matching in "+lastText(r.windowMin)+" (alert at "+r.n+")";
+  const m=countBy(ev,e=>r.by==="app"? (appOf(e)||"(no app)") : ((idRefs(e)[0]||["(no person)"])[0])), t=top(m,1)[0];
+  return t? "Highest: "+t[0]+" with "+fmtN(t[1])+" in "+lastText(r.windowMin)+" (alert at "+r.n+")" : "No matching errors in "+lastText(r.windowMin);
+}
+function describeRule(r){
+  const f=Object.assign(emptyFilter(),r.filter||{});
+  if(r.type==="silent") return "When "+(f.apps.length? f.apps.join(", ") : "an app")+" goes silent (no activity past the silence setting)";
+  if(r.type==="new") return "When a new kind of error"+(filterActive(f)? " ("+describeFilter(f)+")" : "")+" appears that was not seen earlier";
+  return "When "+r.n+" or more "+(filterActive(f)? describeFilter(f)+" " : "")+"errors happen in "+lastText(r.windowMin)+(r.by==="app"?", for one app":r.by==="person"?", for one person":"");
+}
+/* notifications: bell, toasts, feed */
+const unreadCount=()=>S.notifs.filter(n=>n.unread).length;
+function renderBell(){
+  const n=unreadCount(), b=$("#bellN"), nb=$("#navAlerts");
+  b.hidden=!n; b.textContent=n>99?"99+":n; nb.hidden=!n; nb.textContent=n>99?"99+":n;
+  $("#bell").setAttribute("aria-label",n? "Notifications, "+n+" unread" : "Notifications");
+  if(!$("#notifPanel").hidden) renderNotifPanel();
+}
+function notifItem(n,full){
+  return '<div class="nitem '+n.sev+(n.unread?" unread":"")+'" data-nid="'+esc(n.id)+'" tabindex="0" role="button"><span class="ndot" aria-hidden="true"></span><div class="nbody"><b>'+esc(n.title)+'</b><span>'+esc(n.body)+'</span><small>'+esc(ago(S.ref-n.ts))+(n.unread?" · new":"")+'</small>'+
+    (full? '<div class="nact"><button class="ghost" data-nopen="'+esc(n.id)+'">View</button>'+(n.type==="spike"||n.type==="new"?'<button class="ghost" data-nask="'+esc(n.id)+'">Explain</button>':"")+'<button class="ghost" data-ndel="'+esc(n.id)+'">Dismiss</button></div>' : '')+'</div></div>';
+}
+function renderNotifPanel(){
+  const el=$("#notifPanel"), list=S.notifs.slice(0,8);
+  el.innerHTML='<div class="nhead"><b>Notifications</b><span class="spacer"></span><button class="ghost" id="nAllRead"'+(unreadCount()?"":" disabled")+'>Mark all read</button></div>'+
+    (list.length? '<div class="nlist">'+list.map(n=>notifItem(n,false)).join("")+'</div>' : '<div class="empty" style="padding:18px 14px">Nothing yet. Alert rules are checked every time the data refreshes.</div>')+
+    '<div class="nfoot"><a class="lnk" href="#/alerts" id="nSeeAll">See all alerts and rules →</a></div>';
+}
+function renderLatestAlerts(){
+  const el=$("#latestAlerts"), list=S.notifs.slice(0,3);
+  el.innerHTML= list.length? '<div class="nlist flat">'+list.map(n=>notifItem(n,false)).join("")+'</div><a class="lnk" href="#/alerts">All alerts and rules →</a>'
+    : '<div class="empty">No alerts yet. Rules are checked every time the data refreshes.</div><a class="lnk" href="#/alerts">Set up alert rules →</a>';
+}
+function markRead(id){ const n=S.notifs.find(x=>x.id===id); if(n&&n.unread){ n.unread=false; saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); } }
+function openNotif(id){
+  const n=S.notifs.find(x=>x.id===id); if(!n) return; markRead(id); $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false");
+  if(n.link&&n.link.view==="errors"){ S.fil=Object.assign(emptyFilter(),n.link.filter||{}); saveFilters(); S.errShown=50; go("errors"); render(); renderFilterBars(true); }
+  else if(n.link&&n.link.view) go(n.link.view);
+}
+function toast(n){
+  const host=$("#toasts"); while(host.children.length>=3) host.removeChild(host.firstChild);
+  const t=document.createElement("div"); t.className="toast "+n.sev; t.setAttribute("role","status"); t.dataset.nid=n.id;
+  t.innerHTML='<span class="ndot" aria-hidden="true"></span><div class="nbody"><b>'+esc(n.title)+'</b><span>'+esc(n.body)+'</span></div><button class="x" aria-label="Dismiss">×</button>';
+  t.addEventListener("click",ev=>{ if(ev.target.closest(".x")){ t.remove(); return; } openNotif(n.id); t.remove(); });
+  host.appendChild(t); setTimeout(()=>{ try{ t.remove(); }catch(_){} },9000);
+}
+function announce(list){
+  list.slice(0,3).forEach(toast);
+  try{ if(prefs.desktopNotif&&typeof Notification!=="undefined"&&Notification.permission==="granted"&&document.hidden) list.slice(0,3).forEach(n=>new Notification(n.title,{body:n.body})); }catch(_){}
+}
+function renderAlertsView(){
+  $("#alertsTools").innerHTML='<button class="primary" id="ruleNew">New rule</button> <button class="ghost" id="ruleReset" title="Replace your rules with the starter rules">Reset to starter rules</button>';
+  $("#rulesList").innerHTML= S.rules.length? S.rules.map(r=>'<div class="rule'+(r.enabled?"":" off")+'" data-rid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-rtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
+      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>').join("")
+    : '<div class="empty">No rules yet. Create one, or reset to the starter rules.</div>';
+  const unread=unreadCount(), sel=S.nfilter||"all", feed=S.notifs.filter(n=>sel==="all"||n.unread);
+  $("#notifFeed").innerHTML='<div class="nhead2"><select id="nSel" aria-label="Which notifications"><option value="all"'+(sel==="all"?" selected":"")+'>All ('+S.notifs.length+')</option><option value="unread"'+(sel==="unread"?" selected":"")+'>Unread ('+unread+')</option></select><span class="spacer"></span><button class="ghost" id="nAllRead2"'+(unread?"":" disabled")+'>Mark all read</button><button class="ghost" id="nClear"'+(S.notifs.length?"":" disabled")+'>Clear all</button></div>'+
+    (feed.length? '<div class="nlist flat">'+feed.slice(0,60).map(n=>notifItem(n,true)).join("")+'</div>' : '<div class="empty">'+(S.notifs.length?"No unread notifications.":"Nothing yet. When a rule fires, it shows up here, in the bell, and as a pop-up.")+'</div>');
+}
+/* rule editor */
+function openRuleEditor(init){
+  const editing=init&&init.id, r=Object.assign({id:"",name:"",type:"spike",enabled:true,n:10,windowMin:60,by:"total",cooldownMin:60},init||{}); r.filter=Object.assign(emptyFilter(),(init&&init.filter)||{});
+  const root=document.createElement("div"); root.className="modal"; root.id="ruleModal";
+  const chk=(k,v,l)=>'<label class="chk"><input type="checkbox" data-rf="'+k+'" value="'+v+'"'+((r.filter[k]||[]).includes(v)?" checked":"")+'> '+l+'</label>';
+  const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>';
+  root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit rule":"New rule")+'"><h3>'+(editing?"Edit rule":"New alert rule")+'</h3>'+
+    '<label class="fl">Name<input type="text" id="rName" value="'+esc(r.name)+'" placeholder="For example: Provisioning failures for one app"></label>'+
+    '<label class="fl">Alert me when<select id="rType">'+opt("spike","there are too many errors",r.type)+opt("new","a new kind of error appears",r.type)+opt("silent","an app goes silent",r.type)+'</select></label>'+
+    '<div id="rSpike"><div class="frow"><label class="fl">At least<input type="number" id="rN" min="1" max="100000" value="'+r.n+'"></label><label class="fl">errors in<select id="rWin">'+opt(15,"15 minutes",r.windowMin)+opt(60,"1 hour",r.windowMin)+opt(360,"6 hours",r.windowMin)+opt(1440,"24 hours",r.windowMin)+'</select></label><label class="fl">counted<select id="rBy">'+opt("total","all together",r.by)+opt("app","per app",r.by)+opt("person","per person",r.by)+'</select></label></div></div>'+
+    '<div id="rNew"><label class="fl">Compared with the earlier history, looking at<select id="rWin2">'+opt(15,"the last 15 minutes",r.windowMin)+opt(60,"the last hour",r.windowMin)+opt(360,"the last 6 hours",r.windowMin)+opt(1440,"the last 24 hours",r.windowMin)+'</select></label></div>'+
+    '<div id="rFilter"><div class="fl">Only count errors that are<div class="chkrow">'+CAT_KEYS.map(k=>chk("cats",k,CATS[k])).join("")+'</div><div class="chkrow">'+chk("results","FAILURE","Failed")+chk("results","DENY","Denied")+'</div></div>'+
+      '<div class="frow"><label class="fl">in these apps (comma separated, empty = any)<input type="text" id="rApps" value="'+esc(r.filter.apps.join(", "))+'" list="fbApps"></label><label class="fl">reason contains<input type="text" id="rInc" value="'+esc(r.filter.include||"")+'"></label><label class="fl">hide errors containing<input type="text" id="rExc" value="'+esc(r.filter.exclude||"")+'"></label></div></div>'+
+    '<div id="rSilent"><label class="fl">Only for these apps (comma separated, empty = every app)<input type="text" id="rApps2" value="'+esc(r.filter.apps.join(", "))+'" list="fbApps"></label></div>'+
+    '<label class="fl" id="rCoolWrap">Do not repeat the same alert for<select id="rCool">'+opt(15,"15 minutes",r.cooldownMin)+opt(60,"1 hour",r.cooldownMin)+opt(360,"6 hours",r.cooldownMin)+opt(1440,"24 hours",r.cooldownMin)+'</select></label>'+
+    '<div class="merr" id="rErr" hidden></div><div class="mact"><button class="ghost" id="rCancel">Cancel</button><button class="primary" id="rSave">'+(editing?"Save changes":"Create rule")+'</button></div></div>';
+  document.body.appendChild(root);
+  const q=sel=>root.querySelector(sel), sync=()=>{ const t=q("#rType").value; q("#rSpike").hidden=t!=="spike"; q("#rNew").hidden=t!=="new"; q("#rFilter").hidden=t==="silent"; q("#rSilent").hidden=t!=="silent"; q("#rCoolWrap").hidden=t==="silent"; };
+  q("#rType").onchange=sync; sync(); q("#rName").focus();
+  const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
+  document.addEventListener("keydown",esc2); q("#rCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
+  q("#rSave").onclick=()=>{
+    const type=q("#rType").value, f=emptyFilter(), list=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+    if(type!=="silent"){ root.querySelectorAll("[data-rf]").forEach(c=>{ if(c.checked) f[c.dataset.rf].push(c.value); }); f.apps=list(q("#rApps").value); f.include=q("#rInc").value.trim(); f.exclude=q("#rExc").value.trim(); }
+    else f.apps=list(q("#rApps2").value);
+    const n=Math.max(1,Math.floor(+q("#rN").value)||0), win=+(type==="new"? q("#rWin2").value : q("#rWin").value), cool=type==="silent"? 0 : +q("#rCool").value;
+    let name=q("#rName").value.trim(); if(!name) name= type==="spike"? "Errors: "+describeFilter(f) : type==="new"? "A new kind of error appears" : "An app goes silent";
+    if(type==="spike"&&!(n>=1)){ const e=q("#rErr"); e.hidden=false; e.textContent="Enter a number of errors, 1 or more."; return; }
+    const rule={id:editing||("r-"+Date.now().toString(36)),name,type,enabled:r.enabled!==false,filter:f,n:type==="spike"?n:1,windowMin:win||60,by:type==="spike"?q("#rBy").value:"total",cooldownMin:cool};
+    const i=S.rules.findIndex(x=>x.id===rule.id); if(i>=0) S.rules[i]=rule; else S.rules.unshift(rule);
+    saveRules(); close(); go("alerts"); renderAlertsView(); evaluateAlerts(S.C||compute());
+  };
+}
+document.addEventListener("click",ev=>{
+  const bell=ev.target.closest("#bell"); if(bell){ const p=$("#notifPanel"); p.hidden=!p.hidden; bell.setAttribute("aria-expanded",String(!p.hidden)); if(!p.hidden) renderNotifPanel(); return; }
+  if(!ev.target.closest("#notifPanel")&&!$("#notifPanel").hidden){ $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false"); }
+  if(ev.target.closest("#nAllRead,#nAllRead2")){ S.notifs.forEach(n=>{ n.unread=false; }); saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); return; }
+  if(ev.target.closest("#nSeeAll")){ $("#notifPanel").hidden=true; return; }
+  if(ev.target.closest("#nClear")){ S.notifs=[]; saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
+  if(ev.target.closest("#ruleNew")){ openRuleEditor(); return; }
+  if(ev.target.closest("#ruleReset")){ S.rules=defaultRules(); saveRules(); renderAlertsView(); return; }
+  const ed=ev.target.closest("[data-redit]"); if(ed){ const r=S.rules.find(x=>x.id===ed.dataset.redit); if(r) openRuleEditor(JSON.parse(JSON.stringify(r))); return; }
+  const dl=ev.target.closest("[data-rdel]"); if(dl){ if(dl.dataset.armed){ S.rules=S.rules.filter(x=>x.id!==dl.dataset.rdel); saveRules(); renderAlertsView(); } else { dl.dataset.armed="1"; dl.textContent="Click again to delete"; setTimeout(()=>{ try{ dl.dataset.armed=""; dl.textContent="Delete"; }catch(_){} },3000); } return; }
+  const no=ev.target.closest("[data-nopen]"); if(no){ openNotif(no.dataset.nopen); return; }
+  const na=ev.target.closest("[data-nask]"); if(na){ const n=S.notifs.find(x=>x.id===na.dataset.nask); if(n){ markRead(n.id); ask("An alert fired: “"+n.title+"” — "+n.body+". What is likely going on, and what should I check first?"); } return; }
+  const nd=ev.target.closest("[data-ndel]"); if(nd){ S.notifs=S.notifs.filter(x=>x.id!==nd.dataset.ndel); saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
+  const ni=ev.target.closest(".nitem[data-nid]"); if(ni&&!ev.target.closest("button")){ openNotif(ni.dataset.nid); }
+});
+document.addEventListener("change",ev=>{
+  const t=ev.target.closest("[data-rtoggle]"); if(t){ const r=S.rules.find(x=>x.id===t.dataset.rtoggle); if(r){ r.enabled=t.checked; saveRules(); renderAlertsView(); if(r.enabled) evaluateAlerts(S.C||compute()); } return; }
+  if(ev.target.id==="nSel"){ S.nfilter=ev.target.value; renderAlertsView(); }
+});
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("#notifPanel").hidden){ $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false"); } });
+function renderBrowserNotif(){
+  const el=$("#browserNotifState"), btn=$("#btnBrowserNotif"); let msg="", label="Turn on desktop notifications";
+  if(typeof Notification==="undefined") msg="This browser does not support desktop notifications.";
+  else if(Notification.permission==="denied") msg="Desktop notifications are blocked for this site in your browser settings.";
+  else if(prefs.desktopNotif&&Notification.permission==="granted"){ msg="On. You will get a desktop notification when an alert fires while this tab is in the background."; label="Turn off desktop notifications"; }
+  else msg="Off. In-app alerts (bell and pop-ups) always work while this page is open.";
+  el.textContent=msg; btn.textContent=label;
+}
+$("#btnBrowserNotif").onclick=async()=>{
+  if(typeof Notification==="undefined") return renderBrowserNotif();
+  if(prefs.desktopNotif){ prefs.desktopNotif=false; savePrefs(); return renderBrowserNotif(); }
+  try{ const p=await Notification.requestPermission(); prefs.desktopNotif=(p==="granted"); savePrefs(); }catch(_){}
+  renderBrowserNotif();
+};
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
   S.live=false; clearTimeout(S.liveTimer); S.seen=null; S.invItems=null; S.catchingUp=false;
-  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.filter=null; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML=""; S.aapp=null; S.aevents=null; S.appsIdx=null; $("#aresult").innerHTML="";
+  S.events=events; S.inventory=inv||[]; S.demo=!!demo; S.people=null; S.uperson=null; S.lpool=null; S.lpeople=null; S.lsource=null; $("#uresult").innerHTML=""; S.aapp=null; S.aevents=null; S.appsIdx=null; $("#aresult").innerHTML="";
   S.ref = demo? Date.now() : (events.length? events.reduce((m,e)=>Math.max(m,ts(e)),0) : Date.now());
   render();
 }
@@ -1098,7 +1584,7 @@ $("#sil").onchange=e=>{S.sil=+e.target.value;render();};
 // Aggregates only (counts, no names or emails), computed from the same data and rules the screen uses,
 // so slides built from it always agree with the dashboard.
 function deckData(){
-  const C=S.C||compute(), H=3600000;
+  const C=compute({noFilter:true}), H=3600000;
   const end=Math.ceil(S.ref/H)*H, nH=Math.max(1,Math.min(168,S.win? Math.round(S.win/H) : 168)), start=end-nH*H;
   const hourTotal=new Array(nH).fill(0), hourFail=new Array(nH).fill(0);
   for(const e of C.win){ const i=Math.floor((ts(e)-start)/H); if(i>=0&&i<nH){ hourTotal[i]++; if(isFail(e)) hourFail[i]++; } }
@@ -1141,7 +1627,7 @@ function summary(){
     topErrorReasons:C.topReasons.map(([reason,n])=>({reason,n})),
     topFailingEventTypes:C.topTypes.map(([type,n])=>({type,n})),
     usersWithAssignmentErrors:C.users.slice(0,8).map(u=>({user:u.user,errors:u.n,apps:top(u.apps,3).map(x=>x[0]),topReason:(top(u.reasons,1)[0]||[])[0]})),
-    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp};
+    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp, errorFiltersActive:filterActive(S.fil)};
 }
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
@@ -1149,6 +1635,7 @@ function md(t){
 function addMsg(cls,html){ const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; $("#msgs").appendChild(d); $("#msgs").scrollTop=1e9; return d; }
 async function ask(text){
   text=(text||"").trim(); if(!text||S.busy) return;
+  openAssistant(true);
   if(!S.assistant){ addMsg("a","The assistant is only available when the dashboard is connected to its backend with an Anthropic API key configured."); return; }
   S.busy=true; $("#send").disabled=true; $("#sugg").style.display="none";
   addMsg("u",esc(text)); S.history.push({role:"user",content:text});
@@ -1201,12 +1688,13 @@ async function refreshLive(){
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);
 }
-async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; S.filter=null; await refreshLive(); }
+async function goLive(){ S.events=[]; S.lastTs=0; seen.clear(); S.live=true; await refreshLive(); }
 $("#btnLive").onclick=goLive;
 
 (async function init(){
-  intro(); let st=null;
+  applyPrefs(); renderBrowserNotif(); renderBell(); renderLatestAlerts(); showView(currentView()); intro(); let st=null;
   try{ const r=await fetch("api/status"); if(r.ok) st=await r.json(); }catch(_){}
+  if(st&&st.org) $("#orgName").textContent=st.org;
   if(st&&st.live){ $("#btnLive").hidden=false; setAssistantUI(!!st.assistant); await goLive(); }
   else { const d=makeDemo(); setData(d.events,d.inventory,true); setAssistantUI(false); }
 })();

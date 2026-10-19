@@ -7,6 +7,9 @@ A live dashboard for Okta health, with an Okta-expert AI assistant built in.
 - **Assignment / provisioning errors**: grouped by user
 - **User lookup**: search by email, username or name and the server asks Okta's System Log for that person directly (live, up to 90 days), so it works right after a deploy and does not depend on what has been loaded. Shows every error tied to them (failed sign-ins, assignment and provisioning errors, AD failures), their top reasons and a CSV export. Logins with the same name before the @ (an Okta email and an AD login) are treated as one person. The assistant can do the same lookup
 - **App activity**: instead of a wall of tiles, apps are grouped into expandable sections by state (Silent, Quiet, Active, and Waiting while history loads). Each header says in plain words what the state means and how many apps are in it; the page opens with only the apps that need attention showing, ten at a time, and any section slides open to list the rest. There is a search box, Expand all and Collapse all, and sortable columns. Motion is skipped for people who prefer reduced motion
+- **App shell**: a left menu (Overview, Errors, Apps, People, Alerts, Data & settings, plus the assistant), a slim top bar with search, the time window and a notification bell, and a page for each area. Every page has its own address (`#/errors`, `#/apps`, ...), so the browser's Back button and bookmarks work. The menu collapses to an icon rail (and does so automatically on small screens); the assistant opens as a slide-out panel from anywhere; theme can follow your device or be set to light or dark. Keyboard: `/` jumps to search, `Esc` closes panels
+- **Error filters**: choose which errors the dashboard shows. Five types (sign-in and password, provisioning and assignment, token and OAuth, access denied, other), failed or denied, one or more apps, "reason contains", "hide errors containing", and a person. The filters drive the Overview numbers and charts, the People table and the new Errors page; they do not change which apps are silent, and they never change "Copy data for slides". They are remembered in your browser. The Errors page lists every matching error with Explain and Hide buttons per row, a chart, a breakdown by type, and CSV export
+- **Alerts and notifications**: rules that watch for errors and tell you in the app (see "How alerts work" below)
 - **Explained errors**: in "Users with assignment / provisioning errors", clicking a row slides open that person's errors. The most common one is explained straight away (what it means, likely causes, how to fix, how to confirm); the others have a "What does this mean?" button, and "Ask the assistant" sends the specific error to the chat. Explanations are cached for 24 hours, so the same error is only explained once
 - **App lookup**: search an app (or click an app tile or bar) to see every failure and deny it has produced, live from Okta for up to 90 days: how many, which reasons, how many people each affects, errors per day and the latest events. The assistant can do the same lookup
 - **Drill-down + CSV export** on anything you click
@@ -94,6 +97,20 @@ Searching a person calls `GET /api/user-events`, which runs Okta's System Log ke
 ## How the app lookup works
 
 Searching an app resolves its Okta app id from the app list (or from the events), then `GET /api/app-events` asks Okta for that app's failures and denies: `target.id eq "<id>"` (sign-ins and provisioning) and `actor.id eq "<id>"` (OAuth clients), each combined with `outcome.result` FAILURE or DENY, newest first. If Okta rejects the combined filter the server fetches the app's events and keeps the errors itself, and the card says so. Results are cached for 60 seconds and share the 30-searches-a-minute limit with the user search. Without the backend (an uploaded file, sample data) the card lists the errors in the events already loaded.
+
+## How alerts work
+
+Rules live on the Alerts page. There are three kinds:
+
+- **Too many errors**: at least N matching errors within 15 minutes, 1 hour, 6 hours or 24 hours, counted all together, per app, or per person. The rule has its own filter (types, apps, "reason contains", "hide errors containing"), so "10 provisioning failures for one app in an hour" is one rule.
+- **A new kind of error**: an error text that appears in the chosen window but was not seen in the earlier history. Ids inside the text are ignored, so the same error for a different person is not "new".
+- **An app goes silent**: an app moves into the Silent state. The first check only remembers what is already silent, so you are not told about every dormant app on day one.
+
+Five starter rules are created the first time, and you can edit, switch off, delete or reset them. On the Errors page, "Create an alert from this" turns the current filter into a rule.
+
+Rules are checked each time the data refreshes (about once a minute). A firing becomes a notification in the bell (with an unread count, also shown on the Alerts menu item), a pop-up for new ones, and an entry in the Alerts feed with View (opens the matching errors), Explain (asks the assistant) and Dismiss. A cooldown per rule stops the same alert repeating. The first check after you open the page is quiet: it records conditions that already exist as unread notifications without popping up. Optional desktop notifications can be turned on in Data & settings.
+
+**Limits to know about.** Rules, filters and notifications are stored in the browser (localStorage), so they belong to one person on one browser, and alerts are only checked while the page is open. Sample data and uploaded files never raise alerts. For alerts that arrive when nobody has the dashboard open (email, Slack, a shared rule set) the checking has to move to the server; that is the natural next step.
 
 ## How the error explanations work
 

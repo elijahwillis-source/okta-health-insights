@@ -36,6 +36,13 @@ const events = [];
 const now = Date.now();
 const N = +process.env.MOCK_EVENTS || 3000;
 for (let i = 0; i < N; i++) events.push(makeEvent(now - Math.random() * 3 * 864e5));
+// a deterministic burst of RECENT errors, so alert rules have something to match every time:
+// 14 provisioning failures for ServiceNow over the last half hour, and 3 failed sign-ins for Slack
+const burst = (minAgo, app, user, reason, type) => ({ uuid: crypto.randomUUID(), published: new Date(now - minAgo * 60000).toISOString(), severity: "WARN", eventType: type, displayMessage: "burst",
+  outcome: { result: "FAILURE", reason }, actor: type.startsWith("application.") ? { type: "SystemPrincipal", alternateId: "system@okta.com", displayName: "x" } : { type: "User", alternateId: user, displayName: "x" },
+  target: type.startsWith("application.") ? [{ type: "User", alternateId: user, displayName: user }, { type: "AppInstance", displayName: app, id: appId(app) }] : [{ type: "AppInstance", displayName: app, id: appId(app) }] });
+for (let i = 0; i < 14; i++) events.push(burst(2 + i * 2, "ServiceNow", `burst${String(i % 7 + 1).padStart(2, "0")}@example.com`, "Automatic provisioning of user to app failed: Insufficient licenses available", "application.provision.user.push"));
+for (let i = 0; i < 3; i++) events.push(burst(3 + i * 3, "Slack", `burst0${i + 1}@example.com`, "INVALID_CREDENTIALS", "user.authentication.sso"));
 events.sort((a, b) => (a.published < b.published ? -1 : 1));
 setInterval(() => events.push(makeEvent(Date.now(), true)), 5000);   // a new event every 5s
 

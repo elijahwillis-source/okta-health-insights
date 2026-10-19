@@ -620,7 +620,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/status")
       return send(req, res, 200, {
-        live: true, assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
+        live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
         catchUp: catchUpInfo(), lookup: true, appLookup: true
       });

@@ -107,6 +107,7 @@ check "user search: unknown user is empty"       0 "$(curl -s $A "localhost:8099
 check "user search: too short -> 400"            400 "$(code $A "localhost:8099/api/user-events?q=a")"
 check "user search: missing q -> 400"            400 "$(code $A "localhost:8099/api/user-events")"
 check "user search: needs the password"          401 "$(code "localhost:8099/api/user-events?q=user07")"
+check "status names the Okta org for the sidebar"  "localhost:4010" "$(curl -s $A localhost:8099/api/status | jq_ 'j.org')"
 check "status advertises user search"            true "$(curl -s $A localhost:8099/api/status | jq_ 'j.lookup===true')"
 # the search must work even before history has loaded (fresh start, tiny pages)
 OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8093 MAX_PAGES_PER_POLL=2 HEAD_HOURS=1 BACKFILL_CHUNK_HOURS=1 \
