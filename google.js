@@ -55,9 +55,10 @@ function createGoogle(env, log) {
     maxActivity: +env.GOOGLE_MAX_ACTIVITY || 50000,                                              // "used the API" summaries have their own cap, so noise never pushes out real grants
     maxPages: Math.max(1, +env.GOOGLE_MAX_PAGES_PER_SLICE || 200),                              // pages of 1000 per slice before it is split in two
     delayMs: env.GOOGLE_REQUEST_DELAY_MS !== undefined && env.GOOGLE_REQUEST_DELAY_MS !== "" ? Math.max(0, +env.GOOGLE_REQUEST_DELAY_MS) : 250,   // a courtesy pause between pages
+    activityDays: env.GOOGLE_ACTIVITY_DAYS !== undefined && env.GOOGLE_ACTIVITY_DAYS !== "" ? Math.max(0, +env.GOOGLE_ACTIVITY_DAYS) : 3,        // how far back to read "used the API" calls (the firehose); grants, requests, revokes and blocks are read for the whole lookback
     catchUpDelayMs: env.GOOGLE_CATCHUP_DELAY_MS !== undefined && env.GOOGLE_CATCHUP_DELAY_MS !== "" ? Math.max(0, +env.GOOGLE_CATCHUP_DELAY_MS) : 1500          // pause between slices of older history
   };
-  const st = { events: [], index: new Map(), ids: new Map(), seq: 0, epoch: Date.now(), raw: 0, truncated: 0, bf: null, lastHeadAt: 0, dirty: false, minT: Infinity, maxT: 0, token: "", tokenExp: 0, lastPollOk: null, lastError: "", lastHint: "", polls: 0, catchingUp: false, started: false };
+  const st = { events: [], index: new Map(), seq: 0, epoch: Date.now(), rawTotal: 0, truncated: 0, bf: null, lastHeadAt: 0, dirty: false, minT: Infinity, maxT: 0, token: "", tokenExp: 0, lastPollOk: null, lastError: "", lastHint: "", polls: 0, catchingUp: false, started: false };
   const sleep = ms => new Promise(res => setTimeout(res, ms));
   let key = null, keyError = "";
   try { key = loadKey(cfg.keyRaw); } catch (e) { keyError = e.message; }
@@ -88,65 +89,89 @@ function createGoogle(env, log) {
   }
 
   const paramsOf = list => { const o = {}; for (const p of list || []) o[p.name] = p.multiValue !== undefined ? p.multiValue : p.value !== undefined ? p.value : p.intValue !== undefined ? +p.intValue : p.boolValue; return o; };
-  // Stored events are summaries: a grant, request, revoke or block repeated by the same person for the same app within one
-  // minute is ONE entry with a count; "used the API" calls are summed per person, app and hour. The raw ids are remembered so
-  // re-reading a time range never counts anything twice.
-  function addEvent(e) {
-    const cur = st.index.get(e.id);
-    if (!cur) { e.seq = ++st.seq; st.index.set(e.id, e); st.events.push(e); st.dirty = true; if (e.time < st.minT) st.minT = e.time; if (e.time > st.maxT) st.maxT = e.time; return; }
-    cur.count = (cur.count || 1) + (e.count || 1); if (e.time > cur.time) { cur.time = e.time; st.dirty = true; if (e.time > st.maxT) st.maxT = e.time; } if (!cur.ip) cur.ip = e.ip;
+  // Stored events are SUMMARIES, built per time range and written with "replace" semantics, so reading a range again can never count
+  // anything twice and nothing has to be remembered per raw event (a busy org has tens of millions). A grant, request, revoke or block
+  // repeated by the same person for the same app within one minute is one entry with a count; "used the API" calls are summed per
+  // person, app and hour. Every range read starts and ends on an hour boundary, so no summary is ever split between two reads.
+  const HR = HOUR, alignDown = t => Math.floor(t / HR) * HR, CONSENT = ["authorize", "request", "revoke", "deny"];
+  function aggAdd(agg, e) {
+    const cur = agg.get(e.id);
+    if (!cur) { agg.set(e.id, e); return; }
+    cur.count += e.count; if (e.time > cur.time) cur.time = e.time; if (!cur.ip) cur.ip = e.ip;
     for (const x of e.scopes) if (!cur.scopes.includes(x)) cur.scopes.push(x);
-    cur.seq = ++st.seq;                       // changed, so a client asking "what is new?" gets it again
   }
-  function ingest(item) {
-    const t = Date.parse(item && item.id && item.id.time); if (!isFinite(t)) return 0;
-    const base = ((item.id && item.id.uniqueQualifier) || "") + "@" + t; let added = 0;
-    (item.events || []).forEach((ev, i) => {
-      const rawId = base + ":" + i; if (st.ids.has(rawId)) return;
+  function mergeAgg(into, from) { for (const e of from.values()) aggAdd(into, e); }
+  function ingest(agg, item) {
+    const t = Date.parse(item && item.id && item.id.time); if (!isFinite(t)) return;
+    (item.events || []).forEach(ev => {
       const P = paramsOf(ev.parameters); let scopes = P.scope;
       if (!scopes && Array.isArray(P.scope_data)) scopes = P.scope_data.map(x => x && x.scope_name).filter(Boolean);
       if (!Array.isArray(scopes)) scopes = scopes ? [String(scopes)] : [];
-      st.ids.set(rawId, t); st.raw++; added++;
       const type = ev.name || "", actor = (item.actor && item.actor.email) || "", clientId = String(P.client_id || ""), api = String(P.api_name || "");
       const id = type === "activity" ? `activity|${actor}|${clientId}|${api}|${Math.floor(t / 36e5)}` : `${type}|${actor}|${clientId}|${Math.floor(t / 60000)}`;
-      addEvent({ id, time: t, actor, ip: item.ipAddress || "", type, app: String(P.app_name || ""), clientId, scopes: scopes.map(String), rejection: String(P.rejection_type || ""), api, method: String(P.method_name || "") });
+      aggAdd(agg, { id, time: t, actor, ip: item.ipAddress || "", type, app: String(P.app_name || ""), clientId, scopes: scopes.map(String), rejection: String(P.rejection_type || ""), api, method: String(P.method_name || ""), count: 1 });
     });
-    return added;
   }
-  async function fetchPages(fromMs, toMs) {
+  async function fetchPages(agg, fromMs, toMs, eventName) {
     let pageToken = "", pages = 0;
     do {
-      const p = { startTime: new Date(fromMs).toISOString(), endTime: new Date(toMs).toISOString(), maxResults: "1000" }; if (pageToken) p.pageToken = pageToken;
+      const p = { startTime: new Date(fromMs).toISOString(), endTime: new Date(toMs).toISOString(), maxResults: "1000" }; if (eventName) p.eventName = eventName; if (pageToken) p.pageToken = pageToken;
       const j = await get("/admin/reports/v1/activity/users/all/applications/token", p);
-      for (const it of j.items || []) ingest(it);
+      for (const it of j.items || []) ingest(agg, it);
       pageToken = j.nextPageToken || ""; pages++;
       if (pageToken && cfg.delayMs) await sleep(cfg.delayMs);
     } while (pageToken && pages < cfg.maxPages);
     return { truncated: !!pageToken };
   }
-  // read a time range; if it is too big to read in one go, read each half separately (newest half first), so a busy day is never cut off
-  async function readRange(fromMs, toMs) {
-    const r = await fetchPages(fromMs, toMs);
-    if (!r.truncated) return;
-    if (toMs - fromMs > 15 * 60000) { const mid = Math.floor((fromMs + toMs) / 2); await readRange(mid, toMs); await readRange(fromMs, mid); }
-    else { st.truncated++; log("Google: a very busy 15 minutes (" + new Date(fromMs).toISOString() + ") was only partly read"); }
+  // read one kind of event over a range into `agg`; if it is too big to read in one go, throw that read away and read each half instead
+  async function readInto(agg, fromMs, toMs, eventName) {
+    const local = new Map(), r = await fetchPages(local, fromMs, toMs, eventName);
+    if (!r.truncated) { mergeAgg(agg, local); return; }
+    if (toMs - fromMs > 15 * 60000) { const mid = Math.floor((fromMs + toMs) / 2); await readInto(agg, mid, toMs, eventName); await readInto(agg, fromMs, mid, eventName); }
+    else { st.truncated++; mergeAgg(agg, local); log("Google: a very busy 15 minutes (" + new Date(fromMs).toISOString() + ") was only partly read"); }
+  }
+  // write what was read: new summaries are added, changed ones are updated in place (and flagged for clients), identical ones are left alone
+  function commit(agg) {
+    for (const e of agg.values()) {
+      const n = e.count, cur = st.index.get(e.id);
+      if (!cur) { e.seq = ++st.seq; if (n === 1) delete e.count; st.index.set(e.id, e); st.events.push(e); st.dirty = true; st.rawTotal += n; if (e.time < st.minT) st.minT = e.time; if (e.time > st.maxT) st.maxT = e.time; continue; }
+      const cn = cur.count || 1;
+      if (cn !== n || cur.time !== e.time || cur.scopes.length !== e.scopes.length) {
+        st.rawTotal += n - cn; if (n === 1) delete cur.count; else cur.count = n;
+        if (e.time !== cur.time) { cur.time = e.time; st.dirty = true; if (e.time > st.maxT) st.maxT = e.time; }
+        cur.scopes = e.scopes; if (!cur.ip) cur.ip = e.ip; cur.seq = ++st.seq;
+      }
+    }
+  }
+  // one window: grants, requests, revokes and blocks over the whole range; API usage only from actFrom on
+  async function readWindow(fromMs, toMs, actFromMs) {
+    const agg = new Map();
+    for (const name of CONSENT) await readInto(agg, fromMs, toMs, name);
+    if (cfg.activityDays > 0 && toMs > actFromMs) await readInto(agg, Math.max(fromMs, actFromMs), toMs, "activity");
+    commit(agg);
   }
   function tidy() {
     const floor = Date.now() - (cfg.lookbackDays + 1) * DAY, grants = [], usage = [];
-    for (const e of st.events) { if (e.time < floor) { st.index.delete(e.id); continue; } (e.type === "activity" ? usage : grants).push(e); }
-    const cap = (list, max) => { if (list.length <= max) return list; list.sort((a, b) => a.time - b.time); for (const e of list.slice(0, list.length - max)) st.index.delete(e.id); return list.slice(list.length - max); };
+    const drop = e => { st.index.delete(e.id); st.rawTotal -= (e.count || 1); };
+    for (const e of st.events) { if (e.time < floor) { drop(e); continue; } (e.type === "activity" ? usage : grants).push(e); }
+    const cap = (list, max) => { if (list.length <= max) return list; list.sort((a, b) => a.time - b.time); for (const e of list.slice(0, list.length - max)) drop(e); return list.slice(list.length - max); };
     st.events = cap(grants, cfg.maxEvents).concat(cap(usage, cfg.maxActivity)).sort((a, b) => a.time - b.time); st.dirty = false;
     st.minT = st.events.length ? st.events[0].time : Infinity; st.maxT = st.events.length ? st.events[st.events.length - 1].time : 0;
-    for (const [id, t] of st.ids) if (t < floor) st.ids.delete(id);
   }
   async function poll() {
-    const now = Date.now();
-    if (!st.bf) { st.bf = { until: now - cfg.recheckHours * HOUR, floor: now - cfg.lookbackDays * DAY, done: false }; if (st.bf.until <= st.bf.floor) st.bf.done = true; st.catchingUp = !st.bf.done; }     // older history is on its way from the very first second
+    const now = Date.now(), headFrom = alignDown(now - cfg.recheckHours * HOUR), first = !st.started;
+    if (!st.bf) { st.bf = { until: headFrom, floor: alignDown(now - cfg.lookbackDays * DAY), done: false }; if (st.bf.until <= st.bf.floor) st.bf.done = true; st.catchingUp = !st.bf.done; }     // older history is on its way from the very first second
     // 1) the newest events first (and again every poll, because Google reports them late): the page is current within seconds
-    if (now - st.lastHeadAt >= cfg.pollSec * 1000 - 500 || !st.started) { await readRange(now - cfg.recheckHours * HOUR, now); st.lastHeadAt = Date.now(); }
+    if (now - st.lastHeadAt >= cfg.pollSec * 1000 - 500 || first) {
+      const actFrom = first ? headFrom : Math.max(headFrom, alignDown(now - Math.min(cfg.recheckHours, 3) * HOUR));        // API usage is the bulk of the volume, so re-read only the last few hours of it
+      await readWindow(headFrom, now, actFrom); st.lastHeadAt = Date.now();
+    }
     st.started = true;
-    // 2) then older history, newest day first, one slice at a time
-    if (!st.bf.done) { st.catchingUp = true; const from = Math.max(st.bf.floor, st.bf.until - DAY); await readRange(from, st.bf.until); st.bf.until = from; if (from <= st.bf.floor) st.bf.done = true; }
+    // 2) then older history, newest day first, one slice at a time (API usage only back to activityDays)
+    if (!st.bf.done) {
+      st.catchingUp = true; const from = Math.max(st.bf.floor, alignDown(st.bf.until - DAY));
+      await readWindow(from, st.bf.until, alignDown(now - cfg.activityDays * DAY)); st.bf.until = from; if (from <= st.bf.floor) st.bf.done = true;
+    }
     st.catchingUp = !st.bf.done;
     tidy(); st.lastPollOk = Date.now(); st.lastError = ""; st.lastHint = ""; st.polls++;
   }
@@ -164,7 +189,7 @@ function createGoogle(env, log) {
     status() {
       return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: partial || keyError || st.lastError, hint: partial ? "Google needs both settings. Add the missing one in your hosting dashboard (environment variables) and redeploy." : keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
         lookbackDays: cfg.lookbackDays, oldest: isFinite(st.minT) ? st.minT : null, newest: st.maxT || null, scope: SCOPE,
-        loadedBack: st.bf ? (st.bf.done ? st.bf.floor : st.bf.until) : null, seq: st.seq, epoch: st.epoch, rawEvents: st.raw, incompleteSlices: st.truncated };
+        loadedBack: st.bf ? (st.bf.done ? st.bf.floor : st.bf.until) : null, seq: st.seq, epoch: st.epoch, rawEvents: st.rawTotal, incompleteSlices: st.truncated, activityDays: cfg.activityDays };
     },
     // opts.after: everything stored or changed since that sequence number (older history arrives AFTER newer events, so time alone cannot be used)
     // opts.since: events newer than that time

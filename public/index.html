@@ -1891,7 +1891,7 @@ function renderGoogleView(auto){
   let cap=S.gcap||25;
   const st=G.status||{}, {apps,shown}=googleShown(), f=S.gf, so=gSortState(), on=gFiltering(f), more=S.gmore||!!(f.min||f.active||f.isNew||(f.person||"").trim());
   stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span title="Google reports these events a couple of hours after they happen, so the newest can never be newer than that">'+(st.newest? 'Newest event '+esc(ago(Math.max(0,S.ref-st.newest))) : 'No events yet')+'</span> · '+
-    (st.catchingUp? '<b>older history still loading'+(st.loadedBack? ' (back to '+esc(new Date(st.loadedBack).toLocaleDateString())+')' : '')+'</b> · ' : '')+'last '+(st.lookbackDays||30)+' days, read as '+esc(st.admin||"")+' · read-only';
+    (st.catchingUp? '<b>older history still loading'+(st.loadedBack? ' (back to '+esc(new Date(st.loadedBack).toLocaleDateString())+')' : '')+'</b> · ' : '')+'grants and revokes for the last '+(st.lookbackDays||30)+' days'+(st.activityDays===undefined||st.activityDays>=(st.lookbackDays||30)? "" : st.activityDays===0? ", API usage not read" : ", API usage for the last "+st.activityDays+" day"+(st.activityDays===1?"":"s"))+', read as '+esc(st.admin||"")+' · read-only';
   if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); const ix=shown.findIndex(a=>a.key===S.gfocus); if(ix>=cap){ cap=Math.ceil((ix+1)/25)*25; S.gcap=cap; } }
   const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
   const chip=(attr,val,label,cur,n)=>'<button type="button" class="chipbtn'+(cur?" on":"")+'" '+attr+'="'+val+'" aria-pressed="'+cur+'">'+label+(n!==undefined?' <i>'+fmtN(n)+'</i>':"")+'</button>';

@@ -84,7 +84,8 @@ http.createServer(async (req, res) => {
     if (mode === "noreports") return json(res, 401, { error: { code: 401, message: "Access denied. You are not authorized to read activity records.", errors: [{ message: "Access denied. You are not authorized to read activity records.", domain: "global", reason: "authError" }] } });   // the admin has no Reports privilege
     if (mode === "forbidden") return json(res, 403, { error: { code: 403, message: "Not Authorized to access this resource/api" } });
     const from = Date.parse(url.searchParams.get("startTime") || "") || 0, to = Date.parse(url.searchParams.get("endTime") || "") || Infinity;
-    const all = log.filter(a => { const t = Date.parse(a.id.time); return t >= from && t <= to; }).sort((a, b) => Date.parse(b.id.time) - Date.parse(a.id.time));   // newest first
+    const en = url.searchParams.get("eventName") || "", kinds = (stats.eventNameCalls = stats.eventNameCalls || {}); kinds[en || "(all)"] = (kinds[en || "(all)"] || 0) + 1;
+    const all = log.filter(a => { const t = Date.parse(a.id.time); return t >= from && t <= to && (!en || (a.events || []).some(e => e.name === en)); }).sort((a, b) => Date.parse(b.id.time) - Date.parse(a.id.time));   // newest first
     const size = Math.min(+url.searchParams.get("maxResults") || PAGE, PAGE), off = +url.searchParams.get("pageToken") || 0, items = all.slice(off, off + size);
     const out = { kind: "admin#reports#activities", etag: "x", items }; if (off + size < all.length) out.nextPageToken = String(off + size);
     if (!items.length) delete out.items; return json(res, 200, out);
