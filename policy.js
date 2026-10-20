@@ -36,15 +36,15 @@ function cleanExpiry(v, requireExpiry) {
 const needWhy = v => { const w = str(v, LIMITS.why); if (w.length < 10) throw err(400, "Say why (at least a short sentence). The reason is shown to everyone and kept in the audit log."); return w; };
 
 function createPolicy(opts) {
-  const { dir, log, admins = [], requireExpiry = false, verifiedIdentity = false } = opts;
+  const { dir, log, admins = [], requireExpiry = false, verifiedIdentity = false, roleBased = false, onAudit = null } = opts;
   const file = path.join(dir, "policy.json"), auditFile = path.join(dir, "audit.jsonl");
-  let state = { version: 0, updatedAt: null, suppressions: [], approvals: [] };
+  let state = { version: 0, updatedAt: null, suppressions: [], approvals: [], alertRules: null };
   let persistent = false, writeError = "", memAudit = [];
 
   try { fs.mkdirSync(dir, { recursive: true }); } catch { /* reported below */ }
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    state = { version: +raw.version || 0, updatedAt: raw.updatedAt || null, suppressions: Array.isArray(raw.suppressions) ? raw.suppressions : [], approvals: Array.isArray(raw.approvals) ? raw.approvals : [] };
+    state = { version: +raw.version || 0, updatedAt: raw.updatedAt || null, suppressions: Array.isArray(raw.suppressions) ? raw.suppressions : [], approvals: Array.isArray(raw.approvals) ? raw.approvals : [], alertRules: Array.isArray(raw.alertRules) ? raw.alertRules : null };
     log("Policy loaded: " + state.suppressions.length + " known-error rules, " + state.approvals.length + " app decisions (version " + state.version + ")");
   } catch (e) { if (e.code !== "ENOENT") log("Policy file could not be read, starting empty: " + e.message); }
   try { fs.accessSync(dir, fs.constants.W_OK); persistent = true; } catch (e) { writeError = "The data folder (" + dir + ") is not writable: " + e.message; log("Policy: " + writeError); }
@@ -57,22 +57,23 @@ function createPolicy(opts) {
   function audit(actor, action, target, before, after, why) {
     const row = { ts: new Date().toISOString(), actor: actor.name, verified: !!actor.verified, action, target, before: before === undefined ? null : before, after: after === undefined ? null : after, why: why || "" };
     memAudit.push(row); if (memAudit.length > 1000) memAudit.shift();
+    if (onAudit) { try { onAudit(row, actor); } catch (e) { log("Policy: audit hook failed: " + e.message); } }
     if (persistent) {
       try { if (fs.existsSync(auditFile) && fs.statSync(auditFile).size > 5e6) fs.renameSync(auditFile, auditFile + ".1"); fs.appendFileSync(auditFile, JSON.stringify(row) + "\n"); }
       catch (e) { log("Policy: could not write the audit log: " + e.message); }
     }
   }
-  const canEdit = actor => !admins.length || !verifiedIdentity ? true : admins.includes(String(actor.name).toLowerCase()) && actor.verified;
+  const canEdit = actor => roleBased ? (actor.role === "admin" || actor.role === "owner") : (!admins.length || !verifiedIdentity ? true : admins.includes(String(actor.name).toLowerCase()) && actor.verified);
   function snapshot(actor) {
-    return { suppressions: state.suppressions, approvals: state.approvals,
-      meta: { version: state.version, updatedAt: state.updatedAt, persistent, writeError, canEdit: canEdit(actor), actor: { name: actor.name, verified: !!actor.verified }, requireExpiry,
-        rolesEnforced: !!(admins.length && verifiedIdentity), adminsConfigured: admins.length > 0, identityVerified: !!verifiedIdentity } };
+    return { suppressions: state.suppressions, approvals: state.approvals, alertRules: roleBased ? state.alertRules : null,
+      meta: { version: state.version, updatedAt: state.updatedAt, persistent, writeError, canEdit: canEdit(actor), actor: { name: actor.name, verified: !!actor.verified, role: actor.role || null }, requireExpiry,
+        rolesEnforced: !!(roleBased || (admins.length && verifiedIdentity)), roleBased, role: actor.role || null, alertRulesShared: !!(roleBased && state.alertRules), adminsConfigured: admins.length > 0, identityVerified: !!actor.verified } };
   }
   // run a change: permission, version check, apply, save, audit
   function change(actor, baseVersion, fn) {
     if (!canEdit(actor)) throw err(403, "You can see the policy but not change it. Ask an administrator.");
     // every change must be attributable: if sign-in cannot say who this is, the person has to say (and the log marks it unverified)
-    if (!actor.verified && (!actor.name || actor.name === "unknown")) throw err(400, "Enter your name first, so the audit log can say who made this change.");
+    if (!actor.verified && (!actor.name || actor.name === "unknown" || actor.name === "break-glass")) throw err(400, "Enter your name first, so the audit log can say who made this change.");
     if (baseVersion !== undefined && baseVersion !== null && +baseVersion !== state.version) throw err(409, "Someone else changed the policy while you were editing. Reload and try again.", { current: snapshot(actor) });
     const result = fn();
     state.version++; state.updatedAt = new Date().toISOString(); persist();
@@ -81,8 +82,31 @@ function createPolicy(opts) {
   const findRule = id => state.suppressions.find(r => r.id === id) || (() => { throw err(404, "That rule no longer exists."); })();
   const clone = o => JSON.parse(JSON.stringify(o));
 
+  const RULE_TYPES = ["spike", "new", "silent", "gnew", "grisk", "gspike", "gdrift", "gflag"];
+  const num = (v, lo, hi, d) => { v = +v; return isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d; };
+  function cleanFilter(f) { f = f || {}; return { cats: strList(f.cats, 5, 20).filter(c => CATS.includes(c)), results: strList(f.results, 2, 10).filter(r => r === "FAILURE" || r === "DENY"), apps: strList(f.apps, LIMITS.list, 120), include: str(f.include, LIMITS.text), exclude: str(f.exclude, LIMITS.text), person: str(f.person, 120) }; }
+  function cleanRule(r) {
+    if (!r || typeof r !== "object") throw err(400, "An alert rule is not valid.");
+    const id = str(r.id, 40); if (!/^[\w-]{1,40}$/.test(id)) throw err(400, "An alert rule needs a simple id.");
+    const type = RULE_TYPES.includes(r.type) ? r.type : (() => { throw err(400, "Unknown alert type: " + str(r.type, 30)); })();
+    return { id, name: str(r.name, LIMITS.name) || type, type, enabled: r.enabled !== false, filter: cleanFilter(r.filter), n: num(r.n, 1, 100000, 10), by: ["total", "app", "person"].includes(r.by) ? r.by : "total", windowMin: num(r.windowMin, 1, 43200, 60), cooldownMin: num(r.cooldownMin, 0, 43200, 60), minRisk: ["any", "medium", "high"].includes(r.minRisk) ? r.minRisk : "any", gApp: str(r.gApp, 120) };
+  }
   return {
     snapshot,
+    setAlertRules(actor, baseVersion, rules, why) {
+      if (!roleBased) throw err(409, "Shared alert rules need single sign-on to be set up.");
+      return change(actor, baseVersion, () => {
+        if (!Array.isArray(rules) || rules.length > 200) throw err(400, "Send between 0 and 200 alert rules.");
+        const next = rules.map(cleanRule), ids = new Set(next.map(r => r.id)); if (ids.size !== next.length) throw err(400, "Two alert rules have the same id.");
+        const prev = state.alertRules, byId = new Map((prev || []).map(r => [r.id, r])), note = str(why, LIMITS.why);
+        if (!prev) audit(actor, "alertrules.publish", "alert-rules", null, { count: next.length, names: next.map(r => r.name).slice(0, 30) }, note || "Alert rules published for everyone");
+        else {
+          for (const r of next) { const o = byId.get(r.id); if (!o) audit(actor, "alertrule.create", r.id, null, r, note); else if (JSON.stringify(o) !== JSON.stringify(r)) { const onlyOn = JSON.stringify({ ...o, enabled: r.enabled }) === JSON.stringify(r); audit(actor, onlyOn ? (r.enabled ? "alertrule.enable" : "alertrule.disable") : "alertrule.update", r.id, o, r, note); } }
+          for (const o of prev) if (!ids.has(o.id)) audit(actor, "alertrule.delete", o.id, o, null, note);
+        }
+        state.alertRules = next; return { count: next.length };
+      });
+    },
     createSuppression(actor, baseVersion, input) {
       return change(actor, baseVersion, () => {
         if (state.suppressions.length >= LIMITS.rules) throw err(400, "There are already " + LIMITS.rules + " rules. Remove ones you no longer need.");

@@ -1,7 +1,7 @@
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=8080
-COPY package.json server.js google.js policy.js ./
+COPY package.json server.js google.js policy.js auth.js audit.js ./
 COPY public ./public
 # shared policy (known-error rules, app decisions, audit log) lives here: mount a persistent volume at /app/data
 RUN mkdir -p /app/data && chown node:node /app/data

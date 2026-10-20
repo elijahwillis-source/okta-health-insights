@@ -110,6 +110,37 @@ Open `/api/diagnostics` on the deployed service and check:
 - **Filters on both lookups.** Once you look up an app or a person, a filter bar appears with the error type (with counts for that app or person), failed or denied, "reason contains", "hide errors containing", and a person (app lookup) or an app (person lookup). They only change that lookup's results, are never saved, and reset when you look up something else. They do not touch the dashboard or Errors page filters.
 - Long errors (for example one that lists dozens of member ids) are shown on one line with the ids removed and repeats collapsed, with the original in the tooltip, everywhere.
 
+## Single sign-on with Okta, roles and the audit log
+
+Sightline can sign people in with Okta (OpenID Connect, authorization code flow with PKCE). Set the variables below and everyone is asked to sign in; leave them out and nothing changes (the password if you set one, otherwise open).
+
+**Roles** come from Okta groups, so Okta stays the one place that decides who has what:
+
+| Role | Can do |
+| --- | --- |
+| **user** | Look at everything (dashboards, errors, apps, people, Google apps, lookups) and use the assistant. Cannot change anything shared. |
+| **admin** | Also manage known errors, Google app decisions and the shared alert rules, and read the audit log. |
+| **owner** | Also see how access is set up (the Access tab), see who is signed in, and end other people's sessions. |
+
+**In Okta** (Admin Console):
+1. Applications, Create App Integration, **OIDC - OpenID Connect**, **Web Application**.
+2. Sign-in redirect URI `https://YOUR-ADDRESS/callback`; sign-out redirect URI `https://YOUR-ADDRESS/logged-out`; grant type Authorization Code.
+3. Create three groups (for example `sightline-owners`, `sightline-admins`, `sightline-users`), put people in them, and **assign the groups to the app**. Okta then only lets assigned people in at all.
+4. Put the groups in the ID token: on the app's Sign On tab (OpenID Connect ID Token) set *Groups claim type* to Filter, claim name `groups`, and a filter such as "Starts with" `sightline-`. If you use a custom authorization server (`/oauth2/default`) add a `groups` claim there instead (Security, API, Authorization Servers, Claims).
+5. Copy the Client ID and Client Secret.
+
+**In Coolify** set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` (mark it secret), `PUBLIC_URL`, `SESSION_SECRET` (32+ random characters), and `OIDC_OWNER_GROUPS` / `OIDC_ADMIN_GROUPS` / `OIDC_USER_GROUPS`, then redeploy. `OWNER_EMAILS` names owners directly if you want to get in before the groups exist. The Okta API token that Sightline uses to *read* the System Log is separate and unchanged. Sessions are stored in `DATA_DIR`, so a redeploy does not sign anyone out; keep the persistent volume.
+
+**If sign-in is half set up, Sightline fails closed**: every page is refused with a message naming the missing setting (never a value), and `/healthz` still answers so Coolify stays happy.
+
+**Break-glass.** `DASHBOARD_PASSWORD` keeps working as an owner login at `/breakglass` (the browser asks for it), so a mistake or an Okta outage cannot lock everyone out. Its use is logged, and anything changed through it asks for a typed name and is recorded as break-glass. `BREAKGLASS_ENABLED=false` turns it off. **If you are locked out:** open `/breakglass`, or remove the `OIDC_*` settings and redeploy to go back to the password.
+
+**What is checked on every sign-in:** the ID token's signature against the provider's published keys, its issuer, audience, expiry and nonce, a one-time `state` tied to the browser that started the sign-in, and PKCE. Session cookies are HttpOnly, SameSite=Lax and (on https) Secure; every sign-in gets a fresh session id; requests that come from another site are refused.
+
+**The audit log** (Policy page, Audit log tab, for admins and owners; exportable as CSV) records sign-ins, failed sign-ins and why, people refused for lacking a group, sign-outs, expired and ended sessions, break-glass use, refused requests (who tried what, and which role it needed), and every change to known errors, Google app decisions and alert rules, with the before and after. It is stored in `DATA_DIR/audit-log.jsonl` (the policy store keeps its own older `audit.jsonl` beside it) and also printed to the container log as `AUDIT {json}` lines for a log shipper (set `AUDIT_STDOUT=false` to stop that).
+
+**Alert rules** are per browser until an admin clicks **Publish them for everyone** on the Alerts page. From then on there is one shared set, only admins can change it, and every change is audited. (Notifications themselves, what has fired and been read, stay per person.)
+
 ## The assistant side by side with the app
 
 Open the assistant and it docks on the right as a second pane: the app moves over to the left and reflows to fit (the chart redraws, the cards re-wrap), so you can read the data and talk to the assistant at the same time. It opens at 45% of the window. **Narrow**, **Half** and **Wide** in the panel set it to a third, half or two thirds of the window; you can also drag the handle on its left edge (double-click it to reset). The width is remembered. On a window narrower than 1,400 px the menu shrinks to icons while the assistant is open and comes back when you close it (a menu you collapsed yourself stays collapsed). Below 900 px there is no room to split, so it floats over the app instead. Escape or the X closes it.

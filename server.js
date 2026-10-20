@@ -35,6 +35,7 @@ const cfg = {
   userHeader: String(env.USER_HEADER || "").trim().toLowerCase(),
   policyAdmins: String(env.POLICY_ADMINS || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean),
   policyRequireExpiry: /^(1|true|yes)$/i.test(env.POLICY_REQUIRE_EXPIRY || ""),
+  assistantRole: ["user", "admin", "owner"].includes(String(env.ASSISTANT_MIN_ROLE || "").toLowerCase()) ? String(env.ASSISTANT_MIN_ROLE).toLowerCase() : "user",
   pageSize: Math.min(1000, Math.max(10, +env.OKTA_PAGE_SIZE || 1000)),
   lookbackDays: +env.LOOKBACK_DAYS || 7,
   maxEvents: +env.MAX_EVENTS || 100000,
@@ -53,7 +54,10 @@ const cfg = {
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const google = require("./google").createGoogle(env, log);
-const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins: cfg.policyAdmins, requireExpiry: cfg.policyRequireExpiry, verifiedIdentity: !!cfg.userHeader });
+const audit = require("./audit").createAudit({ dir: cfg.dataDir, log, stdout: !/^(0|false|no|off)$/i.test(env.AUDIT_STDOUT || "") });
+const auth = require("./auth").createAuth({ env, dir: cfg.dataDir, log, audit });
+const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins: cfg.policyAdmins, requireExpiry: cfg.policyRequireExpiry, verifiedIdentity: !!cfg.userHeader, roleBased: auth.enabled || auth.misconfigured,
+  onAudit: (row, a) => audit.write({ cat: /^alertrule/.test(row.action) ? "alerts" : "policy", action: row.action, actor: a, ip: a.ip, ua: a.ua, target: row.target, before: row.before, after: row.after, why: row.why }) });
 if (cfg.policyAdmins.length && !cfg.userHeader) log("NOTE: POLICY_ADMINS is set but USER_HEADER is not, so roles are NOT enforced (the sign-in name is shared and cannot prove who someone is). Set USER_HEADER only if a sign-in proxy sets it.");
 
 /* ------------------------------------------------------------------- state */
@@ -638,14 +642,6 @@ function send(req, res, status, body, type = "application/json; charset=utf-8") 
   res.writeHead(status, headers); res.end(buf);
 }
 
-function authorized(req) {
-  if (!cfg.dashPass) return true;
-  const h = req.headers.authorization || "";
-  if (!h.startsWith("Basic ")) return false;
-  const [u, ...p] = Buffer.from(h.slice(6), "base64").toString().split(":");
-  const a = Buffer.from(u + ":" + p.join(":")), b = Buffer.from(cfg.dashUser + ":" + cfg.dashPass);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
-}
 
 const lookupHits = [];
 function lookupRateOk() { const now = Date.now(); while (lookupHits.length && now - lookupHits[0] > 60000) lookupHits.shift(); if (lookupHits.length >= 30) return false; lookupHits.push(now); return true; }
@@ -655,9 +651,13 @@ function rateOk() { const now = Date.now(); while (hits.length && now - hits[0] 
 const policyHits = []; function policyRateOk() { const now = Date.now(); while (policyHits.length && now - policyHits[0] > 60000) policyHits.shift(); if (policyHits.length >= 60) return false; policyHits.push(now); return true; }
 // who is making this request: the trusted proxy header if one is configured; otherwise the name the person typed (unverified)
 function actorOf(req) {
-  if (cfg.userHeader) { const h = String(req.headers[cfg.userHeader] || "").trim().slice(0, 120); if (h) return { name: h, verified: true }; }
+  const u = req.user, base = { ip: auth.clientIp(req), ua: String(req.headers["user-agent"] || "").slice(0, 160) };
+  const typedName = () => String(req.headers["x-sightline-name"] || "").replace(/[^\p{L}\p{N} .@_'+-]/gu, "").trim().slice(0, 80);
+  if (u && u.via === "oidc") return { ...base, name: u.email, email: u.email, role: u.role, verified: true, via: "oidc" };
+  if (u && u.via === "break-glass") { const t = typedName(); return { ...base, name: t ? "break-glass: " + t : "break-glass", role: "owner", verified: false, via: "break-glass" }; }
+  if (cfg.userHeader) { const h = String(req.headers[cfg.userHeader] || "").trim().slice(0, 120); if (h) return { ...base, name: h, verified: true, via: "header" }; }
   const typed = String(req.headers["x-sightline-name"] || "").replace(/[^\p{L}\p{N} .@_'+-]/gu, "").trim().slice(0, 80);
-  return { name: typed || "unknown", verified: false };
+  return { ...base, name: typed || "unknown", verified: false, via: "typed" };
 }
 function readBody(req, limit = 200000) {
   return new Promise((resolve, reject) => {
@@ -681,8 +681,37 @@ const server = http.createServer(async (req, res) => {
       try { const [f, type] = BRAND[url.pathname]; const buf = fs.readFileSync(path.join(__dirname, "public", "brand", f)); res.writeHead(200, { ...SEC_HEADERS, "content-type": type, "content-length": buf.length, "cache-control": "public, max-age=86400" }); return res.end(req.method === "HEAD" ? undefined : buf); }
       catch { res.writeHead(404, SEC_HEADERS); return res.end(); }
     }
-    if (!authorized(req)) { res.writeHead(401, { ...SEC_HEADERS, "www-authenticate": 'Basic realm="Sightline"' }); return res.end("Authentication required"); }
-
+    if (await auth.handle(req, res, url)) return;                                                    // /login /callback /logout /breakglass /logged-out
+    const who = auth.identify(req);
+    if (!who) {
+      if (auth.enabled || auth.misconfigured) {
+        if (url.pathname.startsWith("/api/")) return send(req, res, 401, { error: "Sign in required", login: "/login" });
+        res.writeHead(302, { ...SEC_HEADERS, location: "/login?next=" + encodeURIComponent(url.pathname + url.search) }); return res.end();
+      }
+      res.writeHead(401, { ...SEC_HEADERS, "www-authenticate": 'Basic realm="Sightline"' }); return res.end("Authentication required");
+    }
+    req.user = who;
+    // a page on another site must not be able to make this browser change anything
+    if (auth.enabled && !["GET", "HEAD", "OPTIONS"].includes(req.method) && (req.headers["sec-fetch-site"] === "cross-site" || (req.headers.origin && auth.origin && req.headers.origin !== auth.origin))) {
+      audit.write({ cat: "access", action: "access.denied", ok: false, actor: actorOf(req), ip: auth.clientIp(req), target: req.method + " " + url.pathname, detail: "request from another site" });
+      return send(req, res, 403, { error: "Cross-site request refused." });
+    }
+    const forbid = need => { const a = actorOf(req); audit.write({ cat: "access", action: "access.denied", ok: false, actor: a, ip: a.ip, ua: a.ua, target: req.method + " " + url.pathname, detail: "needs the " + need + " role" }); return send(req, res, 403, { error: "You need the " + need + " role for that." }); };
+    if (req.method === "GET" && url.pathname === "/api/me") return send(req, res, 200, { authenticated: true, name: who.name, email: who.email || "", role: who.role, via: who.via, roleBased: auth.enabled || auth.misconfigured, expires: who.expires || null, logoutUrl: who.via === "oidc" ? "/logout" : null, assistantRole: cfg.assistantRole });
+    if (req.method === "GET" && url.pathname === "/api/audit") {
+      if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
+      const q = url.searchParams; return send(req, res, 200, { rows: audit.read({ limit: q.get("limit"), cat: q.get("cat"), actor: q.get("actor"), action: q.get("action"), since: q.get("since") }), persistent: audit.persistent() });
+    }
+    if (req.method === "GET" && url.pathname === "/api/access") {
+      if (!auth.roleAtLeast(who, "owner")) return forbid("owner");
+      return send(req, res, 200, { ...auth.describe(), sessions: auth.sessionList().map(s => ({ id: s.id, email: s.email, name: s.name, role: s.role, created: s.created, last: s.last, ip: s.ip, ua: s.ua, current: s.sid === who.sid })), auditPersistent: audit.persistent() });
+    }
+    { const m = req.method === "DELETE" && /^\/api\/sessions\/([0-9a-f]{16})$/.exec(url.pathname);
+      if (m) {
+        if (!auth.roleAtLeast(who, "owner")) return forbid("owner");
+        const s = auth.revoke(m[1]); if (!s) return send(req, res, 404, { error: "That session is already gone." });
+        const a = actorOf(req); audit.write({ cat: "auth", action: "auth.session.revoked", actor: a, ip: a.ip, ua: a.ua, target: s.email, detail: "ended the session of " + s.email + " (" + s.role + ")" }); return send(req, res, 200, { ended: s.email });
+      } }
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html"))
       return send(req, res, 200, fs.readFileSync(INDEX), "text/html; charset=utf-8");
 
@@ -731,6 +760,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, await appSearchCached(ids, days));
     }
 
+    if (req.method === "POST" && (url.pathname === "/api/explain-error" || url.pathname === "/api/chat") && !auth.roleAtLeast(who, cfg.assistantRole)) return forbid(cfg.assistantRole);
     if (req.method === "POST" && url.pathname === "/api/explain-error") {
       if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
       return send(req, res, 200, await explainError(await readBody(req)));
@@ -749,6 +779,7 @@ const server = http.createServer(async (req, res) => {
       if (!policyRateOk()) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
       const actor = actorOf(req), v = url.searchParams.get("v");
       let m;
+      if (req.method === "PUT" && url.pathname === "/api/policy/alert-rules") { const b = await readBody(req); return send(req, res, 200, policy.setAlertRules(actor, b.baseVersion, b.rules, b.why)); }
       if (req.method === "POST" && url.pathname === "/api/policy/suppressions") { const b = await readBody(req); return send(req, res, 201, policy.createSuppression(actor, b.baseVersion, b.rule)); }
       if (req.method === "PUT" && (m = /^\/api\/policy\/suppressions\/([\w-]+)$/.exec(url.pathname))) { const b = await readBody(req); return send(req, res, 200, policy.updateSuppression(actor, b.baseVersion, m[1], b.patch)); }
       if (req.method === "DELETE" && (m = /^\/api\/policy\/suppressions\/([\w-]+)$/.exec(url.pathname))) return send(req, res, 200, policy.deleteSuppression(actor, v, m[1], url.searchParams.get("why")));
@@ -758,6 +789,7 @@ const server = http.createServer(async (req, res) => {
     send(req, res, 404, { error: "Not found" });
   } catch (err) {
     if (!err.status || err.status >= 500) log("request error:", err.message);
+    else if (err.status === 403) { const a = actorOf(req); audit.write({ cat: "access", action: "access.denied", ok: false, actor: a, ip: a.ip, ua: a.ua, target: req.method + " " + String(req.url).split("?")[0], detail: err.message }); }
     send(req, res, err.status || 500, Object.assign({ error: err.status ? err.message : "Internal error" }, err.current ? { current: err.current } : {}));
   }
 });
@@ -766,11 +798,13 @@ const server = http.createServer(async (req, res) => {
 function start() {
   if (!cfg.orgUrl) { console.error("OKTA_ORG_URL is required (e.g. https://yourco.okta.com)"); process.exit(1); }
   if (!cfg.apiToken && !(cfg.clientId && cfg.privateKey)) console.error("WARNING: no Okta credentials set; polling will fail until OKTA_API_TOKEN or OKTA_CLIENT_ID/OKTA_PRIVATE_KEY is provided.");
-  if (!cfg.dashPass) log("NOTE: DASHBOARD_PASSWORD is not set — make sure access is restricted by your platform (SSO/VPN).");
+  if (auth.enabled) log("Sign-in: Okta single sign-on (" + auth.describe().issuerHost + "); roles from groups; break-glass password " + (auth.cfg.breakglass ? "ON (/breakglass)" : "off"));
+  else if (!cfg.dashPass && !auth.misconfigured) log("NOTE: neither single sign-on nor DASHBOARD_PASSWORD is set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Sightline listening on :${cfg.port} for ${cfg.orgUrl}`));
+  for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { auth.flush(); } catch { /* shutting down */ } process.exit(0); });          // a redeploy must not sign anyone out
   initIngest(); pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
   google.start();
 }
 if (require.main === module) start();
-module.exports = { server, queryEvents, state, google, policy, pacing: { rl, gate, noteHeaders, note429, rateStatus, cfg } };
+module.exports = { server, queryEvents, state, google, policy, auth, audit, pacing: { rl, gate, noteHeaders, note429, rateStatus, cfg } };
