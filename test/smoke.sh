@@ -2,6 +2,7 @@
 # Smoke test: starts the mock Okta + fake Anthropic + the app, hits every endpoint, cleans up.
 #   bash test/smoke.sh
 cd "$(dirname "$0")/.."
+export DATA_DIR=$(mktemp -d)      # policy files of the servers under test: throwaway
 PIDS=()
 cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }
 trap cleanup EXIT

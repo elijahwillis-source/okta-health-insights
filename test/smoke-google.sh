@@ -2,6 +2,7 @@
 # Google Workspace OAuth audit tests: a fake Google (strict about the signed sign-in) + the app.
 #   bash test/smoke-google.sh
 cd "$(dirname "$0")/.."
+export DATA_DIR=$(mktemp -d)      # policy files of the servers under test: throwaway
 PIDS=(); cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }; trap cleanup EXIT
 pass=0; fail=0
 check() { if [[ "$3" == *"$2"* ]]; then echo "PASS  $1"; pass=$((pass+1)); else echo "FAIL  $1  (expected '$2', got '$3')"; fail=$((fail+1)); fi; }

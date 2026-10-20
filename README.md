@@ -54,6 +54,10 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `OKTA_LOG_FILTER` | no | Narrow the feed on very large orgs |
 | `OKTA_MAX_RPM` | no | The most requests a minute Sightline may send to Okta (default 30, minimum 6). See "Okta rate limits" below |
 | `OKTA_PAGE_SIZE` | no | Events per request when loading the System Log (default and maximum 1000) |
+| `DATA_DIR` | no | Where shared policy (known-error rules, Google app decisions, the audit log) is kept. Default `/app/data` in the container. **Mount a persistent volume here** |
+| `USER_HEADER` | no | The header your sign-in proxy sets to the signed-in person's email, for example `X-Forwarded-Email`. Only set it behind a proxy that sets and protects that header. It makes "who changed this" verified and makes `POLICY_ADMINS` enforceable |
+| `POLICY_ADMINS` | no | Comma-separated emails allowed to change policy. Everyone else can look. Only enforced together with `USER_HEADER` |
+| `POLICY_REQUIRE_EXPIRY` | no | `true` makes every exception need an expiry date |
 | `GOOGLE_SA_KEY` | for Google OAuth | The Google service account key: the JSON file's contents, or the same text base64-encoded. See "Google Workspace OAuth" below |
 | `GOOGLE_ADMIN_EMAIL` | for Google OAuth | The dedicated admin the service account acts as (needs only the Reports privilege) |
 | `GOOGLE_LOOKBACK_DAYS` | no | History to load first (default 30, at most 180; Google keeps 6 months) |
@@ -105,6 +109,18 @@ Open `/api/diagnostics` on the deployed service and check:
 - **Apps page: the app lookup is first**, above the App activity sections.
 - **Filters on both lookups.** Once you look up an app or a person, a filter bar appears with the error type (with counts for that app or person), failed or denied, "reason contains", "hide errors containing", and a person (app lookup) or an app (person lookup). They only change that lookup's results, are never saved, and reset when you look up something else. They do not touch the dashboard or Errors page filters.
 - Long errors (for example one that lists dozens of member ids) are shown on one line with the ids removed and repeats collapsed, with the original in the tooltip, everywhere.
+
+## Policy: known errors and approved Google apps
+
+The **Policy** page holds the decisions your organisation has made. They are shared (everyone sees the same rules), every change needs a reason, and every change goes in an audit log.
+
+**Known errors.** Open an error (Errors page, or a person's errors on the People page) and choose **Mark as known**. You see what the rule would hide before you save, give a reason (required), an optional ticket, and an expiry (default 90 days). From then on the matching errors are left out of the counts, the charts and the alerts. They are never deleted or hidden silently: the Overview and Errors pages always say how many are hidden, and one click shows them again, marked "Known". Guardrails: a rule must say which errors it is about (a message, an app, an event type, a person or an error type, never just "failures"); a rule that would hide 40% or more of all errors needs an explicit confirmation; expired rules stop applying by themselves; rules can be switched off without deleting them.
+
+**Google apps.** On the Google OAuth page, open an app and choose **Approve** or **Mark as not allowed**. An approval covers exactly the access the app had when it was reviewed. If the app later asks for more, it shows **New access**, counts as needing review again, and the alert "An approved Google app asked for new access" fires. Approved apps do not raise the new-app, high-risk or many-people alerts. A not-allowed app raises "A not-allowed Google app was authorized" whenever someone authorizes it. (Sightline only reads, so "not allowed" is a record and an alarm; block the app in the Google Admin console, Security, API controls.) Approvals can expire (default 1 year), and the page counts apps that still **need review**.
+
+**Who did it.** Sign-in to the dashboard is a shared password, so it cannot say who someone is. If you run the dashboard behind a sign-in proxy that sets a header with the person's email, set `USER_HEADER` and names are verified (shown with a tick), and `POLICY_ADMINS` can limit who may change things. Otherwise the person types their name before changing anything; it is recorded, and the audit log marks it **unverified**. The audit log can be exported to CSV.
+
+**Keeping it across deploys.** Policy is stored in `DATA_DIR` (`/app/data`). In Coolify: open the app, **Persistent Storage**, add a volume with the destination `/app/data`, and redeploy. If the folder cannot be written the Policy page says so in a warning ("These changes will be lost when the server restarts") and still works until the next restart. Run **one replica** only: the policy is stored by the one server.
 
 ## Okta rate limits ("This API token has made too many requests")
 

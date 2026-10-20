@@ -2,6 +2,7 @@
 # A heavy, noisy Google org: the newest events must show first, nothing may be lost, and noise must be summarised.
 #   bash test/smoke-google-load.sh        (about a minute and a half)
 cd "$(dirname "$0")/.."
+export DATA_DIR=$(mktemp -d)      # policy files of the servers under test: throwaway
 PIDS=(); cleanup() { for p in "${PIDS[@]}"; do kill "$p" 2>/dev/null; done; }; trap cleanup EXIT
 pass=0; fail=0
 check() { if [[ "$3" == *"$2"* ]]; then echo "PASS  $1"; pass=$((pass+1)); else echo "FAIL  $1  (expected '$2', got '$3')"; fail=$((fail+1)); fi; }

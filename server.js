@@ -28,6 +28,13 @@ const cfg = {
   // How fast Sightline may talk to Okta, so it never trips the API token's rate limit (a token gets 50% of an endpoint's limit by default,
   // for example 60 requests a minute on the System Log). Lower this if the token is shared with another tool.
   rpm: Math.max(6, +env.OKTA_MAX_RPM || 30),
+  // where shared policy (known-error rules, approved apps, audit log) is kept. In a container this must be a persistent volume.
+  dataDir: env.DATA_DIR || path.join(__dirname, "data"),
+  // the header your sign-in proxy sets to the signed-in person's email (for example X-Forwarded-Email). ONLY set it when the dashboard
+  // sits behind a proxy that sets and protects that header: it is what makes "who changed this" and POLICY_ADMINS trustworthy.
+  userHeader: String(env.USER_HEADER || "").trim().toLowerCase(),
+  policyAdmins: String(env.POLICY_ADMINS || "").split(",").map(x => x.trim().toLowerCase()).filter(Boolean),
+  policyRequireExpiry: /^(1|true|yes)$/i.test(env.POLICY_REQUIRE_EXPIRY || ""),
   pageSize: Math.min(1000, Math.max(10, +env.OKTA_PAGE_SIZE || 1000)),
   lookbackDays: +env.LOOKBACK_DAYS || 7,
   maxEvents: +env.MAX_EVENTS || 100000,
@@ -46,6 +53,8 @@ const cfg = {
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const google = require("./google").createGoogle(env, log);
+const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins: cfg.policyAdmins, requireExpiry: cfg.policyRequireExpiry, verifiedIdentity: !!cfg.userHeader });
+if (cfg.policyAdmins.length && !cfg.userHeader) log("NOTE: POLICY_ADMINS is set but USER_HEADER is not, so roles are NOT enforced (the sign-in name is shared and cannot prove who someone is). Set USER_HEADER only if a sign-in proxy sets it.");
 
 /* ------------------------------------------------------------------- state */
 const state = {
@@ -643,6 +652,13 @@ function lookupRateOk() { const now = Date.now(); while (lookupHits.length && no
 const hits = []; // crude global rate limit for the assistant
 function rateOk() { const now = Date.now(); while (hits.length && now - hits[0] > 60000) hits.shift(); if (hits.length >= 20) return false; hits.push(now); return true; }
 
+const policyHits = []; function policyRateOk() { const now = Date.now(); while (policyHits.length && now - policyHits[0] > 60000) policyHits.shift(); if (policyHits.length >= 60) return false; policyHits.push(now); return true; }
+// who is making this request: the trusted proxy header if one is configured; otherwise the name the person typed (unverified)
+function actorOf(req) {
+  if (cfg.userHeader) { const h = String(req.headers[cfg.userHeader] || "").trim().slice(0, 120); if (h) return { name: h, verified: true }; }
+  const typed = String(req.headers["x-sightline-name"] || "").replace(/[^\p{L}\p{N} .@_'+-]/gu, "").trim().slice(0, 80);
+  return { name: typed || "unknown", verified: false };
+}
 function readBody(req, limit = 200000) {
   return new Promise((resolve, reject) => {
     let n = 0; const chunks = [];
@@ -725,10 +741,24 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req);
       return send(req, res, 200, { text: await chat(body) });
     }
+
+    // ---- policy: shared known-error rules and Google app decisions
+    if (url.pathname === "/api/policy" && req.method === "GET") return send(req, res, 200, policy.snapshot(actorOf(req)));
+    if (url.pathname === "/api/policy/audit" && req.method === "GET") return send(req, res, 200, { rows: policy.audit(url.searchParams.get("limit")) });
+    if (url.pathname.startsWith("/api/policy/") && ["POST", "PUT", "DELETE"].includes(req.method)) {
+      if (!policyRateOk()) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
+      const actor = actorOf(req), v = url.searchParams.get("v");
+      let m;
+      if (req.method === "POST" && url.pathname === "/api/policy/suppressions") { const b = await readBody(req); return send(req, res, 201, policy.createSuppression(actor, b.baseVersion, b.rule)); }
+      if (req.method === "PUT" && (m = /^\/api\/policy\/suppressions\/([\w-]+)$/.exec(url.pathname))) { const b = await readBody(req); return send(req, res, 200, policy.updateSuppression(actor, b.baseVersion, m[1], b.patch)); }
+      if (req.method === "DELETE" && (m = /^\/api\/policy\/suppressions\/([\w-]+)$/.exec(url.pathname))) return send(req, res, 200, policy.deleteSuppression(actor, v, m[1], url.searchParams.get("why")));
+      if (req.method === "POST" && url.pathname === "/api/policy/approvals") { const b = await readBody(req); return send(req, res, 200, policy.upsertApproval(actor, b.baseVersion, b.approval)); }
+      if (req.method === "DELETE" && (m = /^\/api\/policy\/approvals\/(.+)$/.exec(url.pathname))) return send(req, res, 200, policy.deleteApproval(actor, v, decodeURIComponent(m[1]), url.searchParams.get("why")));
+    }
     send(req, res, 404, { error: "Not found" });
   } catch (err) {
-    log("request error:", err.message);
-    send(req, res, err.status || 500, { error: err.status ? err.message : "Internal error" });
+    if (!err.status || err.status >= 500) log("request error:", err.message);
+    send(req, res, err.status || 500, Object.assign({ error: err.status ? err.message : "Internal error" }, err.current ? { current: err.current } : {}));
   }
 });
 
@@ -743,4 +773,4 @@ function start() {
   google.start();
 }
 if (require.main === module) start();
-module.exports = { server, queryEvents, state, google, pacing: { rl, gate, noteHeaders, note429, rateStatus, cfg } };
+module.exports = { server, queryEvents, state, google, policy, pacing: { rl, gate, noteHeaders, note429, rateStatus, cfg } };

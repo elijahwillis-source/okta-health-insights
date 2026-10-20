@@ -80,6 +80,12 @@ header.top .sub{color:var(--muted);font-size:12px}
 .sg{display:flex;justify-content:space-between;align-items:center;gap:14px;width:100%;text-align:left;border:none;border-bottom:1px solid var(--border);border-radius:0;background:transparent;padding:9px 12px;font-size:13px}
 .sg:last-child{border-bottom:none}.sg:hover,.sg:focus-visible{background:var(--accent-soft);outline:none}.sg .ct{color:var(--muted);font-size:12px;white-space:nowrap}.sg.okta{color:var(--accent);font-weight:600}
 .stale{opacity:.38;transition:opacity .2s}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:-6px;flex-wrap:wrap}.tab{border:none;border-radius:8px 8px 0 0;padding:9px 16px;background:transparent;color:var(--muted);font-weight:600}
+.tab:hover{color:var(--text);background:var(--surface2)}.tab.on{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}.tab .tn{margin-left:6px;font-size:11px;background:var(--surface2);border-radius:99px;padding:0 7px;color:var(--muted)}.tab .tn.att{background:rgba(255,184,77,.18);color:var(--warn)}
+.st{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}.st.active,.st.approved{background:rgba(63,185,119,.16);color:var(--ok)}.st.soon,.st.expired,.st.drift,.st.none{background:rgba(255,184,77,.16);color:var(--warn)}.st.flagged{background:rgba(255,107,107,.16);color:var(--bad)}.st.off{background:var(--surface2);color:var(--muted)}
+.cpill.known{background:rgba(125,140,255,.16);color:var(--accent)}.pol td{vertical-align:top}.pol .sw{display:inline-block;margin-top:0}span.lnk{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-left:4px}.pol .gsub{margin-top:3px}.pol code{font-size:11.5px}.who{color:var(--muted);font-size:12px}
+.ptxt{width:100%;min-height:76px;resize:vertical;font:inherit}.prev{border:1px solid var(--border);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px}.prev.warn{border-color:var(--warn)}
+.gb{margin-left:6px;border-radius:99px;padding:0 7px;font-size:10.5px;font-weight:700}.gb.approved{background:rgba(63,185,119,.16);color:var(--ok)}.gb.drift,.gb.expired{background:rgba(255,184,77,.18);color:var(--warn)}.gb.flagged{background:rgba(255,107,107,.18);color:var(--bad)}
 #gTbl th.sortable{cursor:pointer;user-select:none;white-space:nowrap}#gTbl th.sortable:hover{color:var(--text)}#gTbl th.sortable:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
 .kpi.click{cursor:pointer}.kpi.click:hover{border-color:var(--accent)}.kpi.click:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .gfb{margin-bottom:12px}.gmorebar{padding:12px 4px 0;color:var(--muted);font-size:12.5px}.gmorebar button{font-size:12px;padding:2px 10px;margin-left:4px}.tiny{font-size:11px;color:var(--muted);margin-left:6px;font-weight:600}
@@ -114,6 +120,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .sw span::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}.sw input:checked+span{background:var(--ok)}.sw input:checked+span::after{transform:translateX(16px)}
 .sw input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
 .modal{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.modal.top{align-items:flex-start;padding-top:4vh}
 .mcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;width:min(640px,100%);max-height:94vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.mcard h3{margin:0;font-size:17px}
 .fl{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);flex:1;min-width:140px}.fl input,.fl select{color:var(--text)}.frow{display:flex;gap:10px;flex-wrap:wrap}
 .chkrow{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:4px}.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text)}
@@ -262,6 +269,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <a class="navi" href="#/people" data-view="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nl">People</span></a>
       <a class="navi" href="#/google" data-view="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg><span class="nl">Google OAuth</span></a>
       <a class="navi" href="#/alerts" data-view="alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nl">Alerts</span><span class="navbadge" id="navAlerts" hidden>0</span></a>
+      <a class="navi" href="#/policy" data-view="policy"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="nl">Policy</span><span class="navbadge" id="navPolicy" hidden>0</span></a>
     </div>
     <div class="navgrp bottom">
       <button class="navi" id="navAssistant" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="nl">Assistant</span></button>
@@ -389,6 +397,13 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
         <div class="vhead"><div><p class="vs">Get told in the app when certain errors show up.</p></div><div id="alertsTools"></div></div>
         <div class="alertgrid"><div class="card"><h2>Rules</h2><p class="hint">What to watch for. Rules are checked every time the data refreshes.</p><div id="rulesList"></div></div>
         <div class="card"><h2>Notifications</h2><div id="notifFeed"></div></div></div>
+      </section>
+
+      <section class="view" id="view-policy" data-view="policy" hidden>
+        <div class="vhead"><div><p class="vs">Decisions your organisation has made: errors that are known and expected, and Google apps that were reviewed. Everyone sees the same rules, every change needs a reason, and every change is recorded.</p></div><div id="polTools"></div></div>
+        <div id="polBanner"></div>
+        <div class="tabs" id="polTabs" role="tablist"></div>
+        <div class="card" id="polBody"></div>
       </section>
 
       <section class="view" id="view-settings" data-view="settings" hidden>
@@ -711,7 +726,10 @@ function openMapper(rows,fname,file,delim){
 function compute(opts){
   const all=S.events; const ref=S.ref;
   const win=S.win? all.filter(e=>ts(e)>=ref-S.win) : all;
-  const failsAll=win.filter(isFail), pred=(opts&&opts.noFilter)? null : compileFilter(S.fil);
+  const failsAll0=win.filter(isFail), pred=(opts&&opts.noFilter)? null : compileFilter(S.fil);
+  // KNOWN ERRORS: errors that a policy rule marks as expected are set aside and counted, so the page can always say how many are hidden and by what
+  let failsAll=failsAll0; const hiddenKnown=[];
+  if(!(opts&&opts.noSuppress)&&supIndex().length){ const keep=[]; for(const e of failsAll0){ (supOf(e)? hiddenKnown : keep).push(e); } if(!S.showSup) failsAll=keep; }
   const fails= pred? failsAll.filter(pred) : failsAll;      // the filters choose which errors the dashboard shows
   // app stats
   const appNames=new Set(); all.forEach(e=>{const a=appOf(e); if(a) appNames.add(a);}); S.inventory.forEach(a=>appNames.add(a));
@@ -734,7 +752,7 @@ function compute(opts){
     o.n++; const a=appOf(e); if(a) o.apps.set(a,(o.apps.get(a)||0)+1); const r=reasonOf(e); o.reasons.set(r,(o.reasons.get(r)||0)+1); o.last=Math.max(o.last,ts(e)); }
   const users=[...byUser.values()].sort((a,b)=>b.n-a.n);
   return {win,fails,tiles,assignFails,users,
-    failsAll,topApps:top(failCountF,8), topReasons:top(countBy(fails,reasonOf),8), topTypes:top(countBy(fails,e=>e.eventType),6),catCounts:countBy(failsAll,catOf),
+    suppressed:hiddenKnown,failsAll,topApps:top(failCountF,8), topReasons:top(countBy(fails,reasonOf),8), topTypes:top(countBy(fails,e=>e.eventType),6),catCounts:countBy(failsAll,catOf),
     uniqueUsers:new Set(win.map(userOf).filter(Boolean)).size};
 }
 
@@ -749,7 +767,7 @@ function render(){
   const silentN=C.tiles.filter(t=>t.status==="silent").length;
   $("#kpis").innerHTML = [
     ["Events in window",fmtN(C.win.length),"",""],
-    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied"+(filterActive(S.fil)?" · filtered":""), filterActive(S.fil)?"":(rate>8?"bad":rate>4?"warn":"ok")],
+    ["Failure rate",rate.toFixed(1)+"%",fmtN(C.fails.length)+" failed/denied"+(filterActive(S.fil)?" · filtered":"")+(C.suppressed.length&&!S.showSup? " · "+fmtN(C.suppressed.length)+" known hidden":""), filterActive(S.fil)?"":(rate>8?"bad":rate>4?"warn":"ok")],
     ["Silent apps",S.catchingUp?"…":silentN,S.catchingUp?"waiting for history":"of "+C.tiles.length+" apps", S.catchingUp?"warn":(silentN?"bad":"ok")],
     ["Assignment errors",fmtN(C.assignFails.length),C.users.length+" users affected"+(filterActive(S.fil)?" · filtered":""), filterActive(S.fil)?"":(C.assignFails.length?"warn":"ok")],
     ["Active users",fmtN(C.uniqueUsers),"in window",""]
@@ -757,7 +775,7 @@ function render(){
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
-  evaluateAlerts(C); renderBell(); renderLatestAlerts(); if(S.view==="google") renderGoogleView(true);
+  evaluateAlerts(C); renderBell(); renderLatestAlerts(); renderPolicyBadge(); if(S.view==="policy") renderPolicy(); if(S.view==="google") renderGoogleView(true);
   updateFilterPill();
 
   renderTimeline(C);
@@ -897,7 +915,7 @@ function renderUsersTable(C){
     const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
       return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
         '<div class="gsub">'+esc(x.apps.join(", ")||"—")+(x.types.length?' · '+esc(x.types.join(", ")):"")+'</div></div>'+
-        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask the assistant</button></div>'+
+        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask the assistant</button>'+(S.live&&S.policy.meta.canEdit? '<button class="ghost" data-knownerr="'+key+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>' : "")+'</div>'+
         '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
     return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" data-first="'+ui+'_0" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'+
       '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("")+(users.length>15? '<tr class="umore"><td colspan="5">Showing '+Math.min(cap,users.length)+' of '+users.length+' · '+(cap<users.length? '<button type="button" class="ghost" data-umore="1">Show '+Math.min(25,users.length-cap)+' more</button> ' : "")+(cap>15? '<button type="button" class="ghost" data-uless="1">Show fewer</button>' : "")+'</td></tr>' : "");
@@ -937,6 +955,7 @@ $("#userTbl").addEventListener("click",ev=>{
   if(ev.target.closest("[data-uless]")){ S.ushown=15; renderUsersTable(S.C); return; }
   const ex=ev.target.closest("[data-explain]"); if(ex){ explainToggle(ex.dataset.explain); return; }
   const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#userTbl").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
+  const kn=ev.target.closest("[data-knownerr]"); if(kn){ const x=S.xerr.get(kn.dataset.knownerr); if(x) openSuppressEditor({match:{include:phraseFromNorm(x.norm),apps:x.apps.slice(0,1),eventType:(x.types||[])[0]||""}}); return; }
   const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x) ask("Help me with this Okta error: “"+x.norm+"”"+(x.apps.length?" (app: "+x.apps.join(", ")+")":"")+". What does it mean, and what exactly should I do to fix it?"); return; }
   const lk=ev.target.closest("[data-lookup]"); if(lk){ openUser(lk.dataset.lookup); return; }
   if(ev.target.closest("tr.udet")) return;          // clicks inside the opened details never collapse them
@@ -1007,7 +1026,7 @@ function renderFilterBars(force){
     if(lookup&&((sc==="app"&&!S.aapp)||(sc==="person"&&!S.uperson))){ host.innerHTML=""; return; }       // nothing opened yet: no filters to show
     const cc=lookup? ((S.lcounts&&S.lcounts[sc])||new Map()) : ((C&&C.catCounts)||new Map());
     const head=full? "" : '<div class="fb-row"><button type="button" class="ghost" data-fa="toggle" aria-expanded="'+!!S.fbarOpen+'">'+(S.fbarOpen?"Hide filters":"Filter errors")+'</button>'+
-      (on? '<span class="fb-active" data-chips>'+filterChips(f)+'</span><button type="button" class="ghost" data-fa="clear">Clear</button>' : '<span class="fb-active" data-chips>Showing all errors</span>')+'</div>';
+      (on? '<span class="fb-active" data-chips>'+filterChips(f)+'</span><button type="button" class="ghost" data-fa="clear">Clear</button>' : '<span class="fb-active" data-chips>Showing all errors</span>')+((C&&C.suppressed&&C.suppressed.length)? '<span class="spacer"></span><button type="button" class="ghost" data-fa="supshow" title="Known errors are ones your policy marks as expected">'+(S.showSup?"Hide":"Show")+' '+fmtN(C.suppressed.length)+' known error'+(C.suppressed.length===1?"":"s")+'</button><a class="lnk" href="#/policy">Policy</a>' : "")+'</div>';
     const body=!open? "" : '<div class="fb-row"><span class="fb-l">Type</span>'+CAT_KEYS.map(k=>'<button type="button" class="chipbtn'+(f.cats.includes(k)?" on":"")+'" data-fc="cat" data-fv="'+k+'" aria-pressed="'+f.cats.includes(k)+'">'+CATS[k]+' <i>'+fmtN(cc.get(k)||0)+'</i></button>').join("")+
       '<span class="fb-sep"></span><span class="fb-l">Result</span>'+[["FAILURE","Failed"],["DENY","Denied"]].map(([k,l])=>'<button type="button" class="chipbtn'+(f.results.includes(k)?" on":"")+'" data-fc="res" data-fv="'+k+'" aria-pressed="'+f.results.includes(k)+'">'+l+'</button>').join("")+'</div>'+
       '<div class="fb-row">'+(sc!=="app"? '<input class="fin" data-ff="app" list="fbApps" placeholder="Add an app…" autocomplete="off" aria-label="Filter by app">' : '')+'<input class="fin" data-ff="include" placeholder="Reason contains…" value="'+esc(f.include||"")+'" aria-label="Reason contains">'+
@@ -1023,6 +1042,7 @@ document.addEventListener("click",ev=>{
   const x=ev.target.closest("[data-fx]"); if(x){ const k=x.dataset.fx, v=x.dataset.fv; setFilter(x.dataset.fs||"dash",f=>{ if(k==="cat") f.cats=f.cats.filter(y=>y!==v); else if(k==="res") f.results=f.results.filter(y=>y!==v); else if(k==="app") f.apps=f.apps.filter(y=>y!==v); else f[k]=""; }); return; }
   const a=ev.target.closest("[data-fa]"); if(a){ const k=a.dataset.fa;
     if(k==="toggle"){ S.fbarOpen=!S.fbarOpen; renderFilterBars(true); }
+    else if(k==="supshow"){ S.showSup=!S.showSup; render(); renderFilterBars(true); }
     else if(k==="clear") setFilter(a.dataset.fs||"dash",f=>Object.assign(f,emptyFilter()));
     else if(k==="alert"&&typeof openRuleEditor==="function") openRuleEditor({filter:JSON.parse(JSON.stringify(FS(a.dataset.fs||"dash")))}); }
 });
@@ -1055,9 +1075,12 @@ function errChart(errs){
   return '<svg width="100%" viewBox="0 0 '+W+' '+(H+4)+'" role="img" aria-label="Errors over time">'+c.map((v,i)=>{ const h=Math.max(v?3:1,v/mx*H);
     return '<rect x="'+(i*bw+1).toFixed(1)+'" y="'+(H-h).toFixed(1)+'" width="'+Math.max(2,bw-2).toFixed(1)+'" height="'+h.toFixed(1)+'" rx="2" style="fill:'+(v?"var(--barfail)":"var(--border)")+'"><title>'+esc(new Date(start+i*step).toLocaleString(undefined,hourly?{month:"short",day:"numeric",hour:"numeric"}:{month:"short",day:"numeric"}))+': '+v+' errors</title></rect>'; }).join("")+'</svg>';
 }
+$("#errView").addEventListener("change",ev=>{ if(ev.target.id==="eShowSup"){ S.showSup=ev.target.checked; render(); } });
+// for a policy rule the whole message is wanted (up to 100 characters), cut before any long id
+function rulePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,100); }
 function mutePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,60); }
 function renderErrorsView(C){
-  const el=$("#errView"), epred=compileFilter(S.efil); const errs=(epred? C.failsAll.filter(epred) : C.failsAll.slice()).sort((a,b)=>ts(b)-ts(a));
+  const el=$("#errView"), kn=C.suppressed.length, epred=compileFilter(S.efil); const errs=(epred? C.failsAll.filter(epred) : C.failsAll.slice()).sort((a,b)=>ts(b)-ts(a));
   const people=new Set(errs.map(e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; }).filter(Boolean)).size, apps=new Set(errs.map(appOf).filter(Boolean)).size;
   const last=errs.length? ts(errs[0]) : 0, shown=Math.min(errs.length,S.errShown||50), on=filterActive(S.efil);
   const byCat=CAT_KEYS.map(k=>[k,errs.filter(e=>catOf(e)===k).length]).filter(x=>x[1]);
@@ -1065,11 +1088,11 @@ function renderErrorsView(C){
   el.innerHTML='<div class="ukpis">'+[["Errors",fmtN(errs.length),errs.length?"bad":""],["People affected",fmtN(people),people?"warn":""],["Apps affected",fmtN(apps),""],["Latest error",last?ago(S.ref-last):"—",""]].map(k=>'<div class="ukpi '+k[2]+'"><div class="l">'+k[0]+'</div><div class="v">'+k[1]+'</div></div>').join("")+'</div>'+
     (errs.length? '<div class="ids">Errors over time</div>'+errChart(errs)+
       '<div class="catbars">'+byCat.map(([k,n])=>'<div class="cb"><span>'+CATS[k]+'</span><div class="track"><div class="fill" style="width:'+Math.max(3,n/mx*100)+'%"></div></div><b>'+fmtN(n)+'</b></div>').join("")+'</div>' : '')+
-    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px"><span class="ctl">'+fmtN(errs.length)+' error'+(errs.length===1?"":"s")+(on?" matching your filters":" in the window")+'</span><span class="spacer"></span>'+
+    '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px"><span class="ctl">'+fmtN(errs.length)+' error'+(errs.length===1?"":"s")+(on?" matching your filters":" in the window")+'</span>'+(kn? '<label class="ctl"><input type="checkbox" id="eShowSup"'+(S.showSup?" checked":"")+'> show the '+fmtN(kn)+' known error'+(kn===1?"":"s")+' that rules hide <a class="lnk" href="#/policy">(Policy)</a></label>' : "")+'<span class="spacer"></span>'+
     (errs.length?'<button id="errAsk" class="ghost">Ask the assistant about these</button><button id="errCsv" class="ghost">Export CSV</button>':'')+'</div>'+
     (errs.length? '<div class="scroll"><table><tr><th>Time</th><th>Type</th><th>Result</th><th>App</th><th>Person</th><th>Reason</th><th></th></tr>'+
-      errs.slice(0,shown).map((e,i)=>{ const r=idRefs(e)[0], rs=normErr(reasonOf(e)); return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="cpill">'+esc(CATS[catOf(e)])+'</span></td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td>'+esc(appOf(e)||"—")+'</td><td>'+esc(r? r[0] : "—")+'</td><td title="'+esc(rs)+'">'+esc(rs.length>140? rs.slice(0,140)+"…" : rs)+'</td>'+
-        '<td class="rowact"><button class="ghost" data-eexplain="'+i+'">Explain</button><button class="ghost" data-ehide="'+i+'" title="Hide errors like this one">Hide</button></td></tr>'; }).join("")+'</table></div>'+
+      errs.slice(0,shown).map((e,i)=>{ const r=idRefs(e)[0], rs=normErr(reasonOf(e)); return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="cpill">'+esc(CATS[catOf(e)])+'</span></td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span>'+(supOf(e)? ' <span class="cpill known" title="Hidden by a rule: '+esc((supOf(e).name||supOf(e).match.include||"")+" — "+supOf(e).why)+'">Known</span>' : "")+'</td><td>'+esc(appOf(e)||"—")+'</td><td>'+esc(r? r[0] : "—")+'</td><td title="'+esc(rs)+'">'+esc(rs.length>140? rs.slice(0,140)+"…" : rs)+'</td>'+
+        '<td class="rowact"><button class="ghost" data-eexplain="'+i+'">Explain</button>'+(supOf(e)||!(S.live&&S.policy.meta.canEdit)? "" : '<button class="ghost" data-eknown="'+i+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>')+'<button class="ghost" data-ehide="'+i+'" title="Hide errors like this one, just for you, just for now">Hide</button></td></tr>'; }).join("")+'</table></div>'+
       '<div style="display:flex;gap:10px;margin-top:10px">'+(shown<errs.length?'<button class="ghost" data-emore="1">Show '+Math.min(50,errs.length-shown)+' more ('+fmtN(errs.length-shown)+' left)</button>':"")+((S.errShown||50)>50&&errs.length>50?'<button class="ghost" data-eless="1">Show fewer</button>':"")+'</div>'
     : '<div class="empty">'+(on?"No errors match these filters in this window. Try removing a filter.":"No errors in this window.")+'</div>');
   S.errRows=errs;
@@ -1078,11 +1101,12 @@ function renderErrorsView(C){
 }
 $("#errView").addEventListener("click",ev=>{
   const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e) ask("Help me with this Okta error: “"+normErr(reasonOf(e))+"”"+(appOf(e)?" (app: "+appOf(e)+")":"")+" from event "+e.eventType+". What does it mean, and what should I do to fix it?"); return; }
+  const kw=ev.target.closest("[data-eknown]"); if(kw){ const e=S.errRows[+kw.dataset.eknown]; if(e) openSuppressEditor({match:{include:rulePhrase(e),apps:appOf(e)?[appOf(e)]:[],eventType:e.eventType||""}}); return; }
   const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter("errors",f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
-function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); }
+function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); if(v==="policy") renderPolicy(); }
 // Why is a list of errors empty? Say so plainly, and offer to clear the filters when they are the cause.
 function emptyErrors(C,what){
   const on=filterActive(S.fil), clr=on? ' <button type="button" class="ghost" data-fa="clear">Clear filters</button>' : "";
@@ -1444,7 +1468,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* ---------- app shell: navigation, assistant drawer, preferences ---------- */
-const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",alerts:"Alerts",settings:"Data & settings"};
+const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",alerts:"Alerts",policy:"Policy",settings:"Data & settings"};
 const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.get("okta.prefs.v1",{}));
 const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
 function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
@@ -1514,7 +1538,7 @@ S.rules=loadRules(); S.notifs=LS.get("okta.notifs.v1",[]); S.astate=Object.assig
 const saveRules=()=>LS.set("okta.rules.v1",S.rules), saveNotifs=()=>LS.set("okta.notifs.v1",S.notifs.slice(0,200)), saveAState=()=>LS.set("okta.alertstate.v1",S.astate);
 
 function recentFails(minutes,now,pred){
-  const cut=now-minutes*60000, out=[]; for(const e of S.events){ const t=ts(e); if(t<cut||t>now+60000) continue; if(isFail(e)&&(!pred||pred(e))) out.push(e); } return out;
+  const cut=now-minutes*60000, out=[]; for(const e of S.events){ const t=ts(e); if(t<cut||t>now+60000) continue; if(isFail(e)&&!supOf(e)&&(!pred||pred(e))) out.push(e); } return out;
 }
 function evalRule(r,now){
   const pred=compileFilter(Object.assign(emptyFilter(),r.filter||{}));
@@ -1526,7 +1550,7 @@ function evalRule(r,now){
   if(r.type==="new"){
     if(S.catchingUp) return [];
     const cut=now-r.windowMin*60000, older=new Set(), recent=new Map();
-    for(const e of S.events){ if(!isFail(e)||(pred&&!pred(e))) continue; const t=ts(e), n=normErr(reasonOf(e));
+    for(const e of S.events){ if(!isFail(e)||supOf(e)||(pred&&!pred(e))) continue; const t=ts(e), n=normErr(reasonOf(e));
       if(t<cut) older.add(n); else if(t<=now+60000){ let o=recent.get(n); if(!o){ o={n,count:0,app:appOf(e),raw:reasonOf(e)}; recent.set(n,o); } o.count++; } }
     if(!older.size) return [];                       // no earlier history to compare with: nothing can be called new
     return [...recent.values()].filter(x=>!older.has(x.n)).map(x=>({group:x.n,count:x.count,app:x.app,raw:x.raw}));
@@ -1579,6 +1603,8 @@ function ruleNow(r){
 function describeRule(r){
   const f=Object.assign(emptyFilter(),r.filter||{});
   if(r.type&&r.type[0]==="g"){ const rk=r.minRisk==="high"?"high-risk ":r.minRisk==="medium"?"medium or high-risk ":"", ap=r.gApp? " matching “"+r.gApp+"”" : "";
+    if(r.type==="gdrift") return "When a Google app that was reviewed and approved now has access the approval did not cover"+ap;
+    if(r.type==="gflag") return "When someone authorizes a Google app that was marked not allowed"+ap+" (checked over "+lastText(r.windowMin)+")";
     if(r.type==="gnew") return "When a new "+rk+"Google app"+ap+" is authorized for the first time (checked over "+lastText(r.windowMin)+")";
     if(r.type==="grisk") return "When "+(r.minRisk==="high"?"high-risk":r.minRisk==="medium"?"medium or high-risk":"any")+" Google access"+ap+" is granted to an app in "+lastText(r.windowMin);
     return "When "+r.n+" or more people authorize the same "+rk+"Google app"+ap+" in "+lastText(r.windowMin); }
@@ -1644,7 +1670,7 @@ function openRuleEditor(init){
   const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>';
   root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit rule":"New rule")+'"><h3>'+(editing?"Edit rule":"New alert rule")+'</h3>'+
     '<label class="fl">Name<input type="text" id="rName" value="'+esc(r.name)+'" placeholder="For example: Provisioning failures for one app"></label>'+
-    '<label class="fl">Alert me when<select id="rType">'+opt("spike","there are too many errors",r.type)+opt("new","a new kind of error appears",r.type)+opt("silent","an app goes silent",r.type)+opt("gnew","a new Google app is authorized",r.type)+opt("grisk","high-risk Google access is granted",r.type)+opt("gspike","many people authorize the same Google app",r.type)+'</select></label>'+
+    '<label class="fl">Alert me when<select id="rType">'+opt("spike","there are too many errors",r.type)+opt("new","a new kind of error appears",r.type)+opt("silent","an app goes silent",r.type)+opt("gnew","a new Google app is authorized",r.type)+opt("grisk","high-risk Google access is granted",r.type)+opt("gspike","many people authorize the same Google app",r.type)+opt("gdrift","an approved Google app asks for new access",r.type)+opt("gflag","a not-allowed Google app is authorized",r.type)+'</select></label>'+
     '<div id="rSpike"><div class="frow"><label class="fl">At least<input type="number" id="rN" min="1" max="100000" value="'+r.n+'"></label><label class="fl">errors in<select id="rWin">'+opt(15,"15 minutes",r.windowMin)+opt(60,"1 hour",r.windowMin)+opt(360,"6 hours",r.windowMin)+opt(1440,"24 hours",r.windowMin)+'</select></label><label class="fl">counted<select id="rBy">'+opt("total","all together",r.by)+opt("app","per app",r.by)+opt("person","per person",r.by)+'</select></label></div></div>'+
     '<div id="rNew"><label class="fl">Compared with the earlier history, looking at<select id="rWin2">'+opt(15,"the last 15 minutes",r.windowMin)+opt(60,"the last hour",r.windowMin)+opt(360,"the last 6 hours",r.windowMin)+opt(1440,"the last 24 hours",r.windowMin)+'</select></label></div>'+
     '<div id="rFilter"><div class="fl">Only count errors that are<div class="chkrow">'+CAT_KEYS.map(k=>chk("cats",k,CATS[k])).join("")+'</div><div class="chkrow">'+chk("results","FAILURE","Failed")+chk("results","DENY","Denied")+'</div></div>'+
@@ -1813,12 +1839,13 @@ const G_AREAS=[["gmail","Gmail",/mail\.google\.com|gmail\./],["drive","Drive",/a
 const G_AREA_CHIPS=G_AREAS.map(x=>[x[0],x[1]]).concat([["signin","Sign-in only"]]);
 const SIGNIN_ONLY=/^(openid|email|profile)$|(^|\/)userinfo\.(email|profile)$/;
 function appAreas(a){ const out=new Set(); let onlySignin=a.scopes.size>0; for(const x of a.scopes){ if(!SIGNIN_ONLY.test(x)) onlySignin=false; for(const [k,,re] of G_AREAS) if(re.test(x)) out.add(k); } if(onlySignin) out.add("signin"); return out; }
-const gDefault=()=>({risk:"all",access:"all",areas:[],min:0,active:0,isNew:false,person:"",q:""});
+const gDefault=()=>({risk:"all",access:"all",review:"all",areas:[],min:0,active:0,isNew:false,person:"",q:""});
 S.gf=gDefault();
-const gFiltering=f=>!!(f.risk!=="all"||f.access!=="all"||f.areas.length||f.min||f.active||f.isNew||(f.person||"").trim()||(f.q||"").trim());
+const gFiltering=f=>!!(f.risk!=="all"||f.access!=="all"||f.review!=="all"||f.areas.length||f.min||f.active||f.isNew||(f.person||"").trim()||(f.q||"").trim());
 function gPass(a,f){
   if(f.risk!=="all"&&a.riskName!==f.risk) return false;
   if(f.access==="has"&&!a.people.length) return false;
+  if(f.review&&f.review!=="all"){ const st=approvalOf(a).state; if(f.review==="needs"&&!["none","drift","expired"].includes(st)) return false; if(f.review==="approved"&&st!=="approved") return false; if(f.review==="flagged"&&st!=="flagged") return false; }
   if(f.access==="none"&&a.people.length) return false;
   if(f.areas.length&&!f.areas.some(k=>a.areas.has(k))) return false;
   if(f.min&&a.people.length<f.min) return false;
@@ -1836,16 +1863,24 @@ function googleShown(){
   return {apps,shown};
 }
 function setGoogleSort(k){ S.gcap=25; const cur=gSortState(); S.gsort= cur.key===k? {key:k,dir:cur.dir==="asc"?"desc":"asc"} : {key:k,dir:k==="app"?"asc":"desc"}; try{ prefs.gsort=S.gsort; savePrefs(); }catch(_){} renderGoogleView(); }
+function approvalBadge(a){ const st=approvalOf(a).state, t={approved:"Approved",drift:"New access",expired:"Review due",flagged:"Not allowed"}[st]; return t? '<span class="gb '+st+'" title="'+esc({approved:"Reviewed and approved for this access",drift:"Approved, but it now has access the approval did not cover",expired:"The approval has expired: review it again",flagged:"Marked as not allowed"}[st])+'">'+t+'</span>' : ""; }
+function reviewSection(a){
+  const ap=approvalOf(a), r=ap.ap, can=S.live&&S.policy.meta.canEdit, by=r? esc(r.decidedBy||"unknown")+(r.decidedVerified?" ✓":" (unverified)")+" on "+esc(fmtDate(Date.parse(r.decidedAt))) : "";
+  const line={none:"Not reviewed yet.",approved:"Approved by "+by+": "+(r&&esc(r.why))+(r&&r.expiresAt? " Review again by "+esc(fmtDate(Date.parse(r.expiresAt)))+"." : ""),
+    drift:"Approved by "+by+", but it now also has access the approval did not cover: <b>"+(ap.extra||[]).map(x=>esc(shortScope(x))).join(", ")+"</b>. Review it again.",
+    expired:"Approved by "+by+", but that approval expired on "+(r&&r.expiresAt? esc(fmtDate(Date.parse(r.expiresAt))) : "")+". Review it again.",flagged:"Marked <b>not allowed</b> by "+by+": "+(r&&esc(r.why))}[ap.state];
+  return '<div class="gsec"><b>Review</b><div>'+(ap.state==="none"? "" : approvalBadge(a)+" ")+line+'</div><div class="xbtn" style="margin-top:8px"><button class="ghost" data-gapprove="'+esc(a.key)+'"'+(can?"":" disabled")+'>'+(ap.state==="approved"? "Approve again" : "Approve this app")+'</button><button class="ghost" data-gflagapp="'+esc(a.key)+'"'+(can?"":" disabled")+'>Mark as not allowed</button>'+(r? '<button class="ghost" data-gunreview="'+esc(a.key)+'"'+(can?"":" disabled")+'>Remove decision</button>' : "")+'</div></div>';
+}
 function googleKpis(apps){
   const live=apps.filter(a=>a.people.length), people=new Set(); live.forEach(a=>a.people.forEach(p=>people.add(p.who)));
   const lo=S.win? S.ref-S.win : 0, inWin=S.g.events.filter(e=>e.time>=lo);
-  return [["Apps with access",fmtN(live.length),"","has"],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok","high"],
+  return [["Apps with access",fmtN(live.length),"","has"],["Need review",fmtN(live.filter(a=>["none","drift","expired"].includes(approvalOf(a).state)).length),live.some(a=>["drift","expired"].includes(approvalOf(a).state))?"warn":"","review"],["People who connected an app",fmtN(people.size),""],["High-risk apps",fmtN(live.filter(a=>a.rank===3).length),live.some(a=>a.rank===3)?"bad":"ok","high"],
     ["New this week",fmtN(live.filter(gIsNew).length),live.some(gIsNew)?"warn":"ok","new"],["Revoked in window",fmtN(inWin.filter(e=>e.type==="revoke").reduce((n,e)=>n+(e.count||1),0)),""],["Blocked in window",fmtN(inWin.filter(e=>e.type==="deny").reduce((n,e)=>n+(e.count||1),0)),inWin.some(e=>e.type==="deny")?"warn":""]];
 }
-function gApplyKpi(k){ S.gcap=25; S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
+function gApplyKpi(k){ S.gcap=25; S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; if(k==="review") S.gf.review="needs"; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
 // everything the page shows depends on these; if none changed, the automatic refresh leaves the page alone
 function gSig(){ const G=S.g, st=G.status||{}, last=G.events.length? G.events[G.events.length-1].time : 0;
-  return JSON.stringify([G.configured,G.demo,G.events.length,last,S.gf,gSortState(),S.gcap||25,G.lastSeq||0,!!S.gmore,[...(S.gopen||[])],!!S.gonlyhi,S.win,st.lastError||"",st.hint||"",!!st.catchingUp,st.admin||"",Math.floor((S.ref||0)/300000)]); }
+  return JSON.stringify([G.configured,G.demo,G.events.length,last,S.gf,gSortState(),S.gcap||25,G.lastSeq||0,S.policy.meta.version,!!S.gmore,[...(S.gopen||[])],!!S.gonlyhi,S.win,st.lastError||"",st.hint||"",!!st.catchingUp,st.admin||"",Math.floor((S.ref||0)/300000)]); }
 function renderGoogleView(auto){
   const el=$("#googleView"), stEl=$("#gStatus"), G=S.g; if(!el) return;
   if(auto&&gSig()===S.gSigLast&&el.firstChild) return;                  // nothing changed: do not touch the page
@@ -1868,6 +1903,7 @@ function renderGoogleView(auto){
     '<div class="fb gfb"><div class="fb-row"><span class="fb-l">Risk</span>'+[["all","All"],["high","High"],["medium","Medium"],["low","Low"]].map(([k,l])=>chip("data-grisk",k,l,f.risk===k)).join("")+
       '<span class="fb-sep"></span><span class="fb-l">Access</span>'+chip("data-gaccess","all","Any",f.access==="all")+chip("data-gaccess","has","Someone has it",f.access==="has",hasN)+chip("data-gaccess","none","Nobody now",f.access==="none",apps.length-hasN)+
       '<input type="text" id="gq" class="fin" placeholder="Search apps, client IDs or scopes…" value="'+esc(f.q||"")+'" aria-label="Search apps"></div>'+
+    '<div class="fb-row"><span class="fb-l">Review</span>'+[["all","Any"],["needs","Needs review"],["approved","Approved"],["flagged","Not allowed"]].map(([k,l])=>chip("data-greview",k,l,f.review===k,k==="all"? undefined : apps.filter(a=>{ const st=approvalOf(a).state; return k==="needs"? ["none","drift","expired"].includes(st) : st===k; }).length)).join("")+'</div>'+
     '<div class="fb-row"><span class="fb-l">Can reach</span>'+G_AREA_CHIPS.map(([k,l])=>chip("data-garea",k,l,f.areas.includes(k),apps.filter(a=>a.areas.has(k)).length)).join("")+'</div>'+
     '<div class="fb-row"><button type="button" class="ghost" data-gmore="1" aria-expanded="'+more+'">'+(more?"Fewer filters":"More filters")+'</button>'+(on? '<button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "")+'<span class="spacer"></span><span class="ctl">'+fmtN(shown.length)+' of '+fmtN(apps.length)+' apps</span></div>'+
     (more? '<div class="fb-row"><label class="ctl">Used by <select id="gMin">'+opt(0,"anyone",f.min)+opt(2,"2+ people",f.min)+opt(5,"5+ people",f.min)+opt(10,"10+ people",f.min)+opt(50,"50+ people",f.min)+'</select></label>'+
@@ -1888,14 +1924,18 @@ function googleRow(a){
     '<div class="gsec"><b>What it can do</b>'+sc.map(x=>{ const i=scopeInfo(x); return '<div class="gscope"><span class="rk '+i.risk+'">'+RISK_TEXT[i.risk].replace(" risk","")+'</span><span>'+esc(i.label)+'<br><code>'+esc(x)+'</code></span></div>'; }).join("")+'</div>'+
     '<div class="gsec"><b>People with access ('+fmtN(a.people.length)+')</b>'+(a.people.length? '<div class="gppl">'+a.people.slice(0,30).map(p=>'<span class="chip" data-k="user" data-v="'+esc(p.who)+'" title="Connected '+esc(new Date(p.time).toLocaleString())+'">'+esc(p.who)+'</span>').join("")+(a.people.length>30?'<span class="gsub">and '+(a.people.length-30)+' more</span>':"")+'</div>' : '<span class="gsub">Nobody currently (everyone revoked, or it was only requested or blocked).</span>')+'</div>'+
     '<div class="gsec"><b>Recent activity</b><div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th></tr>'+a.events.slice(-8).reverse().map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td>'+esc(e.actor)+'</td><td>'+esc((GACT[e.type]||[e.type])[0])+(e.count>1?' ×'+fmtN(e.count):"")+(e.rejection?' ('+esc(e.rejection)+')':"")+'</td></tr>').join("")+'</table></div></div>'+
-    '<p class="gsub">To allow, limit or block this app, use the Google Admin console (Security &gt; API controls). This dashboard is read-only.</p>';
-  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+(!a.people.length&&a.calls? '<span class="tiny" title="The app made API calls on someone\'s behalf, but their consent is older than the part of the log that was read">in use</span>' : "")+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
+    reviewSection(a)+'<p class="gsub">To allow, limit or block this app, use the Google Admin console (Security &gt; API controls). This dashboard is read-only.</p>';
+  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+approvalBadge(a)+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+(!a.people.length&&a.calls? '<span class="tiny" title="The app made API calls on someone\'s behalf, but their consent is older than the part of the log that was read">in use</span>' : "")+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
     '<tr class="udet"><td colspan="6"><div class="xbody"><div class="xinner"><div class="xpad">'+detail+'</div></div></div></td></tr>';
 }
 $("#googleView").addEventListener("click",ev=>{
   const sh=ev.target.closest("th[data-gsort]"); if(sh){ setGoogleSort(sh.dataset.gsort); return; }
   const kp=ev.target.closest("[data-gkpi]"); if(kp){ gApplyKpi(kp.dataset.gkpi); return; }
   const rf=ev.target.closest("[data-grisk]"); if(rf){ S.gf.risk=rf.dataset.grisk; S.gcap=25; renderGoogleView(); return; }
+  const gr=ev.target.closest("[data-greview]"); if(gr){ S.gf.review=gr.dataset.greview; S.gcap=25; renderGoogleView(); return; }
+  const gap=ev.target.closest("[data-gapprove]"); if(gap){ const a=googleApps().find(x=>x.key===gap.dataset.gapprove); if(a) openApprovalEditor(a,"approved"); return; }
+  const gfl=ev.target.closest("[data-gflagapp]"); if(gfl){ const a=googleApps().find(x=>x.key===gfl.dataset.gflagapp); if(a) openApprovalEditor(a,"flagged"); return; }
+  const gun=ev.target.closest("[data-gunreview]"); if(gun){ const a=googleApps().find(x=>x.key===gun.dataset.gunreview); if(a) openConfirm("Remove this decision?","“"+a.name+"” goes back to “not reviewed”. The decision stays in the audit log.","Remove decision",why=>policyCall("DELETE","/approvals/"+encodeURIComponent(a.key)+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
   const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; S.gcap=25; renderGoogleView(); return; }
   const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); S.gcap=25; renderGoogleView(); return; }
   if(ev.target.closest("[data-gmore]")){ S.gmore=!S.gmore; renderGoogleView(); return; }
@@ -1934,17 +1974,25 @@ function googleSummary(){
     apps:apps.slice(0,15).map(a=>({name:a.name,clientId:a.clientId,risk:a.riskName,people:a.people.length,firstSeen:new Date(a.first).toISOString(),scopes:[...a.scopes].map(shortScope)}))};
 }
 /* Google alert rules */
-const G_TYPES={gnew:"A new Google app is authorized",grisk:"High-risk Google access is granted",gspike:"Many people authorize the same Google app"};
+const G_TYPES={gnew:"A new Google app is authorized",grisk:"High-risk Google access is granted",gspike:"Many people authorize the same Google app",gdrift:"An approved Google app asked for new access",gflag:"A not-allowed Google app was authorized"};
 const G_NEED={any:1,medium:2,high:3};
 function gStarterRules(){ const b={enabled:true,filter:emptyFilter(),n:1,by:"total",windowMin:1440,cooldownMin:1440,gApp:""};
-  return [Object.assign({},b,{id:"r-gnew",name:G_TYPES.gnew,type:"gnew",minRisk:"medium"}),Object.assign({},b,{id:"r-grisk",name:G_TYPES.grisk,type:"grisk",minRisk:"high"}),Object.assign({},b,{id:"r-gspike",name:G_TYPES.gspike,type:"gspike",minRisk:"any",n:5})]; }
-function ensureGoogleRules(){ if(LS.get("okta.grules.v1",false)||S.rules.some(r=>r.type&&r.type[0]==="g")) return; S.rules=S.rules.concat(gStarterRules().map(r=>Object.assign({},r,{filter:emptyFilter()}))); saveRules(); LS.set("okta.grules.v1",true); }
+  return [Object.assign({},b,{id:"r-gnew",name:G_TYPES.gnew,type:"gnew",minRisk:"medium"}),Object.assign({},b,{id:"r-grisk",name:G_TYPES.grisk,type:"grisk",minRisk:"high"}),Object.assign({},b,{id:"r-gspike",name:G_TYPES.gspike,type:"gspike",minRisk:"any",n:5}),
+    Object.assign({},b,{id:"r-gdrift",name:G_TYPES.gdrift,type:"gdrift",minRisk:"any"}),Object.assign({},b,{id:"r-gflag",name:G_TYPES.gflag,type:"gflag",minRisk:"any"})]; }
+function ensureGoogleRules(){
+  const copy=r=>Object.assign({},r,{filter:emptyFilter()}), have=t=>S.rules.some(r=>r.type===t);
+  if(!LS.get("okta.grules.v1",false)&&!S.rules.some(r=>r.type&&r.type[0]==="g")){ S.rules=S.rules.concat(gStarterRules().filter(r=>["gnew","grisk","gspike"].includes(r.type)).map(copy)); saveRules(); LS.set("okta.grules.v1",true); }
+  if(!LS.get("okta.grules.v2",false)){ const add=gStarterRules().filter(r=>["gdrift","gflag"].includes(r.type)&&!have(r.type)); if(add.length){ S.rules=S.rules.concat(add.map(copy)); saveRules(); } LS.set("okta.grules.v2",true); }      // approval alerts arrive once, even for people who already had the first three
+}
 function evalGoogleRule(r,now){
   const G=S.g; if(!G.configured||!G.events.length) return [];
   const cut=now-r.windowMin*60000, need=G_NEED[r.minRisk||"any"]||1, text=String(r.gApp||"").toLowerCase(), out=[], haveOlder=G.events[0].time<cut-864e5;
   for(const a of googleApps()){
     if(text&&!(a.name+" "+a.clientId).toLowerCase().includes(text)) continue;
-    const grants=a.events.filter(e=>e.type==="authorize"&&e.time>=cut&&e.time<=now+60000), who=[...new Set(grants.map(e=>e.actor))];
+    const grants=a.events.filter(e=>e.type==="authorize"&&e.time>=cut&&e.time<=now+60000), who=[...new Set(grants.map(e=>e.actor))], ap=approvalOf(a);
+    if(r.type==="gdrift"){ if(ap.state==="drift") out.push({group:a.key+"|"+ap.extra.slice().sort().join(","),app:a.name,clientId:a.clientId,rank:Math.max(...ap.extra.map(x=>RISK_RANK[scopeInfo(x).risk])),people:a.people.length,extra:ap.extra}); continue; }
+    if(r.type==="gflag"){ if(ap.state==="flagged"&&grants.length) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length}); continue; }
+    if(ap.state==="approved") continue;                        // reviewed and approved for this access: no alert (a change in access is caught by the 'approved app asked for new access' rule)
     if(r.type==="gnew"){ if(haveOlder&&a.first>=cut&&a.first<=now+60000&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length||1}); }
     else if(r.type==="grisk"){ const hit=grants.filter(e=>e.scopes.some(x=>RISK_RANK[scopeInfo(x).risk]>=need)), ppl=[...new Set(hit.map(e=>e.actor))];
       if(ppl.length){ const sc=[...new Set(hit.flatMap(e=>e.scopes).filter(x=>RISK_RANK[scopeInfo(x).risk]>=need))]; out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:ppl.length,scopes:sc}); } }
@@ -1956,9 +2004,198 @@ function makeGoogleNotif(r,h,now){
   const win=lastText(r.windowMin), who=h.people+" "+(h.people===1?"person":"people"), risk=RISK_NAME[h.rank]; let body;
   if(r.type==="gnew") body=h.app+" was authorized by "+who+" · "+risk+"-risk access";
   else if(r.type==="grisk") body=h.app+" was granted "+h.scopes.slice(0,3).map(shortScope).join(", ")+(h.scopes.length>3?" +"+(h.scopes.length-3):"")+" by "+who;
+  else if(r.type==="gdrift") body=h.app+" was approved, but it now also asks for: "+h.extra.slice(0,3).map(shortScope).join(", ")+(h.extra.length>3?" +"+(h.extra.length-3):"")+" ("+(h.people===1?"1 person has":h.people+" people have")+" access)";
+  else if(r.type==="gflag") body=h.app+" is marked not allowed, and "+who+" authorized it in "+win;
   else body=h.app+": "+who+" authorized it in "+win;
-  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev:h.rank>=3?"bad":h.rank===2?"warn":"info",link:{view:"google",app:h.group},unread:true};
+  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev:(r.type==="gflag"||h.rank>=3)?"bad":h.rank===2?"warn":"info",link:{view:"google",app:String(h.group).split("|")[0]},unread:true};
 }
+
+/* ---------- policy: known errors and reviewed Google apps (shared by everyone, kept on the server) ---------- */
+// A known-error rule hides matching errors from the counts and from alerts, but never silently: every page says how many are hidden.
+// An app decision records that a Google app was reviewed (approved for exactly the access it had then) or is not allowed.
+S.policy={suppressions:[],approvals:[],meta:{version:-1,persistent:true,canEdit:false,actor:{name:"",verified:false},rolesEnforced:false,requireExpiry:false,identityVerified:false},loaded:false,unavailable:false};
+S.showSup=false; S.ptab="rules"; S.pname=LS.get("okta.pname","")||"";
+const activeSuppressions=()=>{ const now=Date.now(); return S.policy.suppressions.filter(r=>r.enabled&&(!r.expiresAt||Date.parse(r.expiresAt)>now)); };
+function ruleState(r){ const now=Date.now(); if(!r.enabled) return "off"; if(r.expiresAt&&Date.parse(r.expiresAt)<=now) return "expired"; if(r.expiresAt&&Date.parse(r.expiresAt)-now<7*864e5) return "soon"; return "active"; }
+function compileRule(r){ const m=Object.assign(emptyFilter(),(r&&r.match)||{}), base=compileFilter(m), et=String((r&&r.match&&r.match.eventType)||"").toLowerCase(); return e=>(!base||base(e))&&(!et||String(e.eventType||"").toLowerCase().includes(et)); }
+const polTok=()=>S.policy.meta.version+":"+Math.floor(Date.now()/60000);          // changes when the policy changes, and every minute so that expiry takes effect
+function supIndex(){ const tok=polTok(); if(S._supTok!==tok){ S._supTok=tok; S._sup=activeSuppressions().map(r=>({r,test:compileRule(r)})); } return S._sup; }
+function supOf(e){ const idx=supIndex(); if(!idx.length) return null; if(e._st===S._supTok) return e._sr; let hit=null; for(const x of idx){ if(x.test(e)){ hit=x.r; break; } } e._st=S._supTok; e._sr=hit; return hit; }
+// where an app stands: none (never reviewed), approved, drift (approved, but it now has access the approval did not cover), expired (review due), flagged (not allowed)
+function approvalOf(a){
+  const ap=S.policy.approvals.find(x=>x.clientId===a.key); if(!ap) return {state:"none"};
+  if(ap.status==="flagged") return {state:"flagged",ap};
+  const covered=new Set(ap.scopes||[]), extra=[...a.scopes].filter(x=>!covered.has(x));
+  if(extra.length) return {state:"drift",ap,extra};
+  if(ap.expiresAt&&Date.parse(ap.expiresAt)<Date.now()) return {state:"expired",ap};
+  return {state:"approved",ap};
+}
+const polHeaders=()=>({"content-type":"application/json","x-sightline-name":S.pname||""});
+function adoptPolicy(j){ S.policy=Object.assign(S.policy,{suppressions:j.suppressions||[],approvals:j.approvals||[],meta:j.meta,loaded:true,unavailable:false}); S._supTok=null; if(S.g) S.g._ck=null; }
+async function loadPolicy(){
+  try{ const r=await fetch("api/policy"); if(!r.ok) throw new Error("HTTP "+r.status); const j=await r.json(); const changed=j.meta.version!==S.policy.meta.version||!S.policy.loaded; adoptPolicy(j); return changed; }
+  catch(_){ S.policy.loaded=true; S.policy.unavailable=true; return false; }
+}
+// make a change on the server; the answer carries the new policy, so every view updates at once
+async function policyCall(method,path,body){
+  const r=await fetch("api/policy"+path,{method,headers:polHeaders(),body:body?JSON.stringify(body):undefined}); const j=await r.json().catch(()=>({}));
+  if(r.status===409&&j.current){ adoptPolicy(j.current); policyRefresh(); }
+  if(!r.ok){ const e=new Error(j.error||("HTTP "+r.status)); e.status=r.status; throw e; }
+  adoptPolicy(j); policyRefresh(); return j.result;
+}
+function policyRefresh(){ render(); renderPolicy(); if(S.view==="google") renderGoogleView(); if(S.view==="errors"&&S.C) renderErrorsView(S.C); }
+// what a rule would hide right now, so nobody saves one blind
+function impactOf(match,exceptId){
+  const test=compileRule({match}), all=S.C? S.C.win.filter(isFail) : [], people=new Set(), apps=new Set(); let n=0, already=0;
+  for(const e of all){ if(!test(e)) continue; n++; const u=userOf(e); if(u) people.add(localPart(u)); const a=appOf(e); if(a) apps.add(a); const h=supOf(e); if(h&&h.id!==exceptId) already++; }
+  return {n,people:people.size,apps:apps.size,already,total:all.length};
+}
+function phraseFromNorm(norm){ return String(norm||"").split("<id>")[0].replace(/[\s:"=]+$/,"").trim().slice(0,100); }
+function policyAttention(){
+  const now=Date.now(); let n=0; for(const r of S.policy.suppressions){ const st=ruleState(r); if(st==="expired"||st==="soon") n++; }
+  if(S.g&&S.g.configured) for(const a of googleApps()) if(a.people.length&&["drift","expired"].includes(approvalOf(a).state)) n++;
+  return n;
+}
+function renderPolicyBadge(){ const b=$("#navPolicy"); if(!b) return; const n=policyAttention(); b.hidden=!n; b.textContent=n>99?"99+":n; b.title=n+" exception"+(n===1?"":"s")+" need a look"; }
+
+/* ---------- the Policy page and its editors ---------- */
+const ACTIONS={"suppression.create":"Created a known-error rule","suppression.update":"Edited a rule","suppression.disable":"Switched a rule off","suppression.enable":"Switched a rule on","suppression.delete":"Deleted a rule","app.approved":"Approved a Google app","app.flagged":"Marked a Google app not allowed","app.remove":"Removed an app decision"};
+const fmtDate=ms=>{ const d=new Date(ms); return isFinite(d)? d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"}) : "—"; };
+const safeLink=t=>/^https?:\/\//i.test(t)? '<a class="lnk" href="'+esc(t)+'" target="_blank" rel="noopener noreferrer">'+esc(t.length>40? t.slice(0,40)+"…" : t)+'</a>' : esc(t);
+function describeMatch(m){
+  const p=[]; if(m.include) p.push("the reason contains “"+m.include+"”"); if(m.apps&&m.apps.length) p.push("in "+m.apps.join(", ")); if(m.eventType) p.push("event type contains “"+m.eventType+"”");
+  if(m.person) p.push("for "+m.person); if(m.cats&&m.cats.length) p.push(m.cats.map(c=>CATS[c]).join(" or ")); if(m.results&&m.results.length) p.push(m.results.join(" or ").toLowerCase()); return p.join(" · ")||"—";
+}
+const whoHTML=(name,verified,when)=>esc(name||"unknown")+(verified? ' <span title="Signed in through your organisation’s sign-in, so this name is verified">✓</span>' : ' <span class="who" title="This name was typed by the person and could not be verified">(unverified)</span>')+'<div class="who">'+esc(fmtDate(Date.parse(when)))+'</div>';
+function stChip(r){ const st=ruleState(r); const t={active:"Active",soon:"Expires "+fmtDate(Date.parse(r.expiresAt)),expired:"Expired "+fmtDate(Date.parse(r.expiresAt)),off:"Off"}[st]; return '<span class="st '+st+'">'+esc(t)+'</span>'+(st==="active"&&r.expiresAt? '<div class="who">until '+esc(fmtDate(Date.parse(r.expiresAt)))+'</div>' : st==="active"?'<div class="who">no expiry</div>':""); }
+const expOptions=(cur,def,canNever)=>[[30,"30 days"],[90,"90 days"],[180,"6 months"],[365,"1 year"]].concat(canNever? [[0,"never expires"]] : []).map(([d,l])=>'<option value="'+d+'"'+(cur===undefined&&d===def?" selected":cur===d?" selected":"")+'>'+l+'</option>').join("");
+const expValue=v=>{ v=+v; return v===-1? undefined : v>0? new Date(Date.now()+v*864e5).toISOString() : null; };
+
+function renderPolicy(){
+  const body=$("#polBody"), P=S.policy, m=P.meta; if(!body) return;
+  const live=S.live&&!P.unavailable, canEdit=live&&m.canEdit, now=Date.now(), hidden=(S.C&&S.C.suppressed)||[];
+  let b="";
+  if(!live) b='<div class="gwarn">Policy is kept on the server, so it needs the live dashboard, not sample data or a loaded file.</div>';
+  else{
+    if(!m.persistent) b+='<div class="gwarn"><b>These changes will be lost when the server restarts.</b> '+esc(m.writeError||"The data folder is not writable.")+'<br>In Coolify, open this app, add <b>Persistent Storage</b> with the destination <code>/app/data</code>, and redeploy.</div>';
+    if(!m.canEdit) b+='<div class="gwarn">You can see the policy but not change it. Ask an administrator.</div>';
+    b+= m.identityVerified? '<p class="hint">You are signed in as <b>'+esc(m.actor.name||"unknown")+'</b> (verified). Changes are recorded under that name.</p>'
+      : '<div class="fb-row" style="margin:2px 0"><label class="ctl">Your name, for the audit log <input type="text" id="pName" class="fin" style="min-width:230px" placeholder="Your name or email" value="'+esc(S.pname)+'" maxlength="80"></label><span class="hint">Sign-in on this dashboard is shared, so this name is not verified and the audit log says so.</span></div>';
+  }
+  $("#polBanner").innerHTML=b;
+  const rules=P.suppressions, needsRules=rules.filter(r=>["soon","expired"].includes(ruleState(r))).length;
+  const apps=S.g&&S.g.configured? googleApps():[], needsApps=apps.filter(a=>a.people.length&&["drift","expired"].includes(approvalOf(a).state)).length;
+  const tab=(k,l,n,att)=>'<button type="button" class="tab'+(S.ptab===k?" on":"")+'" role="tab" aria-selected="'+(S.ptab===k)+'" data-ptab="'+k+'">'+l+(n!==undefined? '<span class="tn">'+n+'</span>':"")+(att? '<span class="tn att">'+att+' need a look</span>':"")+'</button>';
+  $("#polTabs").innerHTML=tab("rules","Known errors",rules.length,needsRules)+tab("apps","Google apps",P.approvals.length,needsApps)+tab("audit","Audit log");
+  $("#polTools").innerHTML= S.ptab==="rules"? '<button class="primary" data-spnew="1"'+(canEdit?"":" disabled")+'>New known-error rule</button>' : S.ptab==="audit"? '<button class="ghost" data-pexport="1"'+((S.audit&&S.audit.length)?"":" disabled")+'>Export CSV</button>' : "";
+  if(S.ptab==="rules"){
+    const per=new Map(); for(const e of hidden){ const r=supOf(e); if(r) per.set(r.id,(per.get(r.id)||0)+1); }
+    const rank=r=>({expired:0,soon:1,active:2,off:3}[ruleState(r)]), list=rules.slice().sort((a,b)=>rank(a)-rank(b)||Date.parse(b.createdAt)-Date.parse(a.createdAt));
+    const total=S.C? S.C.win.filter(isFail).length : 0;
+    body.innerHTML='<h2>Known errors</h2><p class="hint">An error that matches an active rule is left out of the numbers, charts and alerts. It is never deleted: every page says how many are hidden, and “Show” brings them back. '+(hidden.length? '<b>'+fmtN(hidden.length)+'</b> error'+(hidden.length===1?" is":"s are")+' hidden right now'+(total? ' ('+Math.round(hidden.length/Math.max(1,total)*100)+'% of all errors in the window)':"")+'.' : "")+'</p>'+
+      (list.length? '<div class="scroll"><table class="pol"><tr><th>Rule</th><th>Why it is OK</th><th>Hiding now</th><th>Owner</th><th>Status</th><th>On</th><th></th></tr>'+list.map(r=>'<tr><td><b>'+esc(r.name||r.match.include||"Rule")+'</b><div class="gsub">'+esc(describeMatch(r.match))+'</div></td><td>'+esc(r.why)+(r.ticket? '<div class="gsub">'+safeLink(r.ticket)+'</div>':"")+'</td><td>'+(per.get(r.id)? '<b>'+fmtN(per.get(r.id))+'</b> <span class="lnk" data-spview="'+esc(r.id)+'">View</span>' : '<span class="who">'+(ruleState(r)==="active"||ruleState(r)==="soon"? "none in this window" : "—")+'</span>')+'</td><td>'+whoHTML(r.createdBy,r.createdVerified,r.createdAt)+'</td><td>'+stChip(r)+'</td>'+
+        '<td><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-spon="'+esc(r.id)+'"'+(r.enabled?" checked":"")+(canEdit?"":" disabled")+' aria-label="Turn this rule on or off"><span></span></label></td><td class="rowact"><button class="ghost" data-spedit="'+esc(r.id)+'"'+(canEdit?"":" disabled")+'>Edit</button><button class="ghost" data-spdel="'+esc(r.id)+'"'+(canEdit?"":" disabled")+'>Delete</button></td></tr>').join("")+'</table></div>'
+        : '<div class="empty">No rules yet. When an error is expected (a known issue, a vendor quirk), open it on the Errors page and choose “Mark as known”. You give a reason, see what it would hide, and set an expiry.</div>');
+  } else if(S.ptab==="apps"){
+    const byKey=new Map(apps.map(a=>[a.key,a])), list=P.approvals.slice().sort((a,b)=>Date.parse(b.decidedAt)-Date.parse(a.decidedAt));
+    body.innerHTML='<h2>Google apps</h2><p class="hint">A decision records that an app was reviewed. <b>Approved</b> covers exactly the access the app had then: if it later asks for more, you are told. <b>Not allowed</b> marks an app the team should block in the Google Admin console (Sightline itself is read-only), and alerts you if anyone authorizes it again. '+(needsApps? '<b>'+needsApps+'</b> approved app'+(needsApps===1?" needs":"s need")+' a second look: <span class="lnk" data-gneeds="1">show '+(needsApps===1?"it":"them")+'</span>.' : "")+'</p>'+
+      (list.length? '<div class="scroll"><table class="pol"><tr><th>App</th><th>Decision</th><th>Access it covers</th><th>Why</th><th>Decided by</th><th>Review by</th><th></th></tr>'+list.map(ap=>{ const a=byKey.get(ap.clientId), st=a? approvalOf(a) : {state:ap.status==="flagged"?"flagged":"approved"}; const lab={approved:"Approved",drift:"New access since approval",expired:"Review due",flagged:"Not allowed",none:"—"}[st.state];
+        return '<tr><td><b>'+esc(ap.appName||ap.clientId)+'</b><div class="gsub">'+esc(ap.clientId)+'</div></td><td><span class="st '+st.state+'">'+esc(lab)+'</span>'+(st.extra? '<div class="gsub">now also: '+st.extra.slice(0,3).map(x=>esc(shortScope(x))).join(", ")+(st.extra.length>3?" +"+(st.extra.length-3):"")+'</div>':"")+'</td><td>'+((ap.scopes||[]).slice(0,4).map(scopeChip).join("")||"—")+((ap.scopes||[]).length>4?'<span class="gsub">+'+(ap.scopes.length-4)+'</span>':"")+'</td><td>'+esc(ap.why)+(ap.ticket? '<div class="gsub">'+safeLink(ap.ticket)+'</div>':"")+'</td><td>'+whoHTML(ap.decidedBy,ap.decidedVerified,ap.decidedAt)+'</td><td>'+(ap.expiresAt? esc(fmtDate(Date.parse(ap.expiresAt))) : "—")+'</td>'+
+          '<td class="rowact">'+(a? '<button class="ghost" data-apview="'+esc(ap.clientId)+'">Open app</button>':"")+'<button class="ghost" data-apdel="'+esc(ap.clientId)+'"'+(canEdit?"":" disabled")+'>Remove</button></td></tr>'; }).join("")+'</table></div>'
+        : '<div class="empty">No app decisions yet. Open an app on the Google OAuth page and choose Approve or Not allowed.</div>');
+  } else {
+    if(S.audit===undefined){ S.audit=null; loadAudit(); }
+    body.innerHTML='<h2>Audit log</h2><p class="hint">Every change to the policy: who, what and why. Names with a tick came through your organisation’s sign-in; names marked “unverified” were typed by the person.</p>'+
+      (S.audit===null? '<div class="empty">Loading…</div>' : S.audit.length? '<div class="scroll"><table class="pol"><tr><th>When</th><th>Who</th><th>What</th><th>About</th><th>Why</th></tr>'+S.audit.map(r=>{ const x=r.after||r.before||{}; const about=(x.name||x.appName||(x.match&&x.match.include)||r.target||"");
+        return '<tr><td class="mono">'+esc(new Date(r.ts).toLocaleString())+'</td><td>'+esc(r.actor)+(r.verified?' <span title="verified">✓</span>':' <span class="who">(unverified)</span>')+'</td><td>'+esc(ACTIONS[r.action]||r.action)+'</td><td>'+esc(about)+(x.match? '<div class="gsub">'+esc(describeMatch(x.match))+'</div>':"")+'</td><td>'+esc(r.why||"")+'</td></tr>'; }).join("")+'</table></div>' : '<div class="empty">Nothing has been changed yet.</div>');
+  }
+}
+async function loadAudit(){ try{ const r=await fetch("api/policy/audit?limit=300"); const j=await r.json(); S.audit=j.rows||[]; }catch(_){ S.audit=[]; } renderPolicy(); }
+function exportAuditCsv(){
+  const q=v=>'"'+String(v==null?"":v).replace(/"/g,'""')+'"', rows=[["time","who","verified","action","about","why"]].concat((S.audit||[]).map(r=>{ const x=r.after||r.before||{}; return [r.ts,r.actor,r.verified?"yes":"no",ACTIONS[r.action]||r.action,x.name||x.appName||(x.match&&x.match.include)||r.target,r.why]; }));
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(",")).join("\n")],{type:"text/csv"})); a.download="sightline-policy-audit.csv"; a.click();
+}
+function modalShell(title,inner,onClose){
+  const root=document.createElement("div"); root.className="modal top"; root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+esc(title)+'">'+inner+'</div>'; document.body.appendChild(root);
+  const close=()=>{ root.remove(); document.removeEventListener("keydown",onKey); }, onKey=e=>{ if(e.key==="Escape") close(); };
+  document.addEventListener("keydown",onKey); root.addEventListener("mousedown",e=>{ if(e.target===root) close(); }); return {root,close,q:sel=>root.querySelector(sel)};
+}
+const nameField=()=> S.policy.meta.identityVerified? "" : '<label class="fl">Your name, for the audit log<input type="text" id="pnm" maxlength="80" value="'+esc(S.pname)+'" placeholder="Your name or email"></label>';
+function rememberName(M){ const el=M.q("#pnm"); if(el){ S.pname=el.value.trim(); LS.set("okta.pname",S.pname); } }
+function needName(M,err){ const el=M.q("#pnm"); if(el&&!el.value.trim()){ err.hidden=false; err.textContent="Enter your name first, so the audit log can say who made this change."; el.focus(); return true; } return false; }
+function openSuppressEditor(init,editId){
+  const m=S.policy.meta; if(!S.live||!m.canEdit) return;
+  const r=Object.assign({name:"",match:{},why:"",ticket:"",expiresAt:undefined},init||{}), mt=Object.assign(emptyFilter(),{eventType:""},r.match||{});
+  const M=modalShell("Known-error rule",'<h3>'+(editId? "Edit known-error rule" : "Mark errors as known")+'</h3>'+
+    '<p class="hint">Errors that match are left out of the numbers, charts and alerts. Nothing is deleted: every page shows how many are hidden, and you can show them at any time. Everyone sees this rule and it is recorded in the audit log.</p>'+
+    '<label class="fl">Name (optional)<input type="text" id="sNm" maxlength="120" value="'+esc(r.name)+'" placeholder="For example: ServiceNow password sync"></label>'+
+    '<div class="fl">Hide errors where…<div class="frow"><label class="fl">the reason contains<input type="text" id="sInc" maxlength="200" value="'+esc(mt.include)+'"></label><label class="fl">the app is (comma separated)<input type="text" id="sApps" value="'+esc(mt.apps.join(", "))+'" list="fbApps"></label></div>'+
+      '<div class="frow"><label class="fl">the event type contains<input type="text" id="sEt" maxlength="120" value="'+esc(mt.eventType||"")+'" placeholder="application.provision"></label><label class="fl">the person contains<input type="text" id="sPer" maxlength="120" value="'+esc(mt.person||"")+'"></label></div>'+
+      '<div class="chkrow">'+CAT_KEYS.map(k=>'<label class="chk"><input type="checkbox" data-scat="'+k+'"'+(mt.cats.includes(k)?" checked":"")+'> '+CATS[k]+'</label>').join("")+'</div></div>'+
+    '<div id="sPrev" class="prev" aria-live="polite"></div>'+
+    '<label class="fl">Why is this OK? (required: everyone will see it)<textarea id="sWhy" class="ptxt" maxlength="1000" placeholder="For example: expected until the vendor fixes the sync. Tracked in IT-1234.">'+esc(r.why)+'</textarea></label>'+
+    '<div class="frow"><label class="fl">Ticket or link (optional)<input type="text" id="sTk" maxlength="200" value="'+esc(r.ticket)+'"></label><label class="fl">Stops applying after<select id="sExp">'+(editId&&r.expiresAt? '<option value="-1" selected>keep '+esc(fmtDate(Date.parse(r.expiresAt)))+'</option>' : editId? '<option value="-1" selected>keep: never expires</option>' : "")+expOptions(editId?-9:undefined,90,!m.requireExpiry)+'</select></label></div>'+nameField()+
+    '<div class="merr" id="sErr" hidden></div><div class="mact"><button class="ghost" id="sCancel">Cancel</button><button class="primary" id="sSave">'+(editId? "Save changes" : "Create rule")+'</button></div>');
+  const readMatch=()=>{ const list=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean), cats=[...M.root.querySelectorAll("[data-scat]")].filter(c=>c.checked).map(c=>c.dataset.scat);
+    return {cats,results:[],apps:list(M.q("#sApps").value),include:M.q("#sInc").value.trim(),exclude:"",person:M.q("#sPer").value.trim(),eventType:M.q("#sEt").value.trim()}; };
+  let broad=false; const prev=M.q("#sPrev");
+  const upd=()=>{ const mm=readMatch();
+    if(!(mm.include||mm.apps.length||mm.eventType||mm.person||mm.cats.length)){ prev.className="prev warn"; prev.textContent="Say which errors this is about: a part of the reason, an app, an event type, a person or an error type."; broad=false; return; }
+    const im=impactOf(mm,editId), pct=im.total? Math.round(im.n/im.total*100) : 0; broad=im.total>=10&&pct>=40; const onlyType=!(mm.include||mm.apps.length||mm.eventType||mm.person);
+    prev.className="prev"+((broad||onlyType)?" warn":"");
+    prev.innerHTML='This would hide <b>'+fmtN(im.n)+'</b> error'+(im.n===1?"":"s")+' in the loaded data'+(im.n? ' ('+fmtN(im.people)+' '+(im.people===1?"person":"people")+', '+fmtN(im.apps)+' app'+(im.apps===1?"":"s")+', '+pct+'% of all errors)' : '')+'.'+(im.already? ' '+fmtN(im.already)+' of them are already hidden by another rule.' : "")+(im.n===0? ' Nothing matches right now, which is fine for an error you expect to see later.' : "")+
+      (onlyType? '<br><b>Hiding a whole type of error is rarely what you want.</b> Add an app or part of the message to be more specific.' : "")+(broad? '<br><b>This hides '+pct+'% of all errors.</b> <label class="chk"><input type="checkbox" id="sBroad"> I understand, and this is intended</label>' : "");
+  };
+  M.root.addEventListener("input",()=>{ clearTimeout(S.supT); S.supT=setTimeout(upd,120); }); M.root.addEventListener("change",upd); upd(); M.q("#sWhy").focus();
+  M.q("#sCancel").onclick=M.close;
+  M.q("#sSave").onclick=async()=>{
+    const err=M.q("#sErr"), mm=readMatch(), why=M.q("#sWhy").value.trim(); err.hidden=true;
+    if(!(mm.include||mm.apps.length||mm.eventType||mm.person||mm.cats.length)){ err.hidden=false; err.textContent="Say which errors this is about."; return; }
+    if(why.length<10){ err.hidden=false; err.textContent="Say why this is OK (at least a short sentence). Everyone will see it."; M.q("#sWhy").focus(); return; }
+    if(broad&&!(M.q("#sBroad")&&M.q("#sBroad").checked)){ err.hidden=false; err.textContent="This rule hides a large share of all errors. Tick the box to confirm it is intended."; return; }
+    if(needName(M,err)) return; rememberName(M); const exp=expValue(M.q("#sExp").value); const rule={name:M.q("#sNm").value.trim(),match:mm,why,ticket:M.q("#sTk").value.trim()}; if(exp!==undefined) rule.expiresAt=exp;
+    try{ M.q("#sSave").disabled=true; await policyCall(editId? "PUT":"POST", editId? "/suppressions/"+editId : "/suppressions", editId? {baseVersion:S.policy.meta.version,patch:rule} : {baseVersion:S.policy.meta.version,rule}); M.close(); }
+    catch(e){ M.q("#sSave").disabled=false; err.hidden=false; err.textContent=e.status===409? "Someone else changed the policy while you were editing. It has been reloaded: please check and save again." : e.message; }
+  };
+}
+function openApprovalEditor(a,status){
+  const m=S.policy.meta; if(!S.live||!m.canEdit) return; const flag=status==="flagged", cur=S.policy.approvals.find(x=>x.clientId===a.key), scopes=[...a.scopes];
+  const M=modalShell("App decision",'<h3>'+(flag? "Mark “"+esc(a.name)+"” as not allowed" : "Approve “"+esc(a.name)+"”")+'</h3>'+
+    (flag? '<p class="hint">This does not block the app: Sightline only reads. It records the decision, shows the app as not allowed, and alerts you if anyone authorizes it again. Block it in the Google Admin console (Security &gt; API controls).</p>'
+        : '<p class="hint">Approving records that this app was reviewed <b>for exactly the access it has now</b>, listed below. If it later asks for more, you are alerted and the app shows as needing review again.</p><div class="gsec"><b>Access covered</b>'+scopes.map(x=>{ const i=scopeInfo(x); return '<div class="gscope"><span class="rk '+i.risk+'">'+RISK_TEXT[i.risk].replace(" risk","")+'</span><span>'+esc(i.label)+'<br><code>'+esc(x)+'</code></span></div>'; }).join("")+'</div>')+
+    '<label class="fl">'+(flag? "Why is it not allowed?" : "Why is this app OK?")+' (required: everyone will see it)<textarea id="aWhy" class="ptxt" maxlength="1000" placeholder="'+(flag? "For example: not on the approved vendor list." : "For example: reviewed by security, read-only sign-in, vendor has SOC 2.")+'">'+esc(cur&&cur.status===status? cur.why : "")+'</textarea></label>'+
+    '<div class="frow"><label class="fl">Ticket or link (optional)<input type="text" id="aTk" maxlength="200" value="'+esc(cur? cur.ticket : "")+'"></label>'+(flag? "" : '<label class="fl">Review again after<select id="aExp">'+expOptions(undefined,365,!m.requireExpiry).replace(/<option value="30"[^>]*>30 days<\/option>/,"")+'</select></label>')+'</div>'+nameField()+
+    '<div class="merr" id="aErr" hidden></div><div class="mact"><button class="ghost" id="aCancel">Cancel</button><button class="primary" id="aSave">'+(flag? "Mark as not allowed" : "Approve")+'</button></div>');
+  M.q("#aWhy").focus(); M.q("#aCancel").onclick=M.close;
+  M.q("#aSave").onclick=async()=>{
+    const err=M.q("#aErr"), why=M.q("#aWhy").value.trim(); err.hidden=true; if(why.length<10){ err.hidden=false; err.textContent="Say why (at least a short sentence). Everyone will see it."; return; }
+    if(needName(M,err)) return; rememberName(M); const exp=flag? null : expValue(M.q("#aExp").value);
+    try{ M.q("#aSave").disabled=true; await policyCall("POST","/approvals",{baseVersion:S.policy.meta.version,approval:{clientId:a.key,appName:a.name,status,scopes,why,ticket:M.q("#aTk").value.trim(),expiresAt:exp===undefined?null:exp}}); M.close(); }
+    catch(e){ M.q("#aSave").disabled=false; err.hidden=false; err.textContent=e.status===409? "Someone else changed the policy while you were editing. It has been reloaded: please check and try again." : e.message; }
+  };
+}
+function openConfirm(title,text,button,run){
+  const M=modalShell(title,'<h3>'+esc(title)+'</h3><p class="hint">'+esc(text)+'</p><label class="fl">Why? (kept in the audit log)<textarea id="cWhy" class="ptxt" maxlength="500" placeholder="For example: the vendor fixed it."></textarea></label>'+nameField()+'<div class="merr" id="cErr" hidden></div><div class="mact"><button class="ghost" id="cNo">Cancel</button><button class="primary" id="cYes">'+esc(button)+'</button></div>');
+  M.q("#cWhy").focus(); M.q("#cNo").onclick=M.close;
+  M.q("#cYes").onclick=async()=>{ const err=M.q("#cErr"); err.hidden=true; if(M.q("#cWhy").value.trim().length<5){ err.hidden=false; err.textContent="Say why, even briefly."; return; } if(needName(M,err)) return; rememberName(M); try{ M.q("#cYes").disabled=true; await run(M.q("#cWhy").value.trim()); M.close(); } catch(e){ M.q("#cYes").disabled=false; err.hidden=false; err.textContent=e.message; } };
+}
+const polV=()=>S.policy.meta.version;
+$("#view-policy").addEventListener("click",ev=>{
+  const t=ev.target.closest("[data-ptab]"); if(t){ S.ptab=t.dataset.ptab; if(S.ptab==="audit") S.audit=undefined; renderPolicy(); return; }
+  if(ev.target.closest("[data-spnew]")){ openSuppressEditor(); return; }
+  const ed=ev.target.closest("[data-spedit]"); if(ed){ const r=S.policy.suppressions.find(x=>x.id===ed.dataset.spedit); if(r) openSuppressEditor(r,r.id); return; }
+  const del=ev.target.closest("[data-spdel]"); if(del){ const r=S.policy.suppressions.find(x=>x.id===del.dataset.spdel); if(r) openConfirm("Delete this rule?","The errors it hid will count again straight away. The rule and this decision stay in the audit log.","Delete rule",why=>policyCall("DELETE","/suppressions/"+r.id+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
+  const vw=ev.target.closest("[data-spview]"); if(vw){ const r=S.policy.suppressions.find(x=>x.id===vw.dataset.spview); if(r){ S.efil=Object.assign(emptyFilter(),{include:r.match.include||"",apps:r.match.apps||[],person:r.match.person||"",cats:r.match.cats||[]}); S.showSup=true; S.errShown=50; go("errors"); render(); renderFilterBars(true); } return; }
+  const av=ev.target.closest("[data-apview]"); if(av){ S.gfocus=av.dataset.apview; go("google"); renderGoogleView(); return; }
+  const ad=ev.target.closest("[data-apdel]"); if(ad){ const ap=S.policy.approvals.find(x=>x.clientId===ad.dataset.apdel); if(ap) openConfirm("Remove this decision?","The app goes back to “not reviewed”. This decision stays in the audit log.","Remove decision",why=>policyCall("DELETE","/approvals/"+encodeURIComponent(ap.clientId)+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
+  if(ev.target.closest("[data-gneeds]")){ S.gf=gDefault(); S.gf.access="has"; S.gf.review="needs"; go("google"); renderGoogleView(); return; }
+  if(ev.target.closest("[data-pexport]")){ exportAuditCsv(); }
+});
+$("#view-policy").addEventListener("change",async ev=>{
+  const t=ev.target.closest("[data-spon]"); if(!t) return; const on=t.checked;
+  try{ await policyCall("PUT","/suppressions/"+t.dataset.spon,{baseVersion:polV(),patch:{enabled:on}}); }catch(e){ t.checked=!on; alert(e.message); }
+});
+$("#view-policy").addEventListener("input",ev=>{ if(ev.target.id==="pName"){ S.pname=ev.target.value.trim(); LS.set("okta.pname",S.pname); } });
 
 /* ---------- loading ---------- */
 function setData(events,inv,demo){
@@ -2033,7 +2270,8 @@ function summary(){
     topErrorReasons:C.topReasons.map(([reason,n])=>({reason,n})),
     topFailingEventTypes:C.topTypes.map(([type,n])=>({type,n})),
     usersWithAssignmentErrors:C.users.slice(0,8).map(u=>({user:u.user,errors:u.n,apps:top(u.apps,3).map(x=>x[0]),topReason:(top(u.reasons,1)[0]||[])[0]})),
-    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp, errorFiltersActive:filterActive(S.fil), google:googleSummary()};
+    usingSampleData:S.demo, historyStillLoading:!!S.catchingUp, errorFiltersActive:filterActive(S.fil), google:googleSummary(),
+    knownErrorsHidden:(C0=>C0&&C0.suppressed? C0.suppressed.length : 0)(S.C), knownErrorRules:activeSuppressions().slice(0,15).map(r=>({name:r.name||r.match.include||"rule",why:r.why,expires:r.expiresAt,by:r.createdBy}))};
 }
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
@@ -2090,7 +2328,7 @@ async function refreshLive(){
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+(st&&st.rateLimit&&st.rateLimit.budgetRpm<=120? "Paced to about "+st.rateLimit.budgetRpm+" requests a minute so Okta’s rate limit is not exceeded, so this takes a while. ":"")+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
-    await refreshGoogle(st);
+    await refreshGoogle(st); await loadPolicy();
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);

@@ -4,3 +4,4 @@
 !.env.example
 test
 *.md
+data
