@@ -141,9 +141,11 @@ Sightline can sign people in with Okta (OpenID Connect, authorization code flow 
 
 **Alert rules** are per browser until an admin clicks **Publish them for everyone** on the Alerts page. From then on there is one shared set, only admins can change it, and every change is audited. (Notifications themselves, what has fired and been read, stay per person.)
 
-## The assistant side by side with the app
+## Iris, the assistant, side by side with the app
 
-Open the assistant and it docks on the right as a second pane: the app moves over to the left and reflows to fit (the chart redraws, the cards re-wrap), so you can read the data and talk to the assistant at the same time. It opens at 45% of the window. **Narrow**, **Half** and **Wide** in the panel set it to a third, half or two thirds of the window; you can also drag the handle on its left edge (double-click it to reset). The width is remembered. On a window narrower than 1,400 px the menu shrinks to icons while the assistant is open and comes back when you close it (a menu you collapsed yourself stays collapsed). Below 900 px there is no room to split, so it floats over the app instead. Escape or the X closes it.
+The assistant is **Iris**, a friendly guide with her own face and voice (the eye character in the logo): the menu item and the top-bar button say **Ask Iris**. She answers in plain words, answer first, and while she works her face and a changing line show it ("Let me take a look…", "Checking the logs…") instead of one canned message. Her voice is set in the `SYSTEM` instructions in `server.js`; the error explainer keeps its own neutral instructions. She is an AI and says so if asked.
+
+Open her and she docks on the right as a second pane, a third of the window wide by default: the app moves over to the left and reflows to fit (the chart redraws, the cards re-wrap), so you can read the data and talk to the assistant at the same time. **Narrow** (the default), **Half** and **Wide** in the panel set it to a third, half or two thirds of the window; you can also drag the handle on its left edge (double-click it to reset). The width is remembered. On a window narrower than 1,400 px the menu shrinks to icons while the assistant is open and comes back when you close it (a menu you collapsed yourself stays collapsed). Below 900 px there is no room to split, so it floats over the app instead. Escape or the X closes it.
 
 ## Policy: known errors and approved Google apps
 

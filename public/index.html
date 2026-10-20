@@ -237,9 +237,12 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .chat .msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:4px 2px 8px}
 .msg{padding:9px 12px;border-radius:12px;max-width:94%;font-size:13px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}
 .msg.u{align-self:flex-end;background:var(--accent);color:#fff}
-.msg.a{align-self:flex-start;background:var(--surface2)}
+.msg.a{align-self:flex-start;display:flex;gap:9px;align-items:flex-start;background:none;padding:0;max-width:100%}.msg.a .bubble{background:var(--surface2);padding:9px 12px;border-radius:12px 12px 12px 4px;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.iris-avatar{width:34px;height:34px;flex:none;color:var(--text)}.iris-avatar.lg{width:54px;height:54px}.iris-head{display:flex;gap:12px;align-items:center}.iris-head h2{margin:0}.iris-head .hint{margin:2px 0 0}
+.msg.a .tool .dots span{display:inline-block;width:5px;height:5px;margin-left:3px;border-radius:50%;background:var(--accent);animation:irisdot 1.2s infinite ease-in-out}.msg.a .tool .dots span:nth-child(2){animation-delay:.15s}.msg.a .tool .dots span:nth-child(3){animation-delay:.3s}
+@keyframes irisdot{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-3px)}}@media (prefers-reduced-motion:reduce){.msg.a .tool .dots span{animation:none;opacity:.7}}
 .msg code{background:var(--surface);padding:0 4px;border-radius:4px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
-.msg.a .tool{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+.msg.a .tool{display:block;font-size:12.5px;color:var(--muted)}
 .sugg{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .sugg button{font-size:12px;padding:4px 9px;border-radius:99px}
 .inp{display:flex;gap:8px;margin-top:6px}
@@ -290,7 +293,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <a class="navi" href="#/policy" data-view="policy"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="nl">Policy</span><span class="navbadge" id="navPolicy" hidden>0</span></a>
     </div>
     <div class="navgrp bottom">
-      <button class="navi" id="navAssistant" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="nl">Assistant</span></button>
+      <button class="navi" id="navAssistant" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="nl">Ask Iris</span></button>
       <a class="navi" href="#/settings" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span class="nl">Data &amp; settings</span></a>
       <button class="navi" id="navCollapse" type="button" aria-label="Collapse the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg><span class="nl">Collapse</span></button>
     </div>
@@ -318,7 +321,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
         <button class="iconbtn" id="bell" type="button" aria-label="Notifications" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="belln" id="bellN" hidden>0</span></button>
         <div id="notifPanel" role="dialog" aria-label="Notifications" hidden></div>
       </div>
-      <button class="iconbtn" id="topAssistant" type="button" aria-label="Open the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
+      <button class="iconbtn" id="topAssistant" type="button" aria-label="Ask Iris" title="Ask Iris"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>
       <div class="userwrap"><button class="iconbtn" id="userChip" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Your account" title="Your account" hidden><span id="userInit">?</span></button><div class="usermenu" id="userMenu" role="dialog" aria-label="Your account" hidden></div></div>
     </header>
     <div id="banner"></div>
@@ -478,16 +481,16 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     </main>
   </div>
 
-  <aside class="drawer" id="assistant" aria-label="Sightline assistant" aria-hidden="true">
-    <div class="dgrip" id="dgrip" role="separator" aria-orientation="vertical" aria-label="Resize the assistant. Drag, or use the left and right arrow keys. Double-click to reset." tabindex="0" aria-valuemin="340" aria-valuemax="900" aria-valuenow="460"></div>
-    <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="iris-hi" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="60" cy="62" r="25" fill="#2DD4BF"/><circle cx="60" cy="62" r="12" fill="#121629"/><circle cx="68" cy="54" r="5.5" fill="#fff"/><circle cx="53" cy="70" r="2.5" fill="#fff"/><path d="M30 32 Q42 20 56 28 M64 28 Q78 20 90 32" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M48 92 Q60 101 72 92" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/></symbol><symbol id="iris-think" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="66" cy="56" r="25" fill="#2DD4BF"/><circle cx="66" cy="56" r="12" fill="#121629"/><circle cx="74" cy="48" r="5.5" fill="#fff"/><circle cx="59" cy="64" r="2.5" fill="#fff"/><path d="M30 36 Q42 30 56 34 M64 22 Q78 14 90 26" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M50 94 Q60 90 71 95" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/></symbol><symbol id="iris-oops" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="60" cy="64" r="25" fill="#2DD4BF"/><circle cx="60" cy="64" r="12" fill="#121629"/><circle cx="68" cy="56" r="5.5" fill="#fff"/><circle cx="53" cy="72" r="2.5" fill="#fff"/><path d="M30 28 Q42 36 56 30 M64 30 Q78 36 90 28" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M48 97 Q60 88 72 97" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><path d="M100 30 Q106 40 100 46 Q94 40 100 30Z" fill="#2DD4BF"/></symbol></defs></svg>
+  <aside class="drawer" id="assistant" aria-label="Ask Iris" aria-hidden="true">
+    <div class="dgrip" id="dgrip" role="separator" aria-orientation="vertical" aria-label="Resize the Iris panel. Drag, or use the left and right arrow keys. Double-click to reset." tabindex="0" aria-valuemin="340" aria-valuemax="900" aria-valuenow="460"></div>
+    <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close Iris"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
-      <h2>Sightline assistant</h2>
-      <p class="hint">Knows your loaded data and can query it. Ask why something is failing.</p>
-      <div class="dsize" id="dsize" role="group" aria-label="Assistant width"><span class="dsl">Width</span><button type="button" data-aw="0.33" aria-pressed="false" title="A third of the window">Narrow</button><button type="button" data-aw="0.5" aria-pressed="false" title="Half and half: the app on the left, the assistant on the right">Half</button><button type="button" data-aw="0.66" aria-pressed="false" title="Two thirds of the window">Wide</button></div>
+      <div class="iris-head"><svg class="iris-avatar lg" id="irisHead" aria-hidden="true"><use href="#iris-hi"/></svg><div><h2>Ask Iris</h2><p class="hint">Iris knows your live data and can search it. Ask her why something is failing.</p></div></div>
+      <div class="dsize" id="dsize" role="group" aria-label="Width of the Iris panel"><span class="dsl">Width</span><button type="button" data-aw="0.33" aria-pressed="false" title="A third of the window">Narrow</button><button type="button" data-aw="0.5" aria-pressed="false" title="Half and half: the app on the left, Iris on the right">Half</button><button type="button" data-aw="0.66" aria-pressed="false" title="Two thirds of the window">Wide</button></div>
       <div class="msgs" id="msgs"></div>
       <div class="sugg" id="sugg"></div>
-      <div class="inp"><input type="text" id="q" placeholder="Ask about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
+      <div class="inp"><input type="text" id="q" placeholder="Ask Iris about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
     </div>
   </aside>
 </div>
@@ -967,7 +970,7 @@ function renderUsersTable(C){
     const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
       return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
         '<div class="gsub">'+esc(x.apps.join(", ")||"—")+(x.types.length?' · '+esc(x.types.join(", ")):"")+'</div></div>'+
-        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask the assistant</button>'+(S.live&&S.policy.meta.canEdit? '<button class="ghost" data-knownerr="'+key+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>' : "")+'</div>'+
+        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask Iris</button>'+(S.live&&S.policy.meta.canEdit? '<button class="ghost" data-knownerr="'+key+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>' : "")+'</div>'+
         '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
     return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" data-first="'+ui+'_0" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'+
       '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("")+(users.length>15? '<tr class="umore"><td colspan="5">Showing '+Math.min(cap,users.length)+' of '+users.length+' · '+(cap<users.length? '<button type="button" class="ghost" data-umore="1">Show '+Math.min(25,users.length-cap)+' more</button> ' : "")+(cap>15? '<button type="button" class="ghost" data-uless="1">Show fewer</button>' : "")+'</td></tr>' : "");
@@ -1141,7 +1144,7 @@ function renderErrorsView(C){
     (errs.length? '<div class="ids">Errors over time</div>'+errChart(errs)+
       '<div class="catbars">'+byCat.map(([k,n])=>'<div class="cb"><span>'+CATS[k]+'</span><div class="track"><div class="fill" style="width:'+Math.max(3,n/mx*100)+'%"></div></div><b>'+fmtN(n)+'</b></div>').join("")+'</div>' : '')+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0 8px"><span class="ctl">'+fmtN(errs.length)+' error'+(errs.length===1?"":"s")+(on?" matching your filters":" in the window")+'</span>'+(kn? '<label class="ctl"><input type="checkbox" id="eShowSup"'+(S.showSup?" checked":"")+'> show the '+fmtN(kn)+' known error'+(kn===1?"":"s")+' that rules hide <a class="lnk" href="#/policy">(Policy)</a></label>' : "")+'<span class="spacer"></span>'+
-    (errs.length?'<button id="errAsk" class="ghost">Ask the assistant about these</button><button id="errCsv" class="ghost">Export CSV</button>':'')+'</div>'+
+    (errs.length?'<button id="errAsk" class="ghost">Ask Iris about these</button><button id="errCsv" class="ghost">Export CSV</button>':'')+'</div>'+
     (errs.length? '<div class="scroll"><table><tr><th>Time</th><th>Type</th><th>Result</th><th>App</th><th>Person</th><th>Reason</th><th></th></tr>'+
       errs.slice(0,shown).map((e,i)=>{ const r=idRefs(e)[0], rs=normErr(reasonOf(e)); return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="cpill">'+esc(CATS[catOf(e)])+'</span></td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span>'+(supOf(e)? ' <span class="cpill known" title="Hidden by a rule: '+esc((supOf(e).name||supOf(e).match.include||"")+" — "+supOf(e).why)+'">Known</span>' : "")+'</td><td>'+esc(appOf(e)||"—")+'</td><td>'+esc(r? r[0] : "—")+'</td><td title="'+esc(rs)+'">'+esc(rs.length>140? rs.slice(0,140)+"…" : rs)+'</td>'+
         '<td class="rowact"><button class="ghost" data-eexplain="'+i+'">Explain</button>'+(supOf(e)||!(S.live&&S.policy.meta.canEdit)? "" : '<button class="ghost" data-eknown="'+i+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>')+'<button class="ghost" data-ehide="'+i+'" title="Hide errors like this one, just for you, just for now">Hide</button></td></tr>'; }).join("")+'</table></div>'+
@@ -1361,7 +1364,7 @@ function renderPerson(){
                    : (ppred&&mineAll.some(isFail)? '<div class="empty">No errors match your filters. <button type="button" class="ghost" data-fa="clear" data-fs="person">Clear filters</button></div>' : '<div class="empty">No errors for this person in this window.</div>'))+googlePersonHTML(p)+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><label class="ctl"><input type="checkbox" id="ufail" '+(only?"checked":"")+'> errors only</label><span class="ctl">'+fmtN(rows.length)+' events</span><span class="spacer"></span>'+
     (S.lsource==="okta"?'<button id="urefresh" class="ghost">Refresh from Okta</button>':"")+
-    '<button id="uask" class="ghost">Ask the assistant about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
+    '<button id="uask" class="ghost">Ask Iris about this person</button><button id="uexp" class="ghost">Export CSV</button></div>'+
     '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>App</th><th>Source</th><th>Reason</th></tr>'+
     (rows.slice(0,50).map(e=>'<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill '+(isFail(e)?"f":(e.outcome&&e.outcome.result==="SUCCESS"?"s":"o"))+'">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(appOf(e)||"—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td title="'+esc(e.outcome&&e.outcome.reason||"")+'">'+esc(normErr(e.outcome&&e.outcome.reason||""))+'</td></tr>').join("")||'<tr><td colspan="6" class="empty">No matching events.</td></tr>')+
     '</table></div>'+(rows.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
@@ -1487,7 +1490,7 @@ function renderApp(){
                  : (apred&&allErrs.length? '<div class="empty">No errors match your filters ('+fmtN(allErrs.length)+' hidden). <button type="button" class="ghost" data-fa="clear" data-fs="app">Clear filters</button></div>' : '<div class="empty">No errors for this app in this window.</div>'))+
     '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0"><span class="ctl">'+fmtN(errs.length)+' errors'+(apred? ' (of '+fmtN(allErrs.length)+')' : '')+'</span><span class="spacer"></span>'+
     (S.asource==="okta"?'<button id="arefresh" class="ghost">Refresh from Okta</button>':"")+
-    '<button id="aask" class="ghost">Ask the assistant about this app</button><button id="aexp" class="ghost">Export CSV</button></div>'+
+    '<button id="aask" class="ghost">Ask Iris about this app</button><button id="aexp" class="ghost">Export CSV</button></div>'+
     '<div class="scroll"><table><tr><th>Time</th><th>Result</th><th>Event</th><th>Person</th><th>Source</th><th>Reason</th></tr>'+
     (errs.slice(0,50).map(e=>{ const r=idRefs(e)[0]; return '<tr><td class="mono">'+esc(new Date(e.published).toLocaleString())+'</td><td><span class="pill f">'+esc(e.outcome&&e.outcome.result||"—")+'</span></td><td class="mono">'+esc(e.eventType)+'</td><td>'+esc(r? r[0] : "—")+'</td><td class="mono">'+esc(e.ip? e.ip+(e.city&&e.city!=="null"?" · "+e.city:"") : "—")+'</td><td title="'+esc(e.outcome&&e.outcome.reason||"")+'">'+esc(normErr(e.outcome&&e.outcome.reason||""))+'</td></tr>'; }).join("")||'<tr><td colspan="6" class="empty">No errors.</td></tr>')+
     '</table></div>'+(errs.length>50?'<div class="empty">Showing the 50 most recent.</div>':"");
@@ -1541,7 +1544,7 @@ try{ window.addEventListener("hashchange",()=>showView(currentView())); }catch(_
 const AW_MIN=340, viewW=()=>document.documentElement.clientWidth, navW=()=>viewW()<=900? 68 : ($("#shell").classList.contains("collapsed")? 68 : 236);
 const awMax=()=>Math.max(AW_MIN, viewW()-navW()-420);                       // always leave the app at least ~420px
 const clampAw=px=>Math.round(Math.max(AW_MIN, Math.min(awMax(), px)));
-const defaultAw=()=>clampAw(Math.max(420, viewW()*0.45));
+const defaultAw=()=>clampAw(Math.round(viewW()*0.33));          // a third of the window, the same as the Narrow button
 const curAw=()=>parseInt(document.documentElement.style.getPropertyValue("--aw-set"))||defaultAw();
 const tightNav=()=>document.documentElement.classList.contains("assist")&&viewW()<1400;       // on a smaller window the menu shrinks to icons while the assistant is open
 function syncNav(){ const c=!!prefs.collapsed||tightNav(); $("#shell").classList.toggle("collapsed",c); }
@@ -2103,7 +2106,7 @@ function makeGoogleNotif(r,h,now){
 S.me=null; S.rulesShared=false;
 // if the session has ended the server answers 401 with where to sign in: go there instead of showing a broken page
 (function(){ if(typeof window==="undefined"||typeof window.fetch!=="function") return; const f0=window.fetch.bind(window); window.fetch=async function(...a){ const r=await f0(...a); if(r.status===401&&!S.leaving){ try{ const j=await r.clone().json(); if(j&&j.login){ S.leaving=true; location.href=j.login+"?next="+encodeURIComponent(location.pathname); } }catch(_){} } return r; }; })();
-const ROLE_TEXT={user:"Can look at everything and use the assistant. Cannot change anything shared.",admin:"Can also manage known errors, Google app decisions and shared alert rules, and read the audit log.",owner:"Can also see how access is set up and end other people’s sessions."};
+const ROLE_TEXT={user:"Can look at everything and ask Iris. Cannot change anything shared.",admin:"Can also manage known errors, Google app decisions and shared alert rules, and read the audit log.",owner:"Can also see how access is set up and end other people’s sessions."};
 const roleCls=r=>r==="owner"?"approved":r==="admin"?"soon":"off";
 async function loadMe(){ try{ const r=await fetch("api/me"); if(r.ok) S.me=await r.json(); }catch(_){} renderUserChip(); }
 function renderUserChip(){
@@ -2415,22 +2418,36 @@ function summary(){
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
 }
-function addMsg(cls,html){ const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; $("#msgs").appendChild(d); $("#msgs").scrollTop=1e9; return d; }
+// An assistant message is Iris's face next to a bubble. addMsg returns the bubble, so callers can fill it in later.
+function addMsg(cls,html,face){
+  const d=document.createElement("div"); d.className="msg "+cls;
+  if(cls==="a"){ d.innerHTML='<svg class="iris-avatar" aria-hidden="true"><use href="#'+(face||"iris-hi")+'"/></svg><div class="bubble" role="article"></div>'; d.querySelector(".bubble").innerHTML=html; }
+  else d.innerHTML=html;
+  $("#msgs").appendChild(d); $("#msgs").scrollTop=1e9; return cls==="a"? d.querySelector(".bubble") : d;
+}
+const setFace=(bubble,face)=>{ const u=bubble&&bubble.parentElement&&bubble.parentElement.querySelector("use"); if(u) u.setAttribute("href","#"+face); const h=$("#irisHead use"); if(h) h.setAttribute("href","#"+(face==="iris-think"?"iris-think":"iris-hi")); };
+// while Iris works, the line changes, so it never reads like the same canned message
+const THINKING=["Let me take a look…","Checking the logs…","Digging through the events…","Cross-checking a few things…","Putting it together…","Almost there…"];
+function thinkingBubble(){
+  const b=addMsg("a",'<span class="tool"><span class="ph"></span><span class="dots" aria-hidden="true"><span></span><span></span><span></span></span></span>',"iris-think");
+  let i=Math.floor(Math.random()*3); const ph=b.querySelector(".ph"), tick=()=>{ ph.textContent=THINKING[i%THINKING.length]; i++; }; tick();
+  b.setAttribute("aria-live","polite"); b._timer=setInterval(tick,2600); setFace(b,"iris-think"); return b;
+}
 async function ask(text){
   text=(text||"").trim(); if(!text||S.busy) return;
   openAssistant(true);
-  if(!S.assistant){ addMsg("a","The assistant is only available when the dashboard is connected to its backend with an Anthropic API key configured."); return; }
+  if(!S.assistant){ addMsg("a","I can only answer when the dashboard is connected to its backend and has an Anthropic API key set up.","iris-oops"); return; }
   S.busy=true; $("#send").disabled=true; $("#sugg").style.display="none";
   addMsg("u",esc(text)); S.history.push({role:"user",content:text});
-  const out=addMsg("a","<span class='tool'>Looking at your data…</span>");
+  const out=thinkingBubble();
   try{
     const r=await fetch("api/chat",{method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify({messages:S.history.slice(-12),summary:summary(),windowMs:S.win})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
-    out.innerHTML=md(j.text); S.history.push({role:"assistant",content:j.text});
+    clearInterval(out._timer); out.innerHTML=md(j.text); setFace(out,"iris-hi"); S.history.push({role:"assistant",content:j.text});
   }catch(err){
-    out.innerHTML="Something went wrong reaching the assistant: "+esc(err.message||err); S.history.pop();
+    clearInterval(out._timer); out.innerHTML="Sorry, I couldn't get an answer just now: "+esc(err.message||err); setFace(out,"iris-oops"); S.history.pop();
   }
   S.busy=false; $("#send").disabled=false; $("#q").focus();
 }
@@ -2438,7 +2455,7 @@ $("#send").onclick=()=>{const v=$("#q").value; $("#q").value=""; ask(v);};
 $("#q").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#send").click(); }});
 
 function intro(){
-  addMsg("a","Hi — I'm the Sightline assistant, an expert in Okta and Google Workspace. I can see a summary of what's loaded here and can search the events. Try one of these, or ask your own question.");
+  addMsg("a","Hi, I'm Iris. I can see what's loaded here and search the events for you, for Okta and for Google. Ask me anything, or start with one of these.");
   $("#sugg").innerHTML=["Which silent apps should I worry about?","Why are provisioning pushes failing?","What's going on with the users who keep hitting assignment errors?","Give me a health summary for this week"]
     .map(s=>`<button>${esc(s)}</button>`).join("");
   $("#sugg").onclick=e=>{ if(e.target.tagName==="BUTTON") ask(e.target.textContent); };
@@ -2448,7 +2465,7 @@ function intro(){
 const seen=new Set();
 function setAssistantUI(on){
   S.assistant=on; $("#q").disabled=!on; $("#send").disabled=!on;
-  $("#chatCard").querySelector(".hint").textContent = on? "Knows your live data and can query it. Ask why something is failing." : "Assistant unavailable (needs the backend and an Anthropic API key).";
+  $("#chatCard").querySelector(".hint").textContent = on? "Iris knows your live data and can search it. Ask her why something is failing." : "Iris is unavailable (needs the backend and an Anthropic API key).";
 }
 async function refreshLive(){
   try{

@@ -3,9 +3,11 @@
 //   node test/fake-anthropic.js   then run the app with ANTHROPIC_BASE_URL=http://localhost:4020
 const http = require("http");
 http.createServer((q, r) => {
+  if (q.method === "GET" && q.url === "/_last") { r.writeHead(200, { "content-type": "application/json" }); return r.end(JSON.stringify({ system: global.__lastChatSystem || "" })); }   // test hook: the instructions of the last chat request
   let b = "";
   q.on("data", c => (b += c)).on("end", () => {
     const j = JSON.parse(b);
+    if (typeof j.system === "string" && !j.system.includes("explaining ONE error")) global.__lastChatSystem = j.system;
     const last = j.messages[j.messages.length - 1];
     const first = JSON.stringify(j.messages[0]);
     const lastIsToolResult = Array.isArray(last.content) && last.content[0] && last.content[0].type === "tool_result";
