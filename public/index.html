@@ -84,7 +84,13 @@ html.assist{--aw:var(--aw-set)}html.dragging .shell,html.snap .shell{transition:
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:-6px;flex-wrap:wrap}.tab{border:none;border-radius:8px 8px 0 0;padding:9px 16px;background:transparent;color:var(--muted);font-weight:600}
 .tab:hover{color:var(--text);background:var(--surface2)}.tab.on{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}.tab .tn{margin-left:6px;font-size:11px;background:var(--surface2);border-radius:99px;padding:0 7px;color:var(--muted)}.tab .tn.att{background:rgba(255,184,77,.18);color:var(--warn)}
 .st{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}.st.active,.st.approved{background:rgba(63,185,119,.16);color:var(--ok)}.st.soon,.st.expired,.st.drift,.st.none{background:rgba(255,184,77,.16);color:var(--warn)}.st.flagged{background:rgba(255,107,107,.16);color:var(--bad)}.st.off{background:var(--surface2);color:var(--muted)}
-.cpill.known{background:rgba(125,140,255,.16);color:var(--accent)}.userwrap{position:relative}#userChip{font-weight:700;font-size:12.5px;letter-spacing:.02em}.usermenu{position:absolute;right:0;top:46px;width:min(300px,86vw);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;z-index:60;box-shadow:0 12px 32px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:6px}.usermenu[hidden]{display:none}
+.cpill.known{background:rgba(125,140,255,.16);color:var(--accent)}.navsoon{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,184,77,.16);color:var(--warn);border-radius:99px;padding:1px 8px}.shell.collapsed .navsoon{display:none}
+.construction{border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden;margin-top:6px}
+.tape{height:26px;background:repeating-linear-gradient(-45deg,#F5B700 0 18px,#14161f 18px 36px)}
+.cbody{display:flex;align-items:center;justify-content:center;gap:40px;flex-wrap:wrap;padding:52px 28px}
+.irishat{width:min(280px,70vw);height:auto;flex:none}.irishat .io{stroke:var(--text);stroke-width:7;stroke-linejoin:round}.irishat .body{fill:#fff}.irishat .hand{fill:#fff;stroke-width:6}.irishat .arm{fill:none;stroke-linecap:round;stroke-width:8}.irishat .fillout{fill:var(--text);stroke:none}
+.ctext{max-width:430px}.ctext h2{font-size:30px;margin:10px 0 4px}.clead{font-size:18px;font-weight:600;margin:0 0 8px}.cwarn{display:inline-block;background:#F5B700;color:#14161f;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;border-radius:6px;padding:4px 12px}
+.userwrap{position:relative}#userChip{font-weight:700;font-size:12.5px;letter-spacing:.02em}.usermenu{position:absolute;right:0;top:46px;width:min(300px,86vw);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;z-index:60;box-shadow:0 12px 32px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:6px}.usermenu[hidden]{display:none}
 .umname{font-weight:700}.umrole{display:flex;gap:8px;align-items:center}.umout{align-self:flex-start;margin-top:6px;text-decoration:none;padding:6px 14px}.fin{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px}
 .pol td{vertical-align:top}.pol .sw{display:inline-block;margin-top:0}span.lnk{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-left:4px}.pol .gsub{margin-top:3px}.pol code{font-size:11.5px}.who{color:var(--muted);font-size:12px}
 .ptxt{width:100%;min-height:76px;resize:vertical;font:inherit}.prev{border:1px solid var(--border);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:13px}.prev.warn{border-color:var(--warn)}
@@ -155,7 +161,7 @@ html.assist .drawer{visibility:visible;transition-delay:0s}
 .dsize{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 4px}.dsize .dsl{font-size:12px;color:var(--muted);margin-right:2px}.dsize button{padding:3px 12px;font-size:12.5px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);color:var(--text)}.dsize button:hover{border-color:var(--accent)}.dsize button[aria-pressed="true"]{background:rgba(125,140,255,.18);border-color:var(--accent);color:var(--accent);font-weight:600}
 .drawer .dclose{position:absolute;top:10px;right:12px;z-index:2;background:transparent;border:none}
 #toasts{position:fixed;right:calc(18px + var(--aw));bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(380px,calc(100vw - 36px))}
-@media (max-width:900px){:root{--navw:68px}.nl,.bt{display:none}.navi{justify-content:center;padding:10px 0}.brand{justify-content:center}header.top{padding:10px 14px}main{padding:16px 14px 40px}#hsearch{min-width:0;flex:1}}
+@media (max-width:900px){:root{--navw:68px}.nl,.bt,.navsoon{display:none}.navi{justify-content:center;padding:10px 0}.brand{justify-content:center}header.top{padding:10px 14px}main{padding:16px 14px 40px}#hsearch{min-width:0;flex:1}}
 @media (max-width:899px){.shell{grid-template-columns:var(--navw) minmax(0,1fr)}html.assist{--aw:0px}
   .drawer{position:fixed;top:0;right:0;bottom:0;height:auto;width:min(440px,100vw);transform:translateX(104%);box-shadow:-12px 0 32px rgba(0,0,0,.18);transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
   html.assist .drawer{transform:none;transition-delay:0s}.drawer>.chat{min-width:0}.dgrip{display:none}}
@@ -279,6 +285,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <a class="navi" href="#/apps" data-view="apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="nl">Apps</span></a>
       <a class="navi" href="#/people" data-view="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nl">People</span></a>
       <a class="navi" href="#/google" data-view="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg><span class="nl">Google OAuth</span></a>
+      <a class="navi" href="#/devices" data-view="devices" title="Device health (coming soon)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="nl">Device health</span><span class="navsoon">Soon</span></a>
       <a class="navi" href="#/alerts" data-view="alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nl">Alerts</span><span class="navbadge" id="navAlerts" hidden>0</span></a>
       <a class="navi" href="#/policy" data-view="policy"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="nl">Policy</span><span class="navbadge" id="navPolicy" hidden>0</span></a>
     </div>
@@ -403,6 +410,37 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <section class="view" id="view-google" data-view="google" hidden>
         <div class="vhead"><div><p class="vs">Which apps people have connected to their Google accounts, and what access each one asked for.</p></div><div id="gStatus" class="ctl"></div></div>
         <div id="googleView"></div>
+      </section>
+
+      <section class="view" id="view-devices" data-view="devices" hidden>
+        <div class="vhead"><div><p class="vs">Device health is on its way.</p></div></div>
+        <div class="construction">
+          <div class="tape" aria-hidden="true"></div>
+          <div class="cbody">
+            <svg class="irishat" viewBox="0 0 300 300" role="img" aria-label="Iris, the Sightline guide, wearing a hard hat">
+              <ellipse cx="150" cy="296" rx="78" ry="6" fill="#000" opacity=".12"/>
+              <ellipse cx="118" cy="286" rx="22" ry="10" class="io fillout"/><ellipse cx="182" cy="286" rx="22" ry="10" class="io fillout"/>
+              <path d="M46 196 Q22 226 36 254" class="io arm"/><circle cx="36" cy="260" r="13" class="io hand"/>
+              <path d="M254 196 Q278 226 264 254" class="io arm"/><circle cx="264" cy="260" r="13" class="io hand"/>
+              <ellipse cx="150" cy="182" rx="106" ry="100" class="io body"/>
+              <circle cx="150" cy="196" r="48" fill="#2DD4BF"/><circle cx="150" cy="196" r="23" fill="#121629"/><circle cx="165" cy="182" r="10" fill="#fff"/><circle cx="137" cy="212" r="5" fill="#fff"/>
+              <path d="M96 150 Q120 132 144 142" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/><path d="M156 142 Q182 132 204 150" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/>
+              <circle cx="82" cy="224" r="12" fill="#7B8CFF" opacity=".38"/><circle cx="218" cy="224" r="12" fill="#7B8CFF" opacity=".38"/>
+              <path d="M126 252 Q150 270 174 252" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/>
+              <path d="M70 118 Q70 16 150 16 Q230 16 230 118 Z" fill="#F5B700" class="io"/>
+              <path d="M132 18 L132 112 M168 18 L168 112" fill="none" stroke="#C98F00" stroke-width="7"/>
+              <rect x="48" y="106" width="204" height="20" rx="10" fill="#F5B700" class="io"/>
+              <circle cx="150" cy="62" r="11" fill="#fff" class="io"/>
+            </svg>
+            <div class="ctext">
+              <span class="cwarn">Under construction</span>
+              <h2>Device health</h2>
+              <p class="clead">Coming at the end of the year.</p>
+              <p class="hint">A view of how your devices are doing, right next to your Okta and Google data. Check back soon.</p>
+            </div>
+          </div>
+          <div class="tape" aria-hidden="true"></div>
+        </div>
       </section>
 
       <section class="view" id="view-alerts" data-view="alerts" hidden>
@@ -1485,7 +1523,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* ---------- app shell: navigation, assistant drawer, preferences ---------- */
-const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",alerts:"Alerts",policy:"Policy",settings:"Data & settings"};
+const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",devices:"Device health",alerts:"Alerts",policy:"Policy",settings:"Data & settings"};
 const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.get("okta.prefs.v1",{}));
 const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
 function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
