@@ -47,8 +47,9 @@ header.top .sub{color:var(--muted);font-size:12px}
 #hsearch{min-width:240px}
 .spacer{flex:1}
 /* ---- app shell ---- */
-:root{--navw:236px}
-.shell{display:grid;grid-template-columns:var(--navw) minmax(0,1fr);min-height:100vh;transition:grid-template-columns .25s cubic-bezier(.2,.8,.2,1)}
+:root{--navw:236px;--aw:0px;--aw-set:460px}                       /* --aw is the assistant column (0 when closed), --aw-set the width it opens to */
+.shell{display:grid;grid-template-columns:var(--navw) minmax(0,1fr) var(--aw);min-height:100vh;transition:grid-template-columns .25s cubic-bezier(.2,.8,.2,1)}
+html.assist{--aw:var(--aw-set)}html.dragging .shell,html.snap .shell{transition:none}html.dragging{cursor:col-resize;user-select:none}
 .shell.collapsed{--navw:68px}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:14px 12px;background:var(--surface);border-right:1px solid var(--border);overflow-x:hidden;overflow-y:auto;z-index:20}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 6px 16px;text-decoration:none;color:var(--text)}
@@ -143,11 +144,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .setgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}.setbtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .alertgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}@media (max-width:1100px){.alertgrid{grid-template-columns:minmax(0,1fr)}}
 /* ---- assistant drawer ---- */
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(440px,100vw);z-index:40;background:var(--surface);border-left:1px solid var(--border);box-shadow:-12px 0 32px rgba(0,0,0,.18);transform:translateX(104%);transition:transform .32s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;visibility:hidden}
-.drawer.open{transform:none;visibility:visible}
+.drawer{position:sticky;top:0;height:100vh;min-width:0;overflow:hidden;z-index:30;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;visibility:hidden;transition:visibility 0s linear .25s}
+.drawer>.chat{min-width:var(--aw-set)}                       /* so the chat does not re-wrap while the column slides open */
+html.assist .drawer{visibility:visible;transition-delay:0s}
+.dgrip{position:absolute;left:0;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;z-index:3;touch-action:none}
+.dgrip::before{content:"";position:absolute;left:1px;top:50%;width:7px;height:48px;margin-top:-24px;border-radius:4px;background:var(--muted);opacity:.4;transition:opacity .15s,background .15s}.dgrip:hover::before,.dgrip.on::before,.dgrip:focus-visible::before{opacity:1;background:var(--accent)}
+.dgrip::after{content:"";position:absolute;left:4px;top:0;bottom:0;width:2px;background:transparent;transition:background .15s}.dgrip:hover::after,.dgrip.on::after,.dgrip:focus-visible::after{background:var(--accent)}.dgrip:focus-visible{outline:none}
+.dsize{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 4px}.dsize .dsl{font-size:12px;color:var(--muted);margin-right:2px}.dsize button{padding:3px 12px;font-size:12.5px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);color:var(--text)}.dsize button:hover{border-color:var(--accent)}.dsize button[aria-pressed="true"]{background:rgba(125,140,255,.18);border-color:var(--accent);color:var(--accent);font-weight:600}
 .drawer .dclose{position:absolute;top:10px;right:12px;z-index:2;background:transparent;border:none}
-#toasts{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(380px,calc(100vw - 36px))}
+#toasts{position:fixed;right:calc(18px + var(--aw));bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(380px,calc(100vw - 36px))}
 @media (max-width:900px){:root{--navw:68px}.nl,.bt{display:none}.navi{justify-content:center;padding:10px 0}.brand{justify-content:center}header.top{padding:10px 14px}main{padding:16px 14px 40px}#hsearch{min-width:0;flex:1}}
+@media (max-width:899px){.shell{grid-template-columns:var(--navw) minmax(0,1fr)}html.assist{--aw:0px}
+  .drawer{position:fixed;top:0;right:0;bottom:0;height:auto;width:min(440px,100vw);transform:translateX(104%);box-shadow:-12px 0 32px rgba(0,0,0,.18);transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
+  html.assist .drawer{transform:none;transition-delay:0s}.drawer>.chat{min-width:0}.dgrip{display:none}}
 @media (prefers-reduced-motion:reduce){.shell,.drawer{transition:none}}
 .ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 select,button,input[type=text]{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
@@ -429,10 +438,12 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
   </div>
 
   <aside class="drawer" id="assistant" aria-label="Sightline assistant" aria-hidden="true">
+    <div class="dgrip" id="dgrip" role="separator" aria-orientation="vertical" aria-label="Resize the assistant. Drag, or use the left and right arrow keys. Double-click to reset." tabindex="0" aria-valuemin="340" aria-valuemax="900" aria-valuenow="460"></div>
     <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close the assistant"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
       <h2>Sightline assistant</h2>
       <p class="hint">Knows your loaded data and can query it. Ask why something is failing.</p>
+      <div class="dsize" id="dsize" role="group" aria-label="Assistant width"><span class="dsl">Width</span><button type="button" data-aw="0.33" aria-pressed="false" title="A third of the window">Narrow</button><button type="button" data-aw="0.5" aria-pressed="false" title="Half and half: the app on the left, the assistant on the right">Half</button><button type="button" data-aw="0.66" aria-pressed="false" title="Two thirds of the window">Wide</button></div>
       <div class="msgs" id="msgs"></div>
       <div class="sugg" id="sugg"></div>
       <div class="inp"><input type="text" id="q" placeholder="Ask about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
@@ -1149,6 +1160,9 @@ function bars(sel,list,kind,C,what){
   el.innerHTML=list.map(([k,v])=>`<div class="row" data-k="${kind}" data-v="${esc(k)}" title="${esc(k)}"><div class="nm">${esc(k)}</div><div class="track"><div class="fill" style="width:${Math.max(3,v/max*100)}%"></div></div><div class="ct">${fmtN(v)}</div></div>`).join("");
 }
 
+// when the space the chart has changes (the assistant docks, the menu collapses, the window is resized), draw it again to fit
+try{ const box=$("#timeline")&&$("#timeline").parentElement; if(box&&window.ResizeObserver){ let timer=null, last=0;
+  new ResizeObserver(()=>{ const w=box.clientWidth; if(w<60||Math.abs(w-last)<8) return; clearTimeout(timer); timer=setTimeout(()=>{ last=box.clientWidth; if(S.C&&S.view==="overview") renderTimeline(S.C); },120); }).observe(box); } }catch(_){}
 function renderTimeline(C){
   const el=$("#timeline"); if(!C.win.length){ el.innerHTML='<div class="empty">No events.</div>'; return; }
   let t0=Infinity; for(const e of C.win){ const t=ts(e); if(t<t0) t0=t; } const t1=S.ref;
@@ -1156,7 +1170,7 @@ function renderTimeline(C){
   const start=Math.floor(t0/step)*step, n=Math.max(1,Math.ceil((t1-start)/step)+1);
   const tot=new Array(n).fill(0), bad=new Array(n).fill(0), fset=new Set(C.fails);
   for(const e of C.win){ const i=Math.min(n-1,Math.floor((ts(e)-start)/step)); tot[i]++; if(fset.has(e)) bad[i]++; }
-  const max=Math.max(...tot,1), W=Math.max(640,n*(hourly?14:34)), H=170, pad=22, bw=(W-8)/n;
+  const cw=Math.floor(((el.parentElement&&el.parentElement.clientWidth)||0)), max=Math.max(...tot,1), W=Math.max(320,n*3,cw>0? cw-2 : Math.max(640,n*(hourly?14:34))), H=170, pad=22, bw=(W-8)/n;       // fit the card; only a very long range needs to scroll
   let g="";
   for(let i=0;i<n;i++){
     const h=(tot[i]/max)*(H-pad-8), fh=(bad[i]/max)*(H-pad-8), x=4+i*bw;
@@ -1482,16 +1496,44 @@ function showView(v){
 }
 function go(v){ try{ if(currentView()!==v) location.hash="#/"+v; }catch(_){} showView(v); }
 try{ window.addEventListener("hashchange",()=>showView(currentView())); }catch(_){}
+// The assistant is a docked column: opening it narrows the app, closing it gives the width back. Its width is yours to set (drag the edge).
+const AW_MIN=340, viewW=()=>document.documentElement.clientWidth, navW=()=>viewW()<=900? 68 : ($("#shell").classList.contains("collapsed")? 68 : 236);
+const awMax=()=>Math.max(AW_MIN, viewW()-navW()-420);                       // always leave the app at least ~420px
+const clampAw=px=>Math.round(Math.max(AW_MIN, Math.min(awMax(), px)));
+const defaultAw=()=>clampAw(Math.max(420, viewW()*0.45));
+const curAw=()=>parseInt(document.documentElement.style.getPropertyValue("--aw-set"))||defaultAw();
+const tightNav=()=>document.documentElement.classList.contains("assist")&&viewW()<1400;       // on a smaller window the menu shrinks to icons while the assistant is open
+function syncNav(){ const c=!!prefs.collapsed||tightNav(); $("#shell").classList.toggle("collapsed",c); }
+function markSize(w){ const vw=viewW(); for(const b of document.querySelectorAll("#dsize [data-aw]")){ const want=Math.min(awMax(),Math.round(vw*(+b.dataset.aw))); b.setAttribute("aria-pressed",String(Math.abs(want-w)<=Math.max(6,vw*0.012))); } }
+function setAw(px,save){ const w=clampAw(px); markSize(w); document.documentElement.style.setProperty("--aw-set",w+"px"); const g=$("#dgrip"); if(g){ g.setAttribute("aria-valuenow",w); g.setAttribute("aria-valuemax",awMax()); } if(save){ prefs.aw=w; savePrefs(); } return w; }
+// a resize you asked for (keys, double-click) applies at once; only opening and closing slide
+function snapAw(px,save){ const r=document.documentElement; r.classList.add("snap"); const w=setAw(px,save); requestAnimationFrame(()=>requestAnimationFrame(()=>r.classList.remove("snap"))); return w; }
 function openAssistant(on){
   const d=$("#assistant"); const open= on===undefined? !d.classList.contains("open") : !!on;
-  d.classList.toggle("open",open); d.setAttribute("aria-hidden",String(!open));
+  d.classList.toggle("open",open); d.setAttribute("aria-hidden",String(!open)); document.documentElement.classList.toggle("assist",open);
+  syncNav(); if(open) setAw(prefs.aw||defaultAw());
+  for(const id of ["#navAssistant","#topAssistant"]){ const b=$(id); if(b) b.setAttribute("aria-expanded",String(open)); }
   if(open) setTimeout(()=>{ try{ $("#q").focus(); }catch(_){} },280);
 }
+try{ window.addEventListener("resize",()=>{ if($("#assistant").classList.contains("open")){ syncNav(); setAw(curAw()); } }); }catch(_){}
+$("#dsize").addEventListener("click",ev=>{ const b=ev.target.closest("[data-aw]"); if(b) snapAw(Math.round(viewW()*(+b.dataset.aw)),true); });
+(function(){
+  const g=$("#dgrip"); if(!g) return; let drag=false;
+  g.addEventListener("pointerdown",e=>{ drag=true; try{ g.setPointerCapture(e.pointerId); }catch(_){} document.documentElement.classList.add("dragging"); g.classList.add("on"); e.preventDefault(); });
+  g.addEventListener("pointermove",e=>{ if(drag) setAw(viewW()-e.clientX,false); });
+  const end=()=>{ if(!drag) return; drag=false; document.documentElement.classList.remove("dragging"); g.classList.remove("on"); setAw(curAw(),true); };
+  g.addEventListener("pointerup",end); g.addEventListener("pointercancel",end);
+  g.addEventListener("dblclick",()=>{ delete prefs.aw; savePrefs(); snapAw(defaultAw()); });
+  g.addEventListener("keydown",e=>{
+    if(e.key==="ArrowLeft"){ snapAw(curAw()+24,true); e.preventDefault(); } else if(e.key==="ArrowRight"){ snapAw(curAw()-24,true); e.preventDefault(); }
+    else if(e.key==="Home"){ delete prefs.aw; savePrefs(); snapAw(defaultAw()); e.preventDefault(); }
+  });
+})();
 $("#navAssistant").onclick=()=>openAssistant(); $("#topAssistant").onclick=()=>openAssistant(); $("#dclose").onclick=()=>openAssistant(false);
 function applyPrefs(){
   const root=document.documentElement;
   if(prefs.theme==="auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme",prefs.theme);
-  $("#shell").classList.toggle("collapsed",!!prefs.collapsed);
+  syncNav();
   $("#navCollapse").setAttribute("aria-label",prefs.collapsed?"Expand the menu":"Collapse the menu");
   $("#themeSel").value=prefs.theme;
 }
@@ -1890,7 +1932,7 @@ function renderGoogleView(auto){
   const act=document.activeElement, keep=act&&(act.id==="gq"||act.id==="gPerson")? {id:act.id,pos:act.selectionStart} : null;
   let cap=S.gcap||25;
   const st=G.status||{}, {apps,shown}=googleShown(), f=S.gf, so=gSortState(), on=gFiltering(f), more=S.gmore||!!(f.min||f.active||f.isNew||(f.person||"").trim());
-  stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span title="Google reports these events a couple of hours after they happen, so the newest can never be newer than that">'+(st.newest? 'Newest event '+esc(ago(Math.max(0,S.ref-st.newest))) : 'No events yet')+'</span> · '+
+  stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span title="Google reports these events a couple of hours after they happen, so the newest can never be newer than that">'+(st.newest? 'Newest event '+esc(ago(Math.max(0,S.ref-st.newest))) : st.catchingUp? 'Reading the newest events from Google…' : 'No events yet')+'</span> · '+
     (st.catchingUp? '<b>older history still loading'+(st.loadedBack? ' (back to '+esc(new Date(st.loadedBack).toLocaleDateString())+')' : '')+'</b> · ' : '')+'grants and revokes for the last '+(st.lookbackDays||30)+' days'+(st.activityDays===undefined||st.activityDays>=(st.lookbackDays||30)? "" : st.activityDays===0? ", API usage not read" : ", API usage for the last "+st.activityDays+" day"+(st.activityDays===1?"":"s"))+', read as '+esc(st.admin||"")+' · read-only';
   if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); const ix=shown.findIndex(a=>a.key===S.gfocus); if(ix>=cap){ cap=Math.ceil((ix+1)/25)*25; S.gcap=cap; } }
   const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
@@ -1911,7 +1953,7 @@ function renderGoogleView(auto){
       '<label class="ctl"><input type="checkbox" id="gNew"'+(f.isNew?" checked":"")+'> new this week</label>'+
       '<input type="text" id="gPerson" class="fin" placeholder="Apps this person connected, e.g. jane@company.com" value="'+esc(f.person||"")+'" aria-label="Filter by person"></div>' : "")+'</div>'+
     (shown.length? '<div class="scroll"><table id="gTbl"><tr>'+th("app","App","Sort by app name")+th("risk","Risk","Sort by risk")+'<th>Access it asked for</th>'+th("people","People","Sort by how many people currently have access, as far as the log shows")+th("first","First seen","Sort by when the app was first seen in the log")+th("last","Last activity","Sort by the app\'s most recent activity")+'</tr>'+shown.slice(0,cap).map(a=>googleRow(a)).join("")+'</table></div>'+
-      (shown.length>25? '<div class="gmorebar">Showing '+fmtN(Math.min(cap,shown.length))+' of '+fmtN(shown.length)+' apps'+(cap<shown.length? ' · <button type="button" class="ghost" data-grows="1">Show '+Math.min(25,shown.length-cap)+' more</button> <button type="button" class="ghost" data-gall="1">Show all</button>' : "")+(cap>25? ' <button type="button" class="ghost" data-gless="1">Show fewer</button>' : "")+'</div>' : "") : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : "No app authorizations in the loaded logs yet.")+'</div>')+'</div>'+
+      (shown.length>25? '<div class="gmorebar">Showing '+fmtN(Math.min(cap,shown.length))+' of '+fmtN(shown.length)+' apps'+(cap<shown.length? ' · <button type="button" class="ghost" data-grows="1">Show '+Math.min(25,shown.length-cap)+' more</button> <button type="button" class="ghost" data-gall="1">Show all</button>' : "")+(cap>25? ' <button type="button" class="ghost" data-gless="1">Show fewer</button>' : "")+'</div>' : "") : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : (st.catchingUp? "Reading the first events from Google. Apps appear here as soon as they arrive, newest first. Older history keeps loading after that." : "No app authorizations in the loaded logs yet."))+'</div>')+'</div>'+
     '<div class="card"><h2>Recent activity</h2><div class="fb-row" style="margin-bottom:8px"><label class="ctl"><input type="checkbox" id="ghi"'+(S.gonlyhi?" checked":"")+'> only events with high-risk access</label></div>'+
     (recent.length? '<div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th><th>App</th><th>Access</th></tr>'+recent.map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td><span class="lnk" data-k="user" data-v="'+esc(e.actor)+'">'+esc(e.actor)+'</span></td><td><span class="pill '+(GACT[e.type]||["","o"])[1]+'">'+esc((GACT[e.type]||[e.type])[0])+'</span>'+(e.count>1?' <span class="gsub" title="This many identical events were summarised into this one line">×'+fmtN(e.count)+'</span>':"")+(e.rejection?' <span class="gsub">'+esc(e.rejection)+'</span>':"")+'</td><td>'+esc(e.app||"—")+'</td><td>'+e.scopes.slice(0,4).map(scopeChip).join("")+(e.scopes.length>4?'<span class="gsub">+'+(e.scopes.length-4)+'</span>':"")+'</td></tr>').join("")+'</table></div>' : '<div class="empty">Nothing to show.</div>')+'</div>';
   if(S.gfocus){ const row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===S.gfocus); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60); S.gfocus=""; }

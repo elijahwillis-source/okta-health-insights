@@ -46,10 +46,17 @@ for (let i = 0; i < MANY; i++) {
 }
 // a heavy, noisy org: MOCK_G_NOISE=300 adds that many "used the API" events a day for 30 days; MOCK_G_REPEAT=150 adds that many identical
 // grants in the same minute (twice: 2 hours ago and 10 days ago); MOCK_G_LATENCY_MS slows every API answer like a real network
-const NOISE = +process.env.MOCK_G_NOISE || 0, REPEAT = +process.env.MOCK_G_REPEAT || 0, LAT = +process.env.MOCK_G_LATENCY_MS || 0;
-if (NOISE || REPEAT) APPS.chatty = { name: "Chatty Sync", id: "888888888888-chatty.apps.googleusercontent.com", scopes: ["openid", U + "userinfo.email", U + "drive.readonly"] };
+const HEAD = +process.env.MOCK_G_HEAD || 0, NOISE = +process.env.MOCK_G_NOISE || 0, REPEAT = +process.env.MOCK_G_REPEAT || 0, LAT = +process.env.MOCK_G_LATENCY_MS || 0;
+if (NOISE || REPEAT || HEAD) APPS.chatty = { name: "Chatty Sync", id: "888888888888-chatty.apps.googleusercontent.com", scopes: ["openid", U + "userinfo.email", U + "drive.readonly"] };
 for (let d = 0; d < 30 && NOISE; d++) for (let i = 0; i < NOISE; i++)
   add("chatty", "noisy@example.com", d * 1440 + Math.floor(i * 1440 / NOISE) + 1, "activity", [{ name: "api_name", value: "drive" }, { name: "method_name", value: "drive.files.list" }]);
+// MOCK_G_HEAD=60000: that many "used the API" calls in the last 5 hours (a busy org right now)
+for (let i = 0; i < HEAD; i++) add("chatty", "noisy@example.com", 1 + Math.floor(i * 299 / HEAD), "activity", [{ name: "api_name", value: "drive" }, { name: "method_name", value: "drive.files.list" }]);
+// MOCK_G_EDGE=1: events exactly on (and one millisecond either side of) an hour boundary 3 hours ago and a day-slice boundary, where two reads meet
+if (process.env.MOCK_G_EDGE) { APPS.chatty = APPS.chatty || { name: "Chatty Sync", id: "888888888888-chatty.apps.googleusercontent.com", scopes: ["openid"] };
+  const H = 36e5, h3 = Math.floor((now - 3 * H) / H) * H, d1 = Math.floor((now - 6 * H) / H) * H - 24 * H;
+  for (const t of [h3 - 1, h3, h3 + 1]) for (let i = 0; i < 40; i++) add("chatty", "edge@example.com", 0, "activity", [{ name: "api_name", value: "drive" }], t);
+  for (const t of [d1 - 1, d1, d1 + 1]) for (let i = 0; i < 40; i++) add("chatty", "edge2@example.com", 0, "authorize", [], t); }
 for (let i = 0; i < REPEAT; i++) { add("chatty", "chatty@example.com", 120, "authorize"); add("chatty", "chatty@example.com", 10 * 1440 + 7, "authorize"); }
 const b64u = s => Buffer.from(s, "base64");
 function verifyJwt(assertion, audience) {

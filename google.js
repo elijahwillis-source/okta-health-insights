@@ -115,7 +115,9 @@ function createGoogle(env, log) {
   async function fetchPages(agg, fromMs, toMs, eventName) {
     let pageToken = "", pages = 0;
     do {
-      const p = { startTime: new Date(fromMs).toISOString(), endTime: new Date(toMs).toISOString(), maxResults: "1000" }; if (eventName) p.eventName = eventName; if (pageToken) p.pageToken = pageToken;
+      // [from, to): the end is exclusive, so two reads that meet never both see an event on the boundary
+      const p = { startTime: new Date(fromMs).toISOString(), endTime: new Date(toMs - 1).toISOString(), maxResults: "1000" };
+      if (eventName) p.eventName = eventName; if (pageToken) p.pageToken = pageToken;
       const j = await get("/admin/reports/v1/activity/users/all/applications/token", p);
       for (const it of j.items || []) ingest(agg, it);
       pageToken = j.nextPageToken || ""; pages++;
@@ -143,12 +145,15 @@ function createGoogle(env, log) {
       }
     }
   }
-  // one window: grants, requests, revokes and blocks over the whole range; API usage only from actFrom on
+  // One window. Grants, requests, revokes and blocks are small and are what the page is about, so each kind is saved the moment it has
+  // been read. API usage is the bulk of the volume: it is read one hour at a time, newest hour first, each hour saved as soon as it
+  // is read, so the page fills in from the present backwards instead of staying empty until everything has arrived.
   async function readWindow(fromMs, toMs, actFromMs) {
-    const agg = new Map();
-    for (const name of CONSENT) await readInto(agg, fromMs, toMs, name);
-    if (cfg.activityDays > 0 && toMs > actFromMs) await readInto(agg, Math.max(fromMs, actFromMs), toMs, "activity");
-    commit(agg);
+    for (const name of CONSENT) { const agg = new Map(); await readInto(agg, fromMs, toMs, name); commit(agg); }
+    if (cfg.activityDays > 0 && toMs > actFromMs) {
+      const lo = Math.max(fromMs, actFromMs); let hi = toMs;
+      while (hi > lo) { const start = Math.max(lo, alignDown(hi - 1)), agg = new Map(); await readInto(agg, start, hi, "activity"); commit(agg); hi = start; }
+    }
   }
   function tidy() {
     const floor = Date.now() - (cfg.lookbackDays + 1) * DAY, grants = [], usage = [];
