@@ -17,9 +17,9 @@ echo; echo "--- Google Workspace ---"
 rm -f /tmp/smoke-gkey.json
 MOCK_G_PORT=4030 MOCK_G_PAGE=5 MOCK_G_ADMIN=admin@example.com MOCK_G_KEYFILE=/tmp/smoke-gkey.json node test/mock-google.js >/tmp/smoke-google.log 2>&1 & PIDS+=($!)
 for _ in $(seq 1 40); do [ -s /tmp/smoke-gkey.json ] && curl -s localhost:4030/_stats >/dev/null && break; sleep 0.3; done
-( export GOOGLE_SA_KEY="$(cat /tmp/smoke-gkey.json)" GOOGLE_ADMIN_EMAIL=admin@example.com GOOGLE_API_BASE=http://localhost:4030 GOOGLE_POLL_SECONDS=5 GOOGLE_LOOKBACK_DAYS=30
+( export GOOGLE_SA_KEY="$(cat /tmp/smoke-gkey.json)" GOOGLE_ADMIN_EMAIL=admin@example.com GOOGLE_API_BASE=http://localhost:4030 GOOGLE_POLL_SECONDS=5 GOOGLE_LOOKBACK_DAYS=30 GOOGLE_CATCHUP_DELAY_MS=20 GOOGLE_REQUEST_DELAY_MS=0
   OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8095 POLL_INTERVAL_SECONDS=15 exec node server.js >/tmp/smoke-server-google.log 2>&1 ) & PIDS+=($!)
-for _ in $(seq 1 30); do [ "$(curl -s localhost:8095/api/status | node -pe 'try{JSON.parse(require("fs").readFileSync(0)).google.events>0}catch{false}')" = "true" ] && break; sleep 1; done
+for _ in $(seq 1 60); do [ "$(curl -s localhost:8095/api/status | node -pe 'try{const g=JSON.parse(require("fs").readFileSync(0)).google; g.events>0&&!g.catchingUp}catch{false}')" = "true" ] && break; sleep 1; done
 GS=$(curl -s localhost:8095/api/status | jq_ 'JSON.stringify(j.google)')
 check "google: connected and reading events"               true "$(echo "$GS" | jq_ 'j.configured&&j.events>0&&!j.lastError')"
 check "google: shows who it acts as"                        admin@example.com "$GS"

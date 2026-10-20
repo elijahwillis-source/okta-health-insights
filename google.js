@@ -51,9 +51,14 @@ function createGoogle(env, log) {
     keyRaw: env.GOOGLE_SA_KEY || "", admin: (env.GOOGLE_ADMIN_EMAIL || "").trim(),
     pollSec: Math.max(5, +env.GOOGLE_POLL_SECONDS || 300), lookbackDays: Math.min(180, Math.max(1, +env.GOOGLE_LOOKBACK_DAYS || 30)),
     recheckHours: Math.max(1, +env.GOOGLE_RECHECK_HOURS || 6), apiBase: (env.GOOGLE_API_BASE || "https://admin.googleapis.com").replace(/\/+$/, ""),
-    tokenUrl: env.GOOGLE_TOKEN_URL || "", maxEvents: +env.GOOGLE_MAX_EVENTS || 100000
+    tokenUrl: env.GOOGLE_TOKEN_URL || "", maxEvents: +env.GOOGLE_MAX_EVENTS || 200000,           // grants, requests, revokes and blocks
+    maxActivity: +env.GOOGLE_MAX_ACTIVITY || 50000,                                              // "used the API" summaries have their own cap, so noise never pushes out real grants
+    maxPages: Math.max(1, +env.GOOGLE_MAX_PAGES_PER_SLICE || 200),                              // pages of 1000 per slice before it is split in two
+    delayMs: env.GOOGLE_REQUEST_DELAY_MS !== undefined && env.GOOGLE_REQUEST_DELAY_MS !== "" ? Math.max(0, +env.GOOGLE_REQUEST_DELAY_MS) : 250,   // a courtesy pause between pages
+    catchUpDelayMs: env.GOOGLE_CATCHUP_DELAY_MS !== undefined && env.GOOGLE_CATCHUP_DELAY_MS !== "" ? Math.max(0, +env.GOOGLE_CATCHUP_DELAY_MS) : 1500          // pause between slices of older history
   };
-  const st = { events: [], ids: new Set(), token: "", tokenExp: 0, lastPollOk: null, lastError: "", lastHint: "", polls: 0, catchingUp: false, started: false };
+  const st = { events: [], index: new Map(), ids: new Map(), seq: 0, epoch: Date.now(), raw: 0, truncated: 0, bf: null, lastHeadAt: 0, dirty: false, minT: Infinity, maxT: 0, token: "", tokenExp: 0, lastPollOk: null, lastError: "", lastHint: "", polls: 0, catchingUp: false, started: false };
+  const sleep = ms => new Promise(res => setTimeout(res, ms));
   let key = null, keyError = "";
   try { key = loadKey(cfg.keyRaw); } catch (e) { keyError = e.message; }
   const configured = !!(cfg.keyRaw && cfg.admin);
@@ -83,49 +88,73 @@ function createGoogle(env, log) {
   }
 
   const paramsOf = list => { const o = {}; for (const p of list || []) o[p.name] = p.multiValue !== undefined ? p.multiValue : p.value !== undefined ? p.value : p.intValue !== undefined ? +p.intValue : p.boolValue; return o; };
+  // Stored events are summaries: a grant, request, revoke or block repeated by the same person for the same app within one
+  // minute is ONE entry with a count; "used the API" calls are summed per person, app and hour. The raw ids are remembered so
+  // re-reading a time range never counts anything twice.
+  function addEvent(e) {
+    const cur = st.index.get(e.id);
+    if (!cur) { e.seq = ++st.seq; st.index.set(e.id, e); st.events.push(e); st.dirty = true; if (e.time < st.minT) st.minT = e.time; if (e.time > st.maxT) st.maxT = e.time; return; }
+    cur.count = (cur.count || 1) + (e.count || 1); if (e.time > cur.time) { cur.time = e.time; st.dirty = true; if (e.time > st.maxT) st.maxT = e.time; } if (!cur.ip) cur.ip = e.ip;
+    for (const x of e.scopes) if (!cur.scopes.includes(x)) cur.scopes.push(x);
+    cur.seq = ++st.seq;                       // changed, so a client asking "what is new?" gets it again
+  }
   function ingest(item) {
     const t = Date.parse(item && item.id && item.id.time); if (!isFinite(t)) return 0;
     const base = ((item.id && item.id.uniqueQualifier) || "") + "@" + t; let added = 0;
     (item.events || []).forEach((ev, i) => {
-      const id = base + ":" + i; if (st.ids.has(id)) return;
+      const rawId = base + ":" + i; if (st.ids.has(rawId)) return;
       const P = paramsOf(ev.parameters); let scopes = P.scope;
       if (!scopes && Array.isArray(P.scope_data)) scopes = P.scope_data.map(x => x && x.scope_name).filter(Boolean);
       if (!Array.isArray(scopes)) scopes = scopes ? [String(scopes)] : [];
-      st.ids.add(id); added++;
-      st.events.push({ id, time: t, actor: (item.actor && item.actor.email) || "", ip: item.ipAddress || "", type: ev.name || "", app: String(P.app_name || ""), clientId: String(P.client_id || ""),
-        scopes: scopes.map(String), rejection: String(P.rejection_type || ""), api: String(P.api_name || ""), method: String(P.method_name || "") });
+      st.ids.set(rawId, t); st.raw++; added++;
+      const type = ev.name || "", actor = (item.actor && item.actor.email) || "", clientId = String(P.client_id || ""), api = String(P.api_name || "");
+      const id = type === "activity" ? `activity|${actor}|${clientId}|${api}|${Math.floor(t / 36e5)}` : `${type}|${actor}|${clientId}|${Math.floor(t / 60000)}`;
+      addEvent({ id, time: t, actor, ip: item.ipAddress || "", type, app: String(P.app_name || ""), clientId, scopes: scopes.map(String), rejection: String(P.rejection_type || ""), api, method: String(P.method_name || "") });
     });
     return added;
   }
-  async function fetchRange(fromMs, toMs) {
-    let pageToken = "", pages = 0, added = 0;
+  async function fetchPages(fromMs, toMs) {
+    let pageToken = "", pages = 0;
     do {
       const p = { startTime: new Date(fromMs).toISOString(), endTime: new Date(toMs).toISOString(), maxResults: "1000" }; if (pageToken) p.pageToken = pageToken;
       const j = await get("/admin/reports/v1/activity/users/all/applications/token", p);
-      for (const it of j.items || []) added += ingest(it);
+      for (const it of j.items || []) ingest(it);
       pageToken = j.nextPageToken || ""; pages++;
-    } while (pageToken && pages < 200);
-    return added;
+      if (pageToken && cfg.delayMs) await sleep(cfg.delayMs);
+    } while (pageToken && pages < cfg.maxPages);
+    return { truncated: !!pageToken };
+  }
+  // read a time range; if it is too big to read in one go, read each half separately (newest half first), so a busy day is never cut off
+  async function readRange(fromMs, toMs) {
+    const r = await fetchPages(fromMs, toMs);
+    if (!r.truncated) return;
+    if (toMs - fromMs > 15 * 60000) { const mid = Math.floor((fromMs + toMs) / 2); await readRange(mid, toMs); await readRange(fromMs, mid); }
+    else { st.truncated++; log("Google: a very busy 15 minutes (" + new Date(fromMs).toISOString() + ") was only partly read"); }
   }
   function tidy() {
-    st.events.sort((a, b) => a.time - b.time);
-    const floor = Date.now() - (cfg.lookbackDays + 1) * DAY; let i = 0; while (i < st.events.length && st.events[i].time < floor) i++;
-    if (i || st.events.length > cfg.maxEvents) { const cut = Math.max(i, st.events.length - cfg.maxEvents); for (const e of st.events.slice(0, cut)) st.ids.delete(e.id); st.events = st.events.slice(cut); }
+    const floor = Date.now() - (cfg.lookbackDays + 1) * DAY, grants = [], usage = [];
+    for (const e of st.events) { if (e.time < floor) { st.index.delete(e.id); continue; } (e.type === "activity" ? usage : grants).push(e); }
+    const cap = (list, max) => { if (list.length <= max) return list; list.sort((a, b) => a.time - b.time); for (const e of list.slice(0, list.length - max)) st.index.delete(e.id); return list.slice(list.length - max); };
+    st.events = cap(grants, cfg.maxEvents).concat(cap(usage, cfg.maxActivity)).sort((a, b) => a.time - b.time); st.dirty = false;
+    st.minT = st.events.length ? st.events[0].time : Infinity; st.maxT = st.events.length ? st.events[st.events.length - 1].time : 0;
+    for (const [id, t] of st.ids) if (t < floor) st.ids.delete(id);
   }
   async function poll() {
     const now = Date.now();
-    if (!st.started) {                                    // first run: history in one-day slices, oldest first, so no slice can be cut off
-      st.catchingUp = true;
-      for (let t = now - cfg.lookbackDays * DAY; t < now; t += DAY) { await fetchRange(t, Math.min(now, t + DAY)); tidy(); }
-      st.catchingUp = false; st.started = true;
-    } else await fetchRange(now - cfg.recheckHours * HOUR, now);   // events are reported late, so re-read the last few hours; ids de-duplicate
+    if (!st.bf) { st.bf = { until: now - cfg.recheckHours * HOUR, floor: now - cfg.lookbackDays * DAY, done: false }; if (st.bf.until <= st.bf.floor) st.bf.done = true; st.catchingUp = !st.bf.done; }     // older history is on its way from the very first second
+    // 1) the newest events first (and again every poll, because Google reports them late): the page is current within seconds
+    if (now - st.lastHeadAt >= cfg.pollSec * 1000 - 500 || !st.started) { await readRange(now - cfg.recheckHours * HOUR, now); st.lastHeadAt = Date.now(); }
+    st.started = true;
+    // 2) then older history, newest day first, one slice at a time
+    if (!st.bf.done) { st.catchingUp = true; const from = Math.max(st.bf.floor, st.bf.until - DAY); await readRange(from, st.bf.until); st.bf.until = from; if (from <= st.bf.floor) st.bf.done = true; }
+    st.catchingUp = !st.bf.done;
     tidy(); st.lastPollOk = Date.now(); st.lastError = ""; st.lastHint = ""; st.polls++;
   }
   let timer = null;
   async function loop() {
     let delay = cfg.pollSec * 1000;
-    try { await poll(); }
-    catch (e) { st.lastError = e.message; st.lastHint = e.hint || ""; st.catchingUp = false; log("Google poll failed:", e.message); delay = Math.max(15000, Math.min(cfg.pollSec * 1000, 60000)); }
+    try { await poll(); if (st.catchingUp) delay = cfg.catchUpDelayMs; }                      // keep going quickly while older history is still loading
+    catch (e) { st.lastError = e.message; st.lastHint = e.hint || ""; st.catchingUp = st.bf ? !st.bf.done : false; log("Google poll failed:", e.message); delay = Math.max(15000, Math.min(cfg.pollSec * 1000, 60000)); }
     timer = setTimeout(loop, delay); if (timer.unref) timer.unref();
   }
   return {
@@ -134,9 +163,17 @@ function createGoogle(env, log) {
     stop() { clearTimeout(timer); },
     status() {
       return { configured, admin: configured ? cfg.admin : "", lastPollOk: st.lastPollOk, lastError: partial || keyError || st.lastError, hint: partial ? "Google needs both settings. Add the missing one in your hosting dashboard (environment variables) and redeploy." : keyError ? "" : st.lastHint, events: st.events.length, catchingUp: st.catchingUp,
-        lookbackDays: cfg.lookbackDays, oldest: st.events.length ? st.events[0].time : null, newest: st.events.length ? st.events[st.events.length - 1].time : null, scope: SCOPE };
+        lookbackDays: cfg.lookbackDays, oldest: isFinite(st.minT) ? st.minT : null, newest: st.maxT || null, scope: SCOPE,
+        loadedBack: st.bf ? (st.bf.done ? st.bf.floor : st.bf.until) : null, seq: st.seq, epoch: st.epoch, rawEvents: st.raw, incompleteSlices: st.truncated };
     },
-    events(since) { const s = +since || 0; return s ? st.events.filter(e => e.time > s) : st.events; },
+    // opts.after: everything stored or changed since that sequence number (older history arrives AFTER newer events, so time alone cannot be used)
+    // opts.since: events newer than that time
+    events(opts) {
+      const o = (opts && typeof opts === "object") ? opts : { since: opts };
+      if (st.dirty) { st.events.sort((a, b) => a.time - b.time); st.dirty = false; }
+      if (o.after !== undefined && o.after !== null && o.after !== "") return st.events.filter(e => e.seq > +o.after).sort((a, b) => a.time - b.time);
+      const s = +o.since || 0; return s ? st.events.filter(e => e.time > s) : st.events;
+    },
     _state: st
   };
 }

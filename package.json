@@ -8,7 +8,8 @@
     "dev:mock": "node test/mock-okta.js",
     "test": "bash test/smoke.sh",
     "test:google": "bash test/smoke-google.sh",
-    "test:ratelimit": "bash test/smoke-ratelimit.sh"
+    "test:ratelimit": "bash test/smoke-ratelimit.sh",
+    "test:google-load": "bash test/smoke-google-load.sh"
   },
   "engines": { "node": ">=20" },
   "license": "UNLICENSED",

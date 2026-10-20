@@ -679,9 +679,9 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && url.pathname === "/api/google/events") {
       if (!google.configured) return send(req, res, 404, { error: "Google Workspace is not connected (GOOGLE_SA_KEY and GOOGLE_ADMIN_EMAIL are not set)." });
-      const ev = google.events(url.searchParams.get("since"));
+      const ev = google.events({ since: url.searchParams.get("since"), after: url.searchParams.get("after") });
       const status = google.status();
-      return send(req, res, 200, { events: ev, total: status.events, serverTime: Date.now(), status });
+      return send(req, res, 200, { events: ev, total: status.events, seq: status.seq, epoch: status.epoch, serverTime: Date.now(), status });
     }
 
     if (req.method === "GET" && url.pathname === "/api/events") {

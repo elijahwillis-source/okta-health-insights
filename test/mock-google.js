@@ -44,6 +44,13 @@ for (let i = 0; i < MANY; i++) {
   for (let j = 0; j < people; j++) add(key, user(100 + ((i * 3 + j) % 90)), (1 + (i % 28)) * 1440 + j * 7);
   if (i % 4 === 0) for (let j = 0; j < people; j++) add(key, user(100 + ((i * 3 + j) % 90)), (i % 28) * 1440 + 30, "revoke");      // some end up with nobody
 }
+// a heavy, noisy org: MOCK_G_NOISE=300 adds that many "used the API" events a day for 30 days; MOCK_G_REPEAT=150 adds that many identical
+// grants in the same minute (twice: 2 hours ago and 10 days ago); MOCK_G_LATENCY_MS slows every API answer like a real network
+const NOISE = +process.env.MOCK_G_NOISE || 0, REPEAT = +process.env.MOCK_G_REPEAT || 0, LAT = +process.env.MOCK_G_LATENCY_MS || 0;
+if (NOISE || REPEAT) APPS.chatty = { name: "Chatty Sync", id: "888888888888-chatty.apps.googleusercontent.com", scopes: ["openid", U + "userinfo.email", U + "drive.readonly"] };
+for (let d = 0; d < 30 && NOISE; d++) for (let i = 0; i < NOISE; i++)
+  add("chatty", "noisy@example.com", d * 1440 + Math.floor(i * 1440 / NOISE) + 1, "activity", [{ name: "api_name", value: "drive" }, { name: "method_name", value: "drive.files.list" }]);
+for (let i = 0; i < REPEAT; i++) { add("chatty", "chatty@example.com", 120, "authorize"); add("chatty", "chatty@example.com", 10 * 1440 + 7, "authorize"); }
 const b64u = s => Buffer.from(s, "base64");
 function verifyJwt(assertion, audience) {
   const parts = String(assertion || "").split("."); if (parts.length !== 3) return "assertion is not a JWT";
@@ -72,7 +79,7 @@ http.createServer(async (req, res) => {
     const t = "gtok-" + crypto.randomBytes(6).toString("hex"); tokens.add(t); return json(res, 200, { access_token: t, expires_in: 3600, token_type: "Bearer" });
   }
   if (url.pathname === "/admin/reports/v1/activity/users/all/applications/token" && req.method === "GET") {
-    stats.apiRequests++;
+    stats.apiRequests++; if (LAT) await new Promise(r => setTimeout(r, LAT));
     if (!tokens.has((req.headers.authorization || "").replace(/^Bearer /, ""))) return json(res, 401, { error: { code: 401, message: "Invalid Credentials" } });
     if (mode === "noreports") return json(res, 401, { error: { code: 401, message: "Access denied. You are not authorized to read activity records.", errors: [{ message: "Access denied. You are not authorized to read activity records.", domain: "global", reason: "authError" }] } });   // the admin has no Reports privilege
     if (mode === "forbidden") return json(res, 403, { error: { code: 403, message: "Not Authorized to access this resource/api" } });
