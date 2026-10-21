@@ -49,7 +49,7 @@ header.top .sub{color:var(--muted);font-size:12px}
 /* ---- app shell ---- */
 :root{--navw:236px;--aw:0px;--aw-set:460px}                       /* --aw is the assistant column (0 when closed), --aw-set the width it opens to */
 .shell{display:grid;grid-template-columns:var(--navw) minmax(0,1fr) var(--aw);min-height:100vh;transition:grid-template-columns .25s cubic-bezier(.2,.8,.2,1)}
-html.assist{--aw:var(--aw-set)}html.dragging .shell,html.snap .shell{transition:none}html.dragging{cursor:col-resize;user-select:none}
+html.assist{--aw:var(--aw-set)}
 .shell.collapsed{--navw:68px}
 .side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px;padding:14px 12px;background:var(--surface);border-right:1px solid var(--border);overflow-x:hidden;overflow-y:auto;z-index:20}
 .brand{display:flex;align-items:center;gap:10px;padding:4px 6px 16px;text-decoration:none;color:var(--text)}
@@ -155,16 +155,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .drawer{position:sticky;top:0;height:100vh;min-width:0;overflow:hidden;z-index:30;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;visibility:hidden;transition:visibility 0s linear .25s}
 .drawer>.chat{min-width:var(--aw-set)}                       /* so the chat does not re-wrap while the column slides open */
 html.assist .drawer{visibility:visible;transition-delay:0s}
-.dgrip{position:absolute;left:0;top:0;bottom:0;width:9px;margin-left:-4px;cursor:col-resize;z-index:3;touch-action:none}
-.dgrip::before{content:"";position:absolute;left:1px;top:50%;width:7px;height:48px;margin-top:-24px;border-radius:4px;background:var(--muted);opacity:.4;transition:opacity .15s,background .15s}.dgrip:hover::before,.dgrip.on::before,.dgrip:focus-visible::before{opacity:1;background:var(--accent)}
-.dgrip::after{content:"";position:absolute;left:4px;top:0;bottom:0;width:2px;background:transparent;transition:background .15s}.dgrip:hover::after,.dgrip.on::after,.dgrip:focus-visible::after{background:var(--accent)}.dgrip:focus-visible{outline:none}
-.dsize{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 4px}.dsize .dsl{font-size:12px;color:var(--muted);margin-right:2px}.dsize button{padding:3px 12px;font-size:12.5px;border-radius:99px;background:var(--surface2);border:1px solid var(--border);color:var(--text)}.dsize button:hover{border-color:var(--accent)}.dsize button[aria-pressed="true"]{background:rgba(125,140,255,.18);border-color:var(--accent);color:var(--accent);font-weight:600}
 .drawer .dclose{position:absolute;top:10px;right:12px;z-index:2;background:transparent;border:none}
 #toasts{position:fixed;right:calc(18px + var(--aw));bottom:18px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(380px,calc(100vw - 36px))}
 @media (max-width:900px){:root{--navw:68px}.nl,.bt,.navsoon{display:none}.navi{justify-content:center;padding:10px 0}.brand{justify-content:center}header.top{padding:10px 14px}main{padding:16px 14px 40px}#hsearch{min-width:0;flex:1}}
 @media (max-width:899px){.shell{grid-template-columns:var(--navw) minmax(0,1fr)}html.assist{--aw:0px}
   .drawer{position:fixed;top:0;right:0;bottom:0;height:auto;width:min(440px,100vw);transform:translateX(104%);box-shadow:-12px 0 32px rgba(0,0,0,.18);transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
-  html.assist .drawer{transform:none;transition-delay:0s}.drawer>.chat{min-width:0}.dgrip{display:none}}
+  html.assist .drawer{transform:none;transition-delay:0s}.drawer>.chat{min-width:0}}
 @media (prefers-reduced-motion:reduce){.shell,.drawer{transition:none}}
 .ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 select,button,input[type=text]{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
@@ -483,11 +479,9 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><symbol id="iris-hi" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="60" cy="62" r="25" fill="#2DD4BF"/><circle cx="60" cy="62" r="12" fill="#121629"/><circle cx="68" cy="54" r="5.5" fill="#fff"/><circle cx="53" cy="70" r="2.5" fill="#fff"/><path d="M30 32 Q42 20 56 28 M64 28 Q78 20 90 32" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M48 92 Q60 101 72 92" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/></symbol><symbol id="iris-think" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="66" cy="56" r="25" fill="#2DD4BF"/><circle cx="66" cy="56" r="12" fill="#121629"/><circle cx="74" cy="48" r="5.5" fill="#fff"/><circle cx="59" cy="64" r="2.5" fill="#fff"/><path d="M30 36 Q42 30 56 34 M64 22 Q78 14 90 26" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M50 94 Q60 90 71 95" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/></symbol><symbol id="iris-oops" viewBox="0 0 120 120"><ellipse cx="60" cy="62" rx="52" ry="50" fill="#fff" stroke="currentColor" stroke-width="5"/><circle cx="60" cy="64" r="25" fill="#2DD4BF"/><circle cx="60" cy="64" r="12" fill="#121629"/><circle cx="68" cy="56" r="5.5" fill="#fff"/><circle cx="53" cy="72" r="2.5" fill="#fff"/><path d="M30 28 Q42 36 56 30 M64 30 Q78 36 90 28" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><circle cx="28" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><circle cx="92" cy="80" r="6" fill="#7B8CFF" opacity=".38"/><path d="M48 97 Q60 88 72 97" fill="none" stroke="#121629" stroke-width="4" stroke-linecap="round"/><path d="M100 30 Q106 40 100 46 Q94 40 100 30Z" fill="#2DD4BF"/></symbol></defs></svg>
   <aside class="drawer" id="assistant" aria-label="Ask Iris" aria-hidden="true">
-    <div class="dgrip" id="dgrip" role="separator" aria-orientation="vertical" aria-label="Resize the Iris panel. Drag, or use the left and right arrow keys. Double-click to reset." tabindex="0" aria-valuemin="340" aria-valuemax="900" aria-valuenow="460"></div>
     <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close Iris"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
       <div class="iris-head"><svg class="iris-avatar lg" id="irisHead" aria-hidden="true"><use href="#iris-hi"/></svg><div><h2>Ask Iris</h2><p class="hint">Iris knows your live data and can search it. Ask her why something is failing.</p></div></div>
-      <div class="dsize" id="dsize" role="group" aria-label="Width of the Iris panel"><span class="dsl">Width</span><button type="button" data-aw="0.33" aria-pressed="false" title="A third of the window">Narrow</button><button type="button" data-aw="0.5" aria-pressed="false" title="Half and half: the app on the left, Iris on the right">Half</button><button type="button" data-aw="0.66" aria-pressed="false" title="Two thirds of the window">Wide</button></div>
       <div class="msgs" id="msgs"></div>
       <div class="sugg" id="sugg"></div>
       <div class="inp"><input type="text" id="q" placeholder="Ask Iris about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
@@ -982,8 +976,7 @@ async function loadExplanation(key){
   if(!S.assistant){ S.explain.set(ek,{state:"error",text:"The explanation needs the assistant, which is only available when the dashboard is connected to its backend with an Anthropic API key."}); paint(); return; }
   S.explain.set(ek,{state:"loading"}); paint();
   try{
-    const imp=errImpact(x.norm,S.C||{assignFails:[]});
-    const r=await fetch("api/explain-error",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:x.norm,apps:x.apps.slice(0,1),eventTypes:x.types.slice(0,1),count:imp.n,people:imp.people})});
+    const r=await fetch("api/explain-error",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({reason:x.norm,apps:x.apps.slice(0,1),eventTypes:x.types.slice(0,1),count:x.count,people:1})});
     const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
     S.explain.set(ek,{state:"done",text:j.text});
   }catch(err){ S.explain.set(ek,{state:"error",text:"Couldn’t get an explanation ("+err.message+"). Click the button again to retry."}); }
@@ -1011,7 +1004,9 @@ $("#userTbl").addEventListener("click",ev=>{
   const ex=ev.target.closest("[data-explain]"); if(ex){ explainToggle(ex.dataset.explain); return; }
   const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#userTbl").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
   const kn=ev.target.closest("[data-knownerr]"); if(kn){ const x=S.xerr.get(kn.dataset.knownerr); if(x) openSuppressEditor({match:{include:phraseFromNorm(x.norm),apps:x.apps.slice(0,1),eventType:(x.types||[])[0]||""}}); return; }
-  const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x) ask("Help me with this Okta error: “"+x.norm+"”"+(x.apps.length?" (app: "+x.apps.join(", ")+")":"")+". What does it mean, and what exactly should I do to fix it?"); return; }
+  const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x){ const ev=S.events.filter(e=>isFail(e)&&userOf(e)===x.u&&normErr(reasonOf(e))===x.norm).sort((a,b)=>ts(b)-ts(a))[0];
+    if(ev){ const b=eventBrief(ev); ask(b.text,{focus:true,show:b.show}); }
+    else ask("Explain this ONE Okta error for this ONE person.\nPerson: "+x.u+"\nReason: “"+x.norm+"”"+(x.apps.length? "\nApp: "+x.apps.join(", ") : "")+(x.types.length? "\nEvent type: "+x.types.join(", ") : "")+"\nThey have had it "+x.count+" time"+(x.count===1?"":"s")+". Stay on this person and this error.",{focus:true,show:"Explain this error for "+x.u}); } return; }
   const lk=ev.target.closest("[data-lookup]"); if(lk){ openUser(lk.dataset.lookup); return; }
   if(ev.target.closest("tr.udet")) return;          // clicks inside the opened details never collapse them
   const row=ev.target.closest("tr.urow"); if(row) toggleUserRow(row.dataset.u);
@@ -1155,7 +1150,7 @@ function renderErrorsView(C){
   const csv=$("#errCsv"); if(csv) csv.onclick=()=>exportCsv(errs);
 }
 $("#errView").addEventListener("click",ev=>{
-  const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e) ask("Help me with this Okta error: “"+normErr(reasonOf(e))+"”"+(appOf(e)?" (app: "+appOf(e)+")":"")+" from event "+e.eventType+". What does it mean, and what should I do to fix it?"); return; }
+  const ex=ev.target.closest("[data-eexplain]"); if(ex){ const e=S.errRows[+ex.dataset.eexplain]; if(e){ const b=eventBrief(e); ask(b.text,{focus:true,show:b.show}); } return; }
   const kw=ev.target.closest("[data-eknown]"); if(kw){ const e=S.errRows[+kw.dataset.eknown]; if(e) openSuppressEditor({match:{include:rulePhrase(e),apps:appOf(e)?[appOf(e)]:[],eventType:e.eventType||""}}); return; }
   const hi=ev.target.closest("[data-ehide]"); if(hi){ const e=S.errRows[+hi.dataset.ehide]; if(e){ const ph=mutePhrase(e); if(ph.length>=4) setFilter("errors",f=>{ const cur=(f.exclude||"").split(",").map(x=>x.trim()).filter(Boolean); if(!cur.includes(ph)) cur.push(ph); f.exclude=cur.join(", "); }); } return; }
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
@@ -1541,38 +1536,20 @@ function showView(v){
 function go(v){ try{ if(currentView()!==v) location.hash="#/"+v; }catch(_){} showView(v); }
 try{ window.addEventListener("hashchange",()=>showView(currentView())); }catch(_){}
 // The assistant is a docked column: opening it narrows the app, closing it gives the width back. Its width is yours to set (drag the edge).
-const AW_MIN=340, viewW=()=>document.documentElement.clientWidth, navW=()=>viewW()<=900? 68 : ($("#shell").classList.contains("collapsed")? 68 : 236);
-const awMax=()=>Math.max(AW_MIN, viewW()-navW()-420);                       // always leave the app at least ~420px
-const clampAw=px=>Math.round(Math.max(AW_MIN, Math.min(awMax(), px)));
-const defaultAw=()=>clampAw(Math.round(viewW()*0.33));          // a third of the window, the same as the Narrow button
-const curAw=()=>parseInt(document.documentElement.style.getPropertyValue("--aw-set"))||defaultAw();
-const tightNav=()=>document.documentElement.classList.contains("assist")&&viewW()<1400;       // on a smaller window the menu shrinks to icons while the assistant is open
+// Iris is always the same width: a third of the window, never under 340px or over 640px, and never so wide that the app has less than 420px.
+const AW_MIN=340, AW_MAX=640, viewW=()=>document.documentElement.clientWidth, navW=()=>viewW()<=900? 68 : ($("#shell").classList.contains("collapsed")? 68 : 236);
+const irisW=()=>Math.round(Math.max(AW_MIN, Math.min(AW_MAX, viewW()*0.33, viewW()-navW()-420)));
+const setAw=()=>{ const w=irisW(); document.documentElement.style.setProperty("--aw-set",w+"px"); return w; };
+const tightNav=()=>document.documentElement.classList.contains("assist")&&viewW()<1400;       // on a smaller window the menu shrinks to icons while Iris is open
 function syncNav(){ const c=!!prefs.collapsed||tightNav(); $("#shell").classList.toggle("collapsed",c); }
-function markSize(w){ const vw=viewW(); for(const b of document.querySelectorAll("#dsize [data-aw]")){ const want=Math.min(awMax(),Math.round(vw*(+b.dataset.aw))); b.setAttribute("aria-pressed",String(Math.abs(want-w)<=Math.max(6,vw*0.012))); } }
-function setAw(px,save){ const w=clampAw(px); markSize(w); document.documentElement.style.setProperty("--aw-set",w+"px"); const g=$("#dgrip"); if(g){ g.setAttribute("aria-valuenow",w); g.setAttribute("aria-valuemax",awMax()); } if(save){ prefs.aw=w; savePrefs(); } return w; }
-// a resize you asked for (keys, double-click) applies at once; only opening and closing slide
-function snapAw(px,save){ const r=document.documentElement; r.classList.add("snap"); const w=setAw(px,save); requestAnimationFrame(()=>requestAnimationFrame(()=>r.classList.remove("snap"))); return w; }
 function openAssistant(on){
   const d=$("#assistant"); const open= on===undefined? !d.classList.contains("open") : !!on;
   d.classList.toggle("open",open); d.setAttribute("aria-hidden",String(!open)); document.documentElement.classList.toggle("assist",open);
-  syncNav(); if(open) setAw(prefs.aw||defaultAw());
+  syncNav(); if(open) setAw();
   for(const id of ["#navAssistant","#topAssistant"]){ const b=$(id); if(b) b.setAttribute("aria-expanded",String(open)); }
   if(open) setTimeout(()=>{ try{ $("#q").focus(); }catch(_){} },280);
 }
-try{ window.addEventListener("resize",()=>{ if($("#assistant").classList.contains("open")){ syncNav(); setAw(curAw()); } }); }catch(_){}
-$("#dsize").addEventListener("click",ev=>{ const b=ev.target.closest("[data-aw]"); if(b) snapAw(Math.round(viewW()*(+b.dataset.aw)),true); });
-(function(){
-  const g=$("#dgrip"); if(!g) return; let drag=false;
-  g.addEventListener("pointerdown",e=>{ drag=true; try{ g.setPointerCapture(e.pointerId); }catch(_){} document.documentElement.classList.add("dragging"); g.classList.add("on"); e.preventDefault(); });
-  g.addEventListener("pointermove",e=>{ if(drag) setAw(viewW()-e.clientX,false); });
-  const end=()=>{ if(!drag) return; drag=false; document.documentElement.classList.remove("dragging"); g.classList.remove("on"); setAw(curAw(),true); };
-  g.addEventListener("pointerup",end); g.addEventListener("pointercancel",end);
-  g.addEventListener("dblclick",()=>{ delete prefs.aw; savePrefs(); snapAw(defaultAw()); });
-  g.addEventListener("keydown",e=>{
-    if(e.key==="ArrowLeft"){ snapAw(curAw()+24,true); e.preventDefault(); } else if(e.key==="ArrowRight"){ snapAw(curAw()-24,true); e.preventDefault(); }
-    else if(e.key==="Home"){ delete prefs.aw; savePrefs(); snapAw(defaultAw()); e.preventDefault(); }
-  });
-})();
+try{ window.addEventListener("resize",()=>{ if($("#assistant").classList.contains("open")){ syncNav(); setAw(); } }); }catch(_){}
 $("#navAssistant").onclick=()=>openAssistant(); $("#topAssistant").onclick=()=>openAssistant(); $("#dclose").onclick=()=>openAssistant(false);
 function applyPrefs(){
   const root=document.documentElement;
@@ -2418,6 +2395,19 @@ function summary(){
 function md(t){
   return esc(t).replace(/```([\s\S]*?)```/g,"<code>$1</code>").replace(/`([^`\n]+)`/g,"<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
 }
+// Everything Iris needs to explain ONE event for ONE person, put in the question itself, so she never has to go searching.
+function eventBrief(e){
+  const who=userOf(e)||"(no person on this event)", app=appOf(e)||"(none)", t=ts(e), res=(e.outcome&&e.outcome.result)||"", norm=normErr(reasonOf(e));
+  const hhmm=ms=>new Date(ms).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const near=userOf(e)? S.events.filter(x=>x!==e&&userOf(x)===userOf(e)&&Math.abs(ts(x)-t)<=15*60000).sort((a,b)=>Math.abs(ts(a)-t)-Math.abs(ts(b)-t)).slice(0,8).sort((a,b)=>ts(a)-ts(b)) : [];
+  const line=x=>"- "+hhmm(ts(x))+"  "+x.eventType+"  "+((x.outcome&&x.outcome.result)||"")+(appOf(x)? "  ["+appOf(x)+"]" : "")+(isFail(x)? "  “"+reasonOf(x).slice(0,90)+"”" : "");
+  const same=S.events.filter(x=>isFail(x)&&normErr(reasonOf(x))===norm), mine=same.filter(x=>userOf(x)===userOf(e)).length, people=new Set(same.map(userOf)).size;
+  const involved=(e.target||[]).slice(0,4).map(x=>x.type+": "+(x.displayName||x.alternateId||x.id)).join("; ");
+  const text=["Explain this ONE Okta error for this ONE person.","Person: "+who,"When: "+new Date(t).toLocaleString()+" ("+new Date(t).toISOString()+")","App: "+app,"Event type: "+e.eventType,"Result: "+res,"Reason: “"+reasonOf(e).slice(0,400)+"”",involved? "Involved: "+involved : "",
+    "What else happened for this person within 15 minutes of it (oldest first):",near.length? near.map(line).join("\n") : "- (nothing else in the loaded data)",
+    "Context: this person has had "+mine+" of this same error in the loaded data, and "+people+" "+(people===1? "person has" : "people have")+" it in total. Stay on this one event and this one person."].filter(Boolean).join("\n");
+  return {text,show:"Explain this error for "+who+" ("+(app!=="(none)"? app : e.eventType)+", "+hhmm(t)+")"};
+}
 // An assistant message is Iris's face next to a bubble. addMsg returns the bubble, so callers can fill it in later.
 function addMsg(cls,html,face){
   const d=document.createElement("div"); d.className="msg "+cls;
@@ -2433,16 +2423,16 @@ function thinkingBubble(){
   let i=Math.floor(Math.random()*3); const ph=b.querySelector(".ph"), tick=()=>{ ph.textContent=THINKING[i%THINKING.length]; i++; }; tick();
   b.setAttribute("aria-live","polite"); b._timer=setInterval(tick,2600); setFace(b,"iris-think"); return b;
 }
-async function ask(text){
-  text=(text||"").trim(); if(!text||S.busy) return;
+async function ask(text,opts){
+  opts=opts||{}; text=(text||"").trim(); if(!text||S.busy) return;
   openAssistant(true);
   if(!S.assistant){ addMsg("a","I can only answer when the dashboard is connected to its backend and has an Anthropic API key set up.","iris-oops"); return; }
   S.busy=true; $("#send").disabled=true; $("#sugg").style.display="none";
-  addMsg("u",esc(text)); S.history.push({role:"user",content:text});
+  addMsg("u",esc(opts.show||text)); S.history.push({role:"user",content:text});          // the chat shows a short line; Iris gets the whole question
   const out=thinkingBubble();
   try{
     const r=await fetch("api/chat",{method:"POST",headers:{"content-type":"application/json"},
-      body:JSON.stringify({messages:S.history.slice(-12),summary:summary(),windowMs:S.win})});
+      body:JSON.stringify({messages:S.history.slice(-12),summary:opts.focus? undefined : summary(),windowMs:S.win,focus:!!opts.focus})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.error||("HTTP "+r.status));
     clearInterval(out._timer); out.innerHTML=md(j.text); setFace(out,"iris-hi"); S.history.push({role:"assistant",content:j.text});

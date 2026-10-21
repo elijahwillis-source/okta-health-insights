@@ -412,11 +412,20 @@ async function assistantUserLookup(i) {
 
 /* --------------------------------------------------------------- assistant */
 const SYSTEM = `You are Iris, the friendly guide built into Sightline, an IT health dashboard that reads Okta (and optionally Google Workspace) activity. You are also an expert Okta administrator and identity engineer, and you help people troubleshoot using live Okta System Log data.
-YOUR VOICE: warm, calm and plain-spoken, like a capable colleague who is happy to help. Speak as "I" ("I checked the last 7 days and..."). Lead with the answer in the first sentence, then the reason, then what to do next. Keep it short and use plain words before jargon. Do NOT start every answer the same way and never open with "Looking at your data": vary your openings, or just start with the answer. No emoji. Light warmth is good ("Good news:", "That one is quick to fix."); jokes and wordplay are not. If you are asked who you are, say you are Iris, an AI guide built into Sightline. Being friendly never means being vague: stay accurate, specific and honest about what the data does and does not show.
+YOUR VOICE: warm, calm and plain-spoken, like a capable colleague who is happy to help. Speak as "I" ("I checked the last 7 days and..."). Lead with the answer in the first sentence, then the reason, then what to do next. Keep it short and use plain words before jargon. Do NOT start every answer the same way and never open with "Looking at your data": vary your openings, or just start with the answer. No emoji. Light warmth is good ("Good news:", "That one is quick to fix."); jokes and wordplay are not. If you are asked who you are, say you are Iris, an AI guide built into Sightline. Being friendly never means being vague: stay accurate, specific and honest about what the data does and does not show. SCOPE: answer the question that was asked. If it is about one event or one person, stay on that event and that person, and do not widen to other incidents or other people unless asked.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
 Apply common knowledge: expired/revoked API tokens or OAuth grants in provisioning; license exhaustion in the target app; duplicate or mismatched attributes (email/username) in the target; group rules failing on missing profile attributes; attribute mapping and Okta Expression Language errors; rate limiting (429); sign-on policy denials; lockouts; import schedules; SCIM errors.
 Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.
 The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. You have no tool for the Google data beyond the summary.`;
+
+// Used when someone asks Iris to explain ONE event for ONE person (the Explain buttons). She gets the facts in the question, no dashboard
+// summary, and no broad search tools, so she cannot wander off into every incident of the same error.
+const FOCUS_RULES = `FOCUS MODE. The message describes ONE specific event for ONE specific person. Answer only about that event and that person. Everything you need is in the message: do not look for other incidents, other people or other apps, and do not summarise how common the error is beyond the single line of context you were given. You may use lookup_user_events for THIS person only if one more fact about them is essential.
+Answer in this shape, in plain words, under 150 words, with no preamble:
+**What happened**: one or two sentences, naming the person and the time.
+**Most likely cause**: one to three short bullets starting with "- ".
+**What to do**: numbered steps, with real Okta Admin Console paths where they apply, and what to check in the target app.
+Then ONE closing sentence offering to check how widespread it is.`;
 
 const TOOLS = [{
   name: "query_events",
@@ -561,13 +570,15 @@ async function chat(body) {
     .map(m => ({ role: m.role, content: m.content.slice(0, 4000) }));
   while (msgs.length && msgs[0].role !== "user") msgs.shift();
   if (!msgs.length || msgs[msgs.length - 1].role !== "user") { const e = new Error("Last message must be from the user."); e.status = 400; throw e; }
-  const system = SYSTEM + "\n\nCurrent dashboard summary (JSON):\n" + JSON.stringify(body.summary || {}).slice(0, 12000);
+  const focus = body.focus === true;
+  const system = focus ? SYSTEM + "\n\n" + FOCUS_RULES : SYSTEM + "\n\nCurrent dashboard summary (JSON):\n" + JSON.stringify(body.summary || {}).slice(0, 12000);
+  const tools = focus ? TOOLS.filter(t => t.name === "lookup_user_events") : TOOLS, maxSteps = focus ? 3 : 7;
   let nudged = false;
-  for (let step = 0; step < 7; step++) {
+  for (let step = 0; step < maxSteps; step++) {
     const r = await fetch(cfg.anthropicUrl + "/v1/messages", {
       method: "POST",
       headers: { "x-api-key": cfg.anthropicKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: cfg.model, max_tokens: 2000, system, tools: TOOLS, messages: msgs })
+      body: JSON.stringify({ model: cfg.model, max_tokens: 2000, system, tools, messages: msgs })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) { const e = new Error("Anthropic API error: " + (data.error && data.error.message || r.status)); e.status = 502; throw e; }
@@ -577,7 +588,8 @@ async function chat(body) {
       for (const b of data.content.filter(b => b.type === "tool_use")) {
         let out;
         try {
-          out = b.name === "query_events" ? queryEvents(b.input, windowMs)
+          out = focus && b.name !== "lookup_user_events" ? { error: "Not available for a single-event question: everything needed is in the message." }
+              : b.name === "query_events" ? queryEvents(b.input, windowMs)
               : b.name === "lookup_user_events" ? await assistantUserLookup(b.input)
               : b.name === "lookup_app_errors" ? await assistantAppLookup(b.input)
               : { error: "unknown tool" };
