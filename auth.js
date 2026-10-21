@@ -8,8 +8,10 @@
  * Roles come from the provider's groups: owner > admin > user.
  * A signed, HTTP-only session cookie points at a server-side session (kept in DATA_DIR so a redeploy does not sign anyone out;
  * sessions expire after SESSION_HOURS, or after SESSION_IDLE_MINUTES without use).
- * DASHBOARD_PASSWORD keeps working as a "break-glass" owner login (set BREAKGLASS_ENABLED=false to turn it off).
- * Without OIDC the old behaviour is unchanged: the password if one is set, otherwise open.
+ * There is no back door: no emergency password and no special page. If sign-in breaks, fix its settings in the hosting platform.
+ * DASHBOARD_PASSWORD only matters when sign-in is NOT set up (then it is the login); with sign-in on it is ignored.
+ * Without OIDC the old behaviour is unchanged: the password if one is set, otherwise open. REQUIRE_SSO=true removes that last
+ * case: the app refuses everything unless sign-in is fully configured, so it can never fall back to open access.
  * No dependencies: node:crypto and fetch.
  */
 const crypto = require("crypto"), fs = require("fs"), path = require("path");
@@ -32,14 +34,15 @@ function createAuth({ env, dir, log, audit }) {
     idleMs: env.SESSION_IDLE_SECONDS ? +env.SESSION_IDLE_SECONDS * 1000 : Math.max(0, env.SESSION_IDLE_MINUTES === undefined || env.SESSION_IDLE_MINUTES === "" ? 60 : +env.SESSION_IDLE_MINUTES) * 60000,
     trustProxy: !/^(0|false|no)$/i.test(env.TRUST_PROXY || ""),
     dashUser: env.DASHBOARD_USER || "admin", dashPass: env.DASHBOARD_PASSWORD || "",
-    breakglass: !/^(0|false|no|off)$/i.test(env.BREAKGLASS_ENABLED || "") && !!env.DASHBOARD_PASSWORD
+    requireSso: /^(1|true|yes)$/i.test(env.REQUIRE_SSO || "")
   };
-  const wanted = !!(cfg.issuer || cfg.clientId || cfg.clientSecret || cfg.publicUrl);
+  const wanted = !!(cfg.issuer || cfg.clientId || cfg.clientSecret || cfg.publicUrl || cfg.requireSso);
   const missing = []; if (wanted) { if (!cfg.issuer) missing.push("OIDC_ISSUER"); if (!cfg.clientId) missing.push("OIDC_CLIENT_ID"); if (!cfg.clientSecret) missing.push("OIDC_CLIENT_SECRET"); if (!cfg.publicUrl) missing.push("PUBLIC_URL"); if (cfg.secret.length < 32) missing.push("SESSION_SECRET (at least 32 characters)"); }
   const enabled = wanted && !missing.length, misconfigured = wanted && missing.length > 0;
   const secure = cfg.publicUrl.startsWith("https://"), origin = (() => { try { return new URL(cfg.publicUrl).origin; } catch { return ""; } })();
   if (enabled && !secure && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(cfg.publicUrl)) log("WARNING: PUBLIC_URL is not https, so session cookies cannot be marked Secure.");
-  if (misconfigured) log("Sign-in is NOT enabled: missing " + missing.join(", ") + ". Everything except /healthz is refused until this is fixed (the break-glass password still works if set).");
+  if (misconfigured) log("Sign-in is NOT enabled: missing " + missing.join(", ") + ". Everything except /healthz is refused until this is fixed" + (cfg.requireSso ? " (REQUIRE_SSO is on, so nothing is served without sign-in)." : "."));
+  if (cfg.dashPass && (enabled || misconfigured)) log("NOTE: DASHBOARD_PASSWORD is set but is ignored while single sign-on is on. It is not a login of any kind, and it can be removed.");
 
   const sessFile = path.join(dir, "sessions.json"), sessions = new Map(), pending = new Map();
   let saveT = null, persistent = false;
@@ -110,18 +113,14 @@ function createAuth({ env, dir, log, audit }) {
         else { if (now - s.last > 15000) { s.last = now; saveSoon(); } return userOf(s); }
       }
     }
-    if (cfg.dashPass && (enabled || misconfigured ? cfg.breakglass : true)) {                       // the password: break-glass when SSO is on, the normal login otherwise
+    if (cfg.dashPass && !enabled && !misconfigured) {                                                 // sign-in is NOT set up: the password is the login
       const h = req.headers.authorization || "";
       if (h.startsWith("Basic ")) {
         const [u, ...p] = Buffer.from(h.slice(6), "base64").toString().split(":"), a = Buffer.from(u + ":" + p.join(":")), b = Buffer.from(cfg.dashUser + ":" + cfg.dashPass);
         const ipk = "bad:" + clientIp(req), failed = (hits.get(ipk) || []).filter(t => Date.now() - t < 60000);
         if (failed.length >= 20) return null;                                                          // too many wrong passwords from here: stop answering for a minute
         if (!(a.length === b.length && crypto.timingSafeEqual(a, b))) { failed.push(Date.now()); hits.set(ipk, failed); }
-        else {
-          const bg = enabled || misconfigured;
-          if (bg) { const k = clientIp(req), now = Date.now(); if (!(hits.get("bg:" + k) > now - 600000)) { hits.set("bg:" + k, now); audit.write({ cat: "auth", action: "auth.breakglass", ip: k, ua: req.headers["user-agent"], actor: { name: "break-glass", role: "owner", via: "break-glass" }, detail: "signed in with the shared password" }); } }
-          return { id: "password", email: "", name: bg ? "Break-glass" : "Password sign-in", role: "owner", via: bg ? "break-glass" : "password", verified: false };
-        }
+        else return { id: "password", email: "", name: "Password sign-in", role: "owner", via: "password", verified: false };
       }
     }
     if (!enabled && !misconfigured && !cfg.dashPass) return { id: "open", email: "", name: "Open access", role: "owner", via: "open", verified: false };
@@ -131,14 +130,9 @@ function createAuth({ env, dir, log, audit }) {
   async function handle(req, res, url) {
     const p = url.pathname;
     if (p === "/logged-out") { html(res, 200, page("You are signed out", `<p>See you next time.</p>${enabled ? '<a class="b" href="/login">Sign in again</a>' : ""}`)); return true; }
-    if (!["/login", "/callback", "/logout", "/breakglass"].includes(p)) return false;
+    if (!["/login", "/callback", "/logout"].includes(p)) return false;
     const ip = clientIp(req);
-    if (p === "/breakglass") {                                                                       // where the owner goes when sign-in itself is broken: the browser asks for the shared password
-      if (!cfg.breakglass || !(enabled || misconfigured)) { redirect(res, "/"); return true; }
-      const u = identify(req); if (u && u.via === "break-glass") { redirect(res, "/"); return true; }
-      res.writeHead(401, { "www-authenticate": 'Basic realm="Sightline break-glass"', "cache-control": "no-store" }); res.end("Break-glass sign-in"); return true;
-    }
-    if (misconfigured) { html(res, 503, page("Sign-in is not set up", `<p>Single sign-on is only partly configured. Missing: <code>${esc(missing.join(", "))}</code>.</p><p>Until that is fixed, access is refused. If a break-glass password is set, it still works.</p>`)); return true; }
+    if (misconfigured) { html(res, 503, page("Sign-in is not set up", `<p>Single sign-on is only partly configured. Missing: <code>${esc(missing.join(", "))}</code>.</p><p>Until that is fixed, access is refused.</p>`)); return true; }
     if (!enabled) { redirect(res, "/"); return true; }
     if (p === "/logout") {
       const raw = cookies(req).sl_sid, sid = raw && unsign(raw), s = sid && sessions.get(sid);
@@ -187,7 +181,7 @@ function createAuth({ env, dir, log, audit }) {
     enabled, misconfigured, missing, handle, identify, flush, roleAtLeast, clientIp, origin, cfg, ROLES,
     sessionList() { return [...sessions.values()].map(s => ({ id: sidHash(s.sid), sid: s.sid, email: s.email, name: s.name, role: s.role, created: s.created, last: s.last, ip: s.ip, ua: s.ua })).sort((a, b) => b.last - a.last); },
     revoke(id) { for (const s of sessions.values()) if (sidHash(s.sid) === id) { sessions.delete(s.sid); saveSoon(); return s; } return null; },
-    describe() { return { enabled, issuerHost: (() => { try { return new URL(cfg.issuer).host; } catch { return ""; } })(), ownerGroups: cfg.ownerGroups, adminGroups: cfg.adminGroups, userGroups: cfg.userGroups, ownerEmails: cfg.ownerEmails, adminEmails: cfg.adminEmails, requireGroup: cfg.requireGroup, groupsClaim: cfg.groupsClaim, sessionHours: cfg.sessionMs / 36e5, idleMinutes: cfg.idleMs / 60000, breakglass: cfg.breakglass, persistent }; }
+    describe() { return { enabled, issuerHost: (() => { try { return new URL(cfg.issuer).host; } catch { return ""; } })(), ownerGroups: cfg.ownerGroups, adminGroups: cfg.adminGroups, userGroups: cfg.userGroups, ownerEmails: cfg.ownerEmails, adminEmails: cfg.adminEmails, requireGroup: cfg.requireGroup, groupsClaim: cfg.groupsClaim, sessionHours: cfg.sessionMs / 36e5, idleMinutes: cfg.idleMs / 60000, persistent }; }
   };
 }
 module.exports = { createAuth, ROLES, safeNext };

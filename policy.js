@@ -73,7 +73,7 @@ function createPolicy(opts) {
   function change(actor, baseVersion, fn) {
     if (!canEdit(actor)) throw err(403, "You can see the policy but not change it. Ask an administrator.");
     // every change must be attributable: if sign-in cannot say who this is, the person has to say (and the log marks it unverified)
-    if (!actor.verified && (!actor.name || actor.name === "unknown" || actor.name === "break-glass")) throw err(400, "Enter your name first, so the audit log can say who made this change.");
+    if (!actor.verified && (!actor.name || actor.name === "unknown")) throw err(400, "Enter your name first, so the audit log can say who made this change.");
     if (baseVersion !== undefined && baseVersion !== null && +baseVersion !== state.version) throw err(409, "Someone else changed the policy while you were editing. Reload and try again.", { current: snapshot(actor) });
     const result = fn();
     state.version++; state.updatedAt = new Date().toISOString(); persist();

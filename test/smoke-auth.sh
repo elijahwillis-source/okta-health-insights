@@ -11,9 +11,9 @@ code() { curl -s -o /dev/null -w "%{http_code}" "$@"; }
 H='content-type: application/json'; U=localhost:8060; M=localhost:4061
 SECRET="a-long-random-session-secret-for-tests-0123456789"
 node test/mock-okta.js >/dev/null 2>&1 & PIDS+=($!)
-MOCK_OIDC_PORT=4061 MOCK_OIDC_REDIRECT=http://localhost:8060/callback,http://localhost:8062/callback,http://localhost:8064/callback node test/mock-oidc.js >/dev/null 2>&1 & PIDS+=($!)
+MOCK_OIDC_PORT=4061 MOCK_OIDC_REDIRECT=http://localhost:8060/callback,http://localhost:8062/callback,http://localhost:8064/callback,http://localhost:8065/callback node test/mock-oidc.js >/dev/null 2>&1 & PIDS+=($!)
 sleep 1.2
-BASE="OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t OIDC_ISSUER=http://localhost:4061 OIDC_CLIENT_ID=0oaTEST OIDC_CLIENT_SECRET=s3cret-value SESSION_SECRET=$SECRET OIDC_OWNER_GROUPS=sightline-owners OIDC_ADMIN_GROUPS=sightline-admins OIDC_USER_GROUPS=sightline-users DASHBOARD_PASSWORD=breakglass-pass"
+BASE="OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t OIDC_ISSUER=http://localhost:4061 OIDC_CLIENT_ID=0oaTEST OIDC_CLIENT_SECRET=s3cret-value SESSION_SECRET=$SECRET OIDC_OWNER_GROUPS=sightline-owners OIDC_ADMIN_GROUPS=sightline-admins OIDC_USER_GROUPS=sightline-users DASHBOARD_PASSWORD=shared-pass"
 start() { local port=$1 dir=$2; shift 2; ( export $BASE PORT=$port PUBLIC_URL=http://localhost:$port DATA_DIR=$dir "$@"; exec node server.js >>/tmp/auth-$port.log 2>&1 ) & PIDS+=($!); sleep 3.2; }
 signin() { curl -s "$M/_user?email=$2&name=$(echo "$3" | sed 's/ /%20/g')&groups=$4" >/dev/null; rm -f "$1"; curl -s -L -c "$1" -b "$1" -o /dev/null -w "%{http_code}" "$U/login"; }
 me() { curl -s -b "$1" $U/api/me; }
@@ -70,12 +70,12 @@ echo "--- what each role may do ---"
 RULE='{"rule":{"match":{"include":"some error"},"why":"A proper reason for this exception."}}'; V=$(curl -s -b $J/user $U/api/policy | jq_ 'j.meta.version')
 check "a user can SEE the policy"                                    200 "$(code -b $J/user $U/api/policy)"; check "... and sees that they cannot change it" '"canEdit":false' "$(curl -s -b $J/user $U/api/policy)"
 check "a user cannot create a known-error rule (403)"                403 "$(code -b $J/user -X POST -H "$H" -d "$RULE" $U/api/policy/suppressions)"
-check "a user cannot read the audit log (403)"                       403 "$(code -b $J/user $U/api/audit)"; check "... or the access settings (403)" 403 "$(code -b $J/user $U/api/access)"
+check "a user cannot read the audit log (403)"                       403 "$(code -b $J/user $U/api/audit)"; check "... nor the policy history behind it (403)" 403 "$(code -b $J/user $U/api/policy/audit)"; check "... or the access settings (403)" 403 "$(code -b $J/user $U/api/access)"
 check "a user cannot change alert rules (403)"                       403 "$(code -b $J/user -X PUT -H "$H" -d '{"rules":[]}' $U/api/policy/alert-rules)"
 check "an admin sees that they can change things"                    '"canEdit":true' "$(curl -s -b $J/admin $U/api/policy)"
 check "an admin can create a rule, with NO name to type (it is verified)" 201 "$(code -b $J/admin -X POST -H "$H" -d "$RULE" $U/api/policy/suppressions)"
 check "... recorded under their Okta email"                          '"createdBy":"admin@x.test"' "$(curl -s -b $J/admin $U/api/policy)"; check "... as verified" '"createdVerified":true' "$(curl -s -b $J/admin $U/api/policy)"
-check "an admin can read the audit log"                              200 "$(code -b $J/admin $U/api/audit)"; check "... but not the access settings (owner only)" 403 "$(code -b $J/admin $U/api/access)"
+check "an admin can read the audit log"                              200 "$(code -b $J/admin $U/api/audit)"; check "... and the policy history" 200 "$(code -b $J/admin $U/api/policy/audit)"; check "... but not the access settings (owner only)" 403 "$(code -b $J/admin $U/api/access)"
 V=$(curl -s -b $J/admin $U/api/policy | jq_ 'j.meta.version'); R1='{"id":"r-one","name":"Many failures","type":"spike","enabled":true,"filter":{"cats":["provision"]},"n":10,"windowMin":60,"by":"app","cooldownMin":60}'
 check "an admin can publish shared alert rules"                      200 "$(code -b $J/admin -X PUT -H "$H" -d '{"baseVersion":'$V',"rules":['"$R1"']}' $U/api/policy/alert-rules)"
 check "... and everyone, a user too, then gets those rules"          '"name":"Many failures"' "$(curl -s -b $J/user $U/api/policy)"
@@ -97,11 +97,11 @@ echo "--- other sites, and the shared password ---"
 check "a request from another site is refused (403)"                 403 "$(code -b $J/owner -X POST -H "$H" -H "Origin: http://evil.example" -d "$RULE" $U/api/policy/suppressions)"
 check "... also by the browser's own 'cross-site' signal"            403 "$(code -b $J/owner -X POST -H "$H" -H "Sec-Fetch-Site: cross-site" -d "$RULE" $U/api/policy/suppressions)"
 check "a request from this site is fine"                             201 "$(code -b $J/owner -X POST -H "$H" -H "Origin: http://localhost:8060" -H "Sec-Fetch-Site: same-origin" -d "$RULE" $U/api/policy/suppressions)"
-check "break-glass: the shared password still works"                 '"via":"break-glass"' "$(curl -s -u admin:breakglass-pass $U/api/me)"; check "... as an owner" '"role":"owner"' "$(curl -s -u admin:breakglass-pass $U/api/me)"
-check "a wrong password is refused"                                  401 "$(code -u admin:wrong $U/api/me)"
-check "/breakglass asks the browser for the password"                "Basic realm=\"Sightline break-glass\"" "$(curl -s -D - -o /dev/null $U/breakglass | tr -d '\r')"; check "... and lets you in with it" 302 "$(code -u admin:breakglass-pass $U/breakglass)"
-check "break-glass changes need a typed name (nobody is verified)"   400 "$(code -u admin:breakglass-pass -X POST -H "$H" -d "$RULE" $U/api/policy/suppressions)"
-check "... and are recorded as break-glass"                          '"createdBy":"break-glass: Dana"' "$(curl -s -u admin:breakglass-pass -X POST -H "$H" -H "x-sightline-name: Dana" -d "$RULE" $U/api/policy/suppressions >/dev/null; curl -s -u admin:breakglass-pass $U/api/policy)"
+check "the shared password gives NO access while sign-in is on"        401 "$(code -u admin:shared-pass $U/api/me)"
+check "... and neither does a wrong one"                               401 "$(code -u admin:wrong $U/api/me)"
+check "there is no /breakglass page any more: it just goes to sign-in" "ocation: /login" "$(curl -s -D - -o /dev/null $U/breakglass | tr -d '\r')"
+check "... and nothing ever asks the browser for a password"            0 "$(curl -s -D - -o /dev/null -u admin:shared-pass $U/breakglass | tr -d '\r' | grep -ci 'www-authenticate')"
+check "an Okta session is the only way in (the password adds nothing)"  '"via":"oidc"' "$(curl -s -b $J/owner -u admin:shared-pass $U/api/me)"
 
 echo "--- signing out ---"
 LO=$(curl -s -D - -o /dev/null -b $J/user $U/logout | tr -d '\r')
@@ -110,7 +110,7 @@ check "... and the session is dead"                                  401 "$(code
 
 echo "--- the audit log ---"
 AU=$(curl -s -b $J/owner "$U/api/audit?limit=500")
-for a in auth.login auth.denied auth.login.failed auth.logout auth.session.revoked auth.breakglass access.denied suppression.create alertrules.publish alertrule.update alertrule.disable; do check "the log has '$a'" "\"action\":\"$a\"" "$(echo "$AU" | jq_ 'j.rows.map(r=>JSON.stringify({action:r.action})).join("")')"; done
+for a in auth.login auth.denied auth.login.failed auth.logout auth.session.revoked access.denied suppression.create alertrules.publish alertrule.update alertrule.disable; do check "the log has '$a'" "\"action\":\"$a\"" "$(echo "$AU" | jq_ 'j.rows.map(r=>JSON.stringify({action:r.action})).join("")')"; done
 check "every sign-in failure is recorded as a failure"               true "$(echo "$AU" | jq_ 'j.rows.filter(r=>r.action==="auth.login.failed").length>=6&&j.rows.filter(r=>r.action==="auth.login.failed").every(r=>r.ok===false)')"
 check "rows carry who, their role, where from and what was done"     true "$(echo "$AU" | jq_ 'const r=j.rows.find(r=>r.action==="auth.login"&&r.actor.email==="admin@x.test"); !!r&&r.actor.role==="admin"&&r.actor.verified===true&&r.cat==="auth"&&!!r.ip&&!!r.ua')"
 check "a refused request names what was tried and what was needed"   true "$(echo "$AU" | jq_ 'j.rows.some(r=>r.action==="access.denied"&&r.actor.email==="user@x.test"&&/api\/policy\/suppressions/.test(r.target)&&/change it/.test(r.detail))')"
@@ -131,10 +131,10 @@ check "... and is refused after the idle time"                       401 "$(code
 check "... and the expiry is logged"                                 "auth.session.expired" "$(cat $D2/audit-log.jsonl)"
 
 echo "--- a half-finished setup fails closed ---"
-( export OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t PORT=8063 DATA_DIR=$D3 OIDC_ISSUER=http://localhost:4061 OIDC_CLIENT_ID=0oaTEST PUBLIC_URL=http://localhost:8063 DASHBOARD_PASSWORD=breakglass-pass; exec node server.js >/tmp/auth-8063.log 2>&1 ) & PIDS+=($!); sleep 3.2; U3=localhost:8063
+( export OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t PORT=8063 DATA_DIR=$D3 OIDC_ISSUER=http://localhost:4061 OIDC_CLIENT_ID=0oaTEST PUBLIC_URL=http://localhost:8063 DASHBOARD_PASSWORD=shared-pass; exec node server.js >/tmp/auth-8063.log 2>&1 ) & PIDS+=($!); sleep 3.2; U3=localhost:8063
 check "everything is refused (nothing is left open by mistake)"      401 "$(code $U3/api/status)"; check "... the sign-in page says what is missing" "OIDC_CLIENT_SECRET" "$(curl -s $U3/login)"
 check "... without printing any value"                               true "$(curl -s $U3/login | node -pe '!require("fs").readFileSync(0,"utf8").includes("0oaTEST")')"
-check "the health check still answers"                               200 "$(code $U3/healthz)"; check "the break-glass password still works" '"via":"break-glass"' "$(curl -s -u admin:breakglass-pass $U3/api/me)"
+check "the health check still answers"                               200 "$(code $U3/healthz)"; check "the password does NOT unlock it" 401 "$(code -u admin:shared-pass $U3/api/me)"
 check "the server log explains it"                                   "Sign-in is NOT enabled: missing OIDC_CLIENT_SECRET" "$(cat /tmp/auth-8063.log)"
 
 echo "--- the real Okta group names: spaces and capitals ---"
@@ -148,6 +148,24 @@ sg $J/g5 e@x.test "Some Other Group,Sightline Users group" >/dev/null; check "ot
 check "a group that merely contains the word is NOT enough"      403 "$(sg $J/g6 f@x.test "Sightline Owners Group Extra")"
 check "an owner named by email gets in before any group is set up"  '"role":"owner"' "$(sg $J/g7 boot.owner@x.test "nothing" >/dev/null; curl -s -b $J/g7 $U4/api/me)"
 check "the assistant is open to every role by default"            '"assistantRole":"user"' "$(curl -s -b $J/g3 $U4/api/me)"
+
+echo "--- the shared password is ignored with sign-in on, and REQUIRE_SSO can never be left open ---"
+D5=$(mktemp -d); D6=$(mktemp -d); D7=$(mktemp -d)
+( export OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t PORT=8065 DATA_DIR=$D5 PUBLIC_URL=http://localhost:8065 OIDC_ISSUER=http://localhost:4061 OIDC_CLIENT_ID=0oaTEST OIDC_CLIENT_SECRET=s3cret-value SESSION_SECRET=$SECRET OIDC_OWNER_GROUPS="Sightline Owners Group" DASHBOARD_PASSWORD=shared-pass REQUIRE_SSO=true; exec node server.js >/tmp/auth-8065.log 2>&1 ) & PIDS+=($!)
+( export OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t PORT=8066 DATA_DIR=$D6 REQUIRE_SSO=true; exec node server.js >/tmp/auth-8066.log 2>&1 ) & PIDS+=($!)
+( export OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t PORT=8067 DATA_DIR=$D7; exec node server.js >/tmp/auth-8067.log 2>&1 ) & PIDS+=($!); sleep 3.5
+U5=localhost:8065; U6=localhost:8066; U7=localhost:8067
+check "sign-in on: the shared password is refused, on the API"     401 "$(code -u admin:shared-pass $U5/api/me)"
+check "... and on a page request it just goes to Okta"            "ocation: /login" "$(curl -s -D - -o /dev/null -u admin:shared-pass $U5/ | tr -d '\r')"
+curl -s "$M/_user?email=ok@x.test&name=Okta%20User&groups=Sightline%20Owners%20Group" >/dev/null; rm -f $J/o5; curl -s -L -c $J/o5 -b $J/o5 -o /dev/null "$U5/login"
+check "Okta sign-in works, as the owner"                          '"via":"oidc"' "$(curl -s -b $J/o5 $U5/api/me)"; check "... with the right role" '"role":"owner"' "$(curl -s -b $J/o5 $U5/api/me)"
+check "the Access tab has nothing about an emergency login"       0 "$(curl -s -b $J/o5 $U5/api/access | grep -ci 'breakglass')"
+check "the server log says the password is ignored"               "DASHBOARD_PASSWORD is set but is ignored" "$(cat /tmp/auth-8065.log)"
+check "REQUIRE_SSO with NO sign-in settings: everything is refused (never open)" 401 "$(code $U6/api/status)"
+check "... the page says what to set up, without any values"      "OIDC_CLIENT_SECRET" "$(curl -s $U6/login)"
+check "... the health check still answers, so the platform stays happy" 200 "$(code $U6/healthz)"
+check "... and the server log explains it"                        "REQUIRE_SSO is on" "$(cat /tmp/auth-8066.log)"
+check "WITHOUT REQUIRE_SSO and without any settings the app is open (the case REQUIRE_SSO exists to prevent)" '"via":"open"' "$(curl -s $U7/api/me)"
 
 echo; echo "$pass passed, $fail failed"
 [[ $fail -eq 0 ]]

@@ -667,7 +667,6 @@ function actorOf(req) {
   const u = req.user, base = { ip: auth.clientIp(req), ua: String(req.headers["user-agent"] || "").slice(0, 160) };
   const typedName = () => String(req.headers["x-sightline-name"] || "").replace(/[^\p{L}\p{N} .@_'+-]/gu, "").trim().slice(0, 80);
   if (u && u.via === "oidc") return { ...base, name: u.email, email: u.email, role: u.role, verified: true, via: "oidc" };
-  if (u && u.via === "break-glass") { const t = typedName(); return { ...base, name: t ? "break-glass: " + t : "break-glass", role: "owner", verified: false, via: "break-glass" }; }
   if (cfg.userHeader) { const h = String(req.headers[cfg.userHeader] || "").trim().slice(0, 120); if (h) return { ...base, name: h, verified: true, via: "header" }; }
   const typed = String(req.headers["x-sightline-name"] || "").replace(/[^\p{L}\p{N} .@_'+-]/gu, "").trim().slice(0, 80);
   return { ...base, name: typed || "unknown", verified: false, via: "typed" };
@@ -694,7 +693,7 @@ const server = http.createServer(async (req, res) => {
       try { const [f, type] = BRAND[url.pathname]; const buf = fs.readFileSync(path.join(__dirname, "public", "brand", f)); res.writeHead(200, { ...SEC_HEADERS, "content-type": type, "content-length": buf.length, "cache-control": "public, max-age=86400" }); return res.end(req.method === "HEAD" ? undefined : buf); }
       catch { res.writeHead(404, SEC_HEADERS); return res.end(); }
     }
-    if (await auth.handle(req, res, url)) return;                                                    // /login /callback /logout /breakglass /logged-out
+    if (await auth.handle(req, res, url)) return;                                                    // /login /callback /logout /logged-out
     const who = auth.identify(req);
     if (!who) {
       if (auth.enabled || auth.misconfigured) {
@@ -787,7 +786,10 @@ const server = http.createServer(async (req, res) => {
 
     // ---- policy: shared known-error rules and Google app decisions
     if (url.pathname === "/api/policy" && req.method === "GET") return send(req, res, 200, policy.snapshot(actorOf(req)));
-    if (url.pathname === "/api/policy/audit" && req.method === "GET") return send(req, res, 200, { rows: policy.audit(url.searchParams.get("limit")) });
+    if (url.pathname === "/api/policy/audit" && req.method === "GET") {                             // the audit log is for admins and owners, the same as the page says
+      if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
+      return send(req, res, 200, { rows: policy.audit(url.searchParams.get("limit")) });
+    }
     if (url.pathname.startsWith("/api/policy/") && ["POST", "PUT", "DELETE"].includes(req.method)) {
       if (!policyRateOk()) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
       const actor = actorOf(req), v = url.searchParams.get("v");
@@ -811,7 +813,7 @@ const server = http.createServer(async (req, res) => {
 function start() {
   if (!cfg.orgUrl) { console.error("OKTA_ORG_URL is required (e.g. https://yourco.okta.com)"); process.exit(1); }
   if (!cfg.apiToken && !(cfg.clientId && cfg.privateKey)) console.error("WARNING: no Okta credentials set; polling will fail until OKTA_API_TOKEN or OKTA_CLIENT_ID/OKTA_PRIVATE_KEY is provided.");
-  if (auth.enabled) log("Sign-in: Okta single sign-on (" + auth.describe().issuerHost + "); roles from groups; break-glass password " + (auth.cfg.breakglass ? "ON (/breakglass)" : "off"));
+  if (auth.enabled) log("Sign-in: Okta single sign-on (" + auth.describe().issuerHost + "); roles from groups");
   else if (!cfg.dashPass && !auth.misconfigured) log("NOTE: neither single sign-on nor DASHBOARD_PASSWORD is set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Sightline listening on :${cfg.port} for ${cfg.orgUrl}`));
