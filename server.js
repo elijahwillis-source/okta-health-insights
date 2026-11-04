@@ -10,6 +10,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { normalizeRule: normalizeGeoRule, cc: geoCountry, placeText: geoPlaceText } = require("./geo");
 const zlib = require("zlib");
 const crypto = require("crypto");
 
@@ -40,6 +41,9 @@ const cfg = {
   lookbackDays: +env.LOOKBACK_DAYS || 7,
   maxEvents: +env.MAX_EVENTS || 100000,
   maxPagesPerPoll: Math.max(2, +env.MAX_PAGES_PER_POLL || 50),
+  // while old history loads, only this many pages are read per cycle, so a new event is looked at every ~20 seconds instead of waiting for a long
+  // history step to end (this is what keeps location alerts quick for the 20 to 30 minutes after every restart)
+  backfillPagesPerPoll: Math.max(1, +env.BACKFILL_PAGES_PER_POLL || 10),
   headHours: +env.HEAD_HOURS || 6,                 // newest window loaded first, so the dashboard is current within minutes
   backfillChunkHours: +env.BACKFILL_CHUNK_HOURS || 12,   // older history is then filled in newest-chunk-first
   appsRefreshMin: +env.APPS_REFRESH_MINUTES || 15,
@@ -57,7 +61,10 @@ const google = require("./google").createGoogle(env, log);
 const audit = require("./audit").createAudit({ dir: cfg.dataDir, log, stdout: !/^(0|false|no|off)$/i.test(env.AUDIT_STDOUT || "") });
 const auth = require("./auth").createAuth({ env, dir: cfg.dataDir, log, audit });
 const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins: cfg.policyAdmins, requireExpiry: cfg.policyRequireExpiry, verifiedIdentity: !!cfg.userHeader, roleBased: auth.enabled || auth.misconfigured,
-  onAudit: (row, a) => audit.write({ cat: /^alertrule/.test(row.action) ? "alerts" : "policy", action: row.action, actor: a, ip: a.ip, ua: a.ua, target: row.target, before: row.before, after: row.after, why: row.why }) });
+  onAudit: (row, a) => audit.write({ cat: /^(alertrule|georule)/.test(row.action) ? "alerts" : "policy", action: row.action, actor: a, ip: a.ip, ua: a.ua, target: row.target, before: row.before, after: row.after, why: row.why }) });
+const geo = require("./geo").createGeo({ dir: cfg.dataDir, log, maxAgeMinutes: Math.max(5, +env.GEO_MAX_AGE_MINUTES || 30) });
+const slack = require("./slack").createSlack({ env, log });
+const SYSTEM_ACTOR = { name: "sightline", role: "system", verified: true, via: "system" };
 if (cfg.policyAdmins.length && !cfg.userHeader) log("NOTE: POLICY_ADMINS is set but USER_HEADER is not, so roles are NOT enforced (the sign-in name is shared and cannot prove who someone is). Set USER_HEADER only if a sign-in proxy sets it.");
 
 /* ------------------------------------------------------------------- state */
@@ -154,10 +161,13 @@ async function oktaGet(url, attempt = 0, kind = "fg") {
 /* ------------------------------------------------------------ data polling */
 const clean = v => (typeof v === "string" ? v.trim() : v);
 
+const placeNames = new Map();                                                            // "Russia" appears on thousands of events: keep one copy of the text
+const place = v => { v = typeof v === "string" ? v.trim().slice(0, 60) : ""; if (!v) return null; let k = placeNames.get(v); if (!k) { if (placeNames.size > 5000) placeNames.clear(); placeNames.set(v, k = v); } return k; };
 function slim(e) {
+  const gc = (e.client && e.client.geographicalContext) || {};
   return {
     id: e.uuid, published: e.published, eventType: e.eventType, displayMessage: e.displayMessage, severity: e.severity,
-    ip: (e.client && e.client.ipAddress) || null, city: (e.client && e.client.geographicalContext && e.client.geographicalContext.city) || null,
+    ip: (e.client && e.client.ipAddress) || null, city: place(gc.city), region: place(gc.state), country: place(gc.country),
     outcome: e.outcome ? { result: e.outcome.result, reason: e.outcome.reason || null } : null,
     actor: e.actor ? { id: e.actor.id, type: e.actor.type, alternateId: e.actor.alternateId, displayName: clean(e.actor.displayName) } : null,
     target: (e.target || []).map(t => ({ type: t.type, id: t.id, alternateId: t.alternateId, displayName: clean(t.displayName) }))
@@ -181,7 +191,7 @@ const bf = { floor: null, until: null, active: null, done: false };
 async function fetchRange(sinceIso, untilIso, kind = "fg") {
   let url = `${cfg.orgUrl}/api/v1/logs?since=${encodeURIComponent(sinceIso)}` + (untilIso ? `&until=${encodeURIComponent(untilIso)}` : "") +
     `&limit=${cfg.pageSize}&sortOrder=ASCENDING` + (cfg.logFilter ? `&filter=${encodeURIComponent(cfg.logFilter)}` : "");
-  let pages = 0, last = null, finished = false, outOfOrder = false;
+  let pages = 0, last = null, finished = false, outOfOrder = false; const fresh = [];
   while (url) {
     const { json, next } = await oktaGet(url, 0, kind); pages++;
     if (!json.length) { finished = true; break; }                // an empty page means we are caught up with this range
@@ -192,14 +202,35 @@ async function fetchRange(sinceIso, untilIso, kind = "fg") {
       state.ids.add(e.id);
       const tail = state.events[state.events.length - 1];
       if (tail && e.published < tail.published) outOfOrder = true;
-      state.events.push(e); noteApp(e);
+      state.events.push(e); noteApp(e); if (kind === "fg") fresh.push(e);
     }
-    if (pages >= cfg.maxPagesPerPoll) break;                      // yield; resume from `last` next cycle
+    if (pages >= (kind === "bg" ? Math.min(cfg.maxPagesPerPoll, cfg.backfillPagesPerPoll) : cfg.maxPagesPerPoll)) break;          // yield; resume from `last` next cycle
     url = next;
     if (!url) finished = true;                                    // bounded ranges end without a next link
   }
   if (outOfOrder) state.events.sort(byPublished);                 // older backfill lands before newer events
+  if (fresh.length) onFresh(fresh);                               // location alerts: only newly arrived events can raise one
   return { pages, last, finished };
+}
+
+// Location alerts are worked out here, as events arrive, so they fire with nobody looking at the page. A failure here must never stop the poll.
+let lastSlackAudit = 0;
+function onFresh(fresh) {
+  try {
+    const rules = policy.geoRulesEnabled(); if (!rules.length) return;
+    for (const a of geo.evaluate(fresh, state.events, rules)) {
+      const where = [a.where.city, a.where.region, a.where.country].filter(Boolean).join(", ");
+      audit.write({ cat: "alerts", action: "alert.geo", actor: SYSTEM_ACTOR, target: a.ruleName, detail: a.kindLabel + " for " + (a.person || "unknown") + " from " + (where || "unknown location") + (a.threshold > 1 ? " (" + a.matched + " in " + a.windowMinutes + " min)" : "") });
+      if (a.slack.state !== "queued") continue;
+      if (!slack.configured) { geo.setSlack(a.id, { state: "not_configured" }); continue; }
+      slack.sendAlert(a, r => {
+        if (r.ok) return geo.setSlack(a.id, { state: "sent" });
+        if (r.summarized) return geo.setSlack(a.id, { state: "summarized" });
+        geo.setSlack(a.id, { state: "failed", error: r.error, hint: slack.hint(r.error) });
+        if (Date.now() - lastSlackAudit > 60000) { lastSlackAudit = Date.now(); audit.write({ cat: "alerts", action: "alert.slack.failed", ok: false, actor: SYSTEM_ACTOR, target: a.ruleName, detail: "Slack did not accept the message: " + r.error }); }
+      });
+    }
+  } catch (e) { log("Location alerts failed: " + e.message); }
 }
 
 async function pollHead() {
@@ -243,22 +274,35 @@ function catchUpInfo() {
   };
 }
 
+// Two loops, on purpose. The first looks for NEW events on a steady beat and is what location alerts depend on; the second fills in old history
+// in the background. They were one loop, so a history step waiting for the Okta rate limit (up to a minute) held up the newest events too.
+// The rate limiter already serves both at once, and keeps a reserve of requests that only the newest events can use.
 async function pollLogs() {
   if (polling) return; polling = true;
   state.lastPoll = new Date().toISOString();
   let again = false;
   try {
-    await pollHead();                       // 1) stay current: the newest events first
-    await stepBackfill();                   // 2) then fill in older history, newest chunk first
+    await pollHead();                       // stay current: the newest events
     trim();
     state.lastPollOk = new Date().toISOString(); state.lastError = null; state.polls++;
     state.catchingUp = !state.headCaughtUp || !bf.done;
-    again = state.catchingUp;
+    again = !state.headCaughtUp;            // quick follow-ups only while the newest events are still being caught up
   } catch (err) {
     state.lastError = String(err.message || err); log("poll error:", state.lastError);
   } finally {
     polling = false;
-    setTimeout(pollLogs, again ? 1000 : cfg.pollSec * 1000);     // keep going quickly while catching up
+    setTimeout(pollLogs, again ? 1000 : cfg.pollSec * 1000);
+  }
+}
+let backfilling = false;
+async function backfillLoop() {
+  if (backfilling || bf.done) { state.catchingUp = !state.headCaughtUp || !bf.done; return; }
+  backfilling = true;
+  try { await stepBackfill(); trim(); }     // older history, newest chunk first; and keep the memory cap
+  catch (err) { state.lastError = String(err.message || err); log("history error:", state.lastError); }
+  finally {
+    backfilling = false; state.catchingUp = !state.headCaughtUp || !bf.done;
+    if (!bf.done) setTimeout(backfillLoop, 1000);
   }
 }
 
@@ -731,7 +775,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus()
+        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus(), geo: geo.status(), slack: { configured: slack.configured }
       });
 
     if (req.method === "GET" && url.pathname === "/api/google/events") {
@@ -790,10 +834,34 @@ const server = http.createServer(async (req, res) => {
       if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
       return send(req, res, 200, { rows: policy.audit(url.searchParams.get("limit")) });
     }
+    // ---- location alerts and Slack
+    if (url.pathname === "/api/geo/alerts" && req.method === "GET") return send(req, res, 200, { serverTime: Date.now(), alerts: geo.recent(url.searchParams.get("since")) });
+    if (url.pathname === "/api/geo/places" && req.method === "GET") return send(req, res, 200, geo.places(state.events));
+    if (url.pathname === "/api/geo/preview" && req.method === "POST") {
+      if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
+      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many tries in a minute. Wait a moment." });
+      const b = await readBody(req), rule = normalizeGeoRule(Object.assign({ name: "Preview" }, b.rule));
+      const seenIn = new Set(geo.places(state.events).countries.map(c => geoCountry(c.country)));       // which of these places have ever appeared in the data held
+      return send(req, res, 200, { ...geo.simulate(rule, state.events), held: state.events.length, heldFrom: state.events.length ? state.events[0].published : null, rule,
+        placesSeen: rule.places.map(p => ({ text: geoPlaceText(p), seen: seenIn.has(geoCountry(p.country)) })) });
+    }
+    if (url.pathname === "/api/slack" && req.method === "GET") { if (!auth.roleAtLeast(who, "admin")) return forbid("admin"); return send(req, res, 200, slack.info()); }
+    if (url.pathname === "/api/slack/manifest" && req.method === "GET") {
+      if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
+      const body = Buffer.from(JSON.stringify(slack.manifest(), null, 2) + "\n"); res.writeHead(200, { ...SEC_HEADERS, "content-type": "application/json; charset=utf-8", "content-length": body.length, "content-disposition": "attachment; filename=\"sightline-slack-app-manifest.json\"" }); return res.end(body);
+    }
+    if (url.pathname === "/api/slack/test" && req.method === "POST") {
+      if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
+      if (!policyRateOk()) return send(req, res, 429, { error: "Too many tests in a minute. Wait a moment." });
+      const a = actorOf(req), r = await slack.sendTest(a.name);
+      audit.write({ cat: "alerts", action: "slack.test", ok: !!r.ok, actor: a, ip: a.ip, ua: a.ua, target: slack.info().channel, detail: r.ok ? "Test message posted" : "Test message failed: " + r.error });
+      return send(req, res, 200, { ok: !!r.ok, error: r.error || null, hint: r.ok ? null : (r.error === "not_configured" ? "Set SLACK_BOT_TOKEN and SLACK_CHANNEL first." : slack.hint(r.error)) });
+    }
     if (url.pathname.startsWith("/api/policy/") && ["POST", "PUT", "DELETE"].includes(req.method)) {
       if (!policyRateOk()) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
       const actor = actorOf(req), v = url.searchParams.get("v");
       let m;
+      if (req.method === "PUT" && url.pathname === "/api/policy/geo-rules") { const b = await readBody(req); return send(req, res, 200, policy.setGeoRules(actor, b.baseVersion, b.rules, b.why)); }
       if (req.method === "PUT" && url.pathname === "/api/policy/alert-rules") { const b = await readBody(req); return send(req, res, 200, policy.setAlertRules(actor, b.baseVersion, b.rules, b.why)); }
       if (req.method === "POST" && url.pathname === "/api/policy/suppressions") { const b = await readBody(req); return send(req, res, 201, policy.createSuppression(actor, b.baseVersion, b.rule)); }
       if (req.method === "PUT" && (m = /^\/api\/policy\/suppressions\/([\w-]+)$/.exec(url.pathname))) { const b = await readBody(req); return send(req, res, 200, policy.updateSuppression(actor, b.baseVersion, m[1], b.patch)); }
@@ -817,8 +885,8 @@ function start() {
   else if (!cfg.dashPass && !auth.misconfigured) log("NOTE: neither single sign-on nor DASHBOARD_PASSWORD is set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Sightline listening on :${cfg.port} for ${cfg.orgUrl}`));
-  for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { auth.flush(); } catch { /* shutting down */ } process.exit(0); });          // a redeploy must not sign anyone out
-  initIngest(); pollLogs(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
+  for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { auth.flush(); geo.flush(); } catch { /* shutting down */ } process.exit(0); });          // a redeploy must not sign anyone out
+  initIngest(); pollLogs(); backfillLoop(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
   google.start();
 }
 if (require.main === module) start();

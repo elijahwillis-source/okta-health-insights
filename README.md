@@ -198,6 +198,26 @@ Rules are checked each time the data refreshes (about once a minute). A firing b
 
 **Limits to know about.** Rules, filters and notifications are stored in the browser (localStorage), so they belong to one person on one browser, and alerts are only checked while the page is open. Sample data and uploaded files never raise alerts. For alerts that arrive when nobody has the dashboard open (email, Slack, a shared rule set) the checking has to move to the server; that is the natural next step.
 
+## Location alerts and Slack
+
+**Location alerts** tell you when sign-ins, failed sign-ins, wrong passwords or MFA failures come from places you consider risky, or from anywhere outside the places you expect. Make them on the Alerts page, under **Location alerts** (admins and owners change them; everyone sees them).
+
+A rule says what to watch for (successful sign-ins, failed sign-ins, invalid passwords, MFA failures), where (**from these places** for a watch list, or **from anywhere except these places** for your expected countries), how many (any one, or N within 5 minutes to 24 hours, per person or in total), how serious, how long to wait before repeating the same alert, and whether it also goes to Slack. Places are one per line: a country, or add a state or city after a slash (`United States / Texas`). Short names work (`RU`, `USA`, `Russian Federation`). **Try it on recent data** shows how many alerts a rule would have raised before you save it, and which of your places have never appeared. Every change needs a reason and is kept in the audit log.
+
+- **They are worked out on the server**, as each new Okta event arrives, so they fire with nobody looking at the page, once, for everyone. They also appear in the bell. (The older alert rules, below, are still worked out in each person's browser.)
+- **Only new events count.** An event must be less than `GEO_MAX_AGE_MINUTES` (30) old, and each is looked at once (remembered in `DATA_DIR/geo-alerts.json`), so a restart or redeploy never replays old history as news.
+- **Events with no known location are ignored** (an internal address has no country), so they can neither match a watch list nor count as "outside". Only Okta sign-in events are looked at (a session starting, and MFA checks), not single sign-on to apps.
+- **How quickly:** a new event is looked at on the next poll (`POLL_INTERVAL_SECONDS`, 60 by default), including while old history is still loading after a restart.
+
+**Slack** is optional, and set up with one pasted file. On the Alerts page, **Set up Slack** opens a step-by-step guide (admins and owners) that shows what to click, with a simplified picture of each Slack screen, the real manifest ready to copy, a ready-made message for whoever runs Sightline, and a last step that notices by itself when Slack is connected and can send a test message. In short:
+
+1. Open https://api.slack.com/apps, choose **Create New App**, then the option that mentions a **manifest**, pick the workspace, choose the **JSON** tab, and paste `integrations/slack/app-manifest.json` (the guide has a **Copy the manifest** button, and `GET /api/slack/manifest` downloads it). It already asks for exactly the permissions needed: `chat:write` and `chat:write.public` (post to public channels without an invite). Sightline can only post: it cannot read channels or messages, and Slack never calls back.
+2. **Create**, then **Install to Workspace** and **Allow**, then copy the **Bot User OAuth Token** (`xoxb-...`) from OAuth & Permissions. Treat it like a password.
+3. Set `SLACK_BOT_TOKEN` and `SLACK_CHANNEL` (for example `#it-alerts`) where Sightline runs, and redeploy. A private channel needs `/invite @Sightline` in it first.
+4. Click **Send a test message**.
+
+Messages show who, where, what, when, the IP address (`SLACK_SHOW_IP=false` hides it), and a link back. Names, cities and reasons come from outside, so they are escaped: a name like `<!channel>` cannot ping anyone. At most `SLACK_MAX_PER_MINUTE` (20) are posted one by one; a burst beyond that is summed up in one message. If Slack refuses a message the alert is still raised in the app, the alert says why in plain words, and the Alerts page shows the last Slack problem. The token is only ever read from the environment: no page or API answer contains it.
+
 ## Google Workspace OAuth (which apps people connected to their Google accounts)
 
 The **Google OAuth** page shows every app that people have connected to their Google accounts, what access each one asked for (as plain-English scopes coloured by risk), who connected it, when it first appeared, and who revoked or was blocked. It adds three alert rules (a new app is authorized, high-risk access is granted, many people authorize the same app), and a person's lookup also lists the Google apps they connected. It is read-only and cannot change anything in Google.
@@ -261,13 +281,21 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `GET /api/user-events?q=…&q=…&days=7` | Live per-user search of Okta's System Log (newest first, max 90 days). Uses the same read-only log permission; ignores `OKTA_LOG_FILTER` |
 | `GET /api/app-events?id=…&days=7` | Live per-app errors from Okta's System Log (failures and denies, newest first, max 90 days, up to three ids). Uses the same read-only log permission |
 | `POST /api/explain-error` | `{reason, apps, eventTypes, count, people}` returns `{text, cached}`: a short explanation of one error and how to fix it. No tools, cached 24 hours by error text; shares the assistant rate limit |
-| `POST /api/chat` | `{messages, summary, windowMs}` → `{text}` |
+| `POST /api/chat` | `{messages, summary, windowMs, focus}` → `{text}` (`focus: true` is the one-event mode the Explain buttons use) |
+| `GET /api/geo/alerts?since=<iso>` | Location alerts raised, newest first (any signed-in person) |
+| `GET /api/geo/places` | Which countries sign-ins come from in the data held, with counts (any signed-in person) |
+| `POST /api/geo/preview` | `{rule}`: what a location rule would have caught in the data held (admin and owner) |
+| `PUT /api/policy/geo-rules` | `{baseVersion, rules, why}`: save the location rules; needs a reason, audited (admin and owner) |
+| `GET /api/slack`, `GET /api/slack/manifest`, `POST /api/slack/test` | Slack status (never the token), the app manifest, and a test message (admin and owner) |
 
 ## Tests
 
 ```bash
 bash test/smoke.sh          # Okta side: server, endpoints, lookups, assistant (fake Okta, fake Anthropic)
 bash test/smoke-google.sh   # Google side: a strict fake Google that verifies the signed sign-in
+node test/geo-unit.js       # location rules and the Slack sender: logic, no servers
+bash test/smoke-geo.sh      # location alerts and Slack end to end (two servers, fake Okta, fake Slack; about 4 minutes)
+bash test/browser/run-geo-ui.sh   # the Location alerts section in a real browser (needs: cd test/browser && npm install && npx playwright install chromium)
 ```
 
 ## Roadmap ideas

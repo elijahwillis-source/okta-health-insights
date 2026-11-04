@@ -1,0 +1,7 @@
+{
+  "name": "sightline-browser-tests",
+  "private": true,
+  "description": "Browser tests for Sightline. Kept apart from the app on purpose: the app itself has zero dependencies.",
+  "scripts": { "test:geo": "bash run-geo-ui.sh" },
+  "devDependencies": { "playwright": "^1.48.0" }
+}

@@ -5,12 +5,14 @@
  *   suppressions  "known errors": a rule that stops matching errors counting and alerting (never silently: the page always
  *                 says how many are hidden, by which rules, and why)
  *   approvals     a decision about a Google app: approved (for exactly the access it had when reviewed) or flagged as not allowed
+ *   geoRules      location alerts: which places to be told about (worked out on the server by geo.js; kept here so they are shared and audited)
  *
  * Every change needs a reason, is checked for version conflicts (two admins cannot overwrite each other), and is written to an
  * audit log. State lives in DATA_DIR/policy.json (written atomically) and DATA_DIR/audit.jsonl. If the folder cannot be written the
  * policy still works in memory and says so, because it will not survive a restart.
  */
 const fs = require("fs"), path = require("path"), crypto = require("crypto");
+const { normalizeRule: normalizeGeoRule } = require("./geo");
 
 const LIMITS = { rules: 300, approvals: 3000, why: 1000, name: 120, ticket: 200, text: 200, list: 20, scopes: 120 };
 const CATS = ["signin", "provision", "token", "access", "other"];
@@ -38,13 +40,13 @@ const needWhy = v => { const w = str(v, LIMITS.why); if (w.length < 10) throw er
 function createPolicy(opts) {
   const { dir, log, admins = [], requireExpiry = false, verifiedIdentity = false, roleBased = false, onAudit = null } = opts;
   const file = path.join(dir, "policy.json"), auditFile = path.join(dir, "audit.jsonl");
-  let state = { version: 0, updatedAt: null, suppressions: [], approvals: [], alertRules: null };
+  let state = { version: 0, updatedAt: null, suppressions: [], approvals: [], alertRules: null, geoRules: [] };
   let persistent = false, writeError = "", memAudit = [];
 
   try { fs.mkdirSync(dir, { recursive: true }); } catch { /* reported below */ }
   try {
     const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    state = { version: +raw.version || 0, updatedAt: raw.updatedAt || null, suppressions: Array.isArray(raw.suppressions) ? raw.suppressions : [], approvals: Array.isArray(raw.approvals) ? raw.approvals : [], alertRules: Array.isArray(raw.alertRules) ? raw.alertRules : null };
+    state = { version: +raw.version || 0, updatedAt: raw.updatedAt || null, suppressions: Array.isArray(raw.suppressions) ? raw.suppressions : [], approvals: Array.isArray(raw.approvals) ? raw.approvals : [], alertRules: Array.isArray(raw.alertRules) ? raw.alertRules : null, geoRules: Array.isArray(raw.geoRules) ? raw.geoRules : [] };
     log("Policy loaded: " + state.suppressions.length + " known-error rules, " + state.approvals.length + " app decisions (version " + state.version + ")");
   } catch (e) { if (e.code !== "ENOENT") log("Policy file could not be read, starting empty: " + e.message); }
   try { fs.accessSync(dir, fs.constants.W_OK); persistent = true; } catch (e) { writeError = "The data folder (" + dir + ") is not writable: " + e.message; log("Policy: " + writeError); }
@@ -65,7 +67,7 @@ function createPolicy(opts) {
   }
   const canEdit = actor => roleBased ? (actor.role === "admin" || actor.role === "owner") : (!admins.length || !verifiedIdentity ? true : admins.includes(String(actor.name).toLowerCase()) && actor.verified);
   function snapshot(actor) {
-    return { suppressions: state.suppressions, approvals: state.approvals, alertRules: roleBased ? state.alertRules : null,
+    return { suppressions: state.suppressions, approvals: state.approvals, alertRules: roleBased ? state.alertRules : null, geoRules: state.geoRules,
       meta: { version: state.version, updatedAt: state.updatedAt, persistent, writeError, canEdit: canEdit(actor), actor: { name: actor.name, verified: !!actor.verified, role: actor.role || null }, requireExpiry,
         rolesEnforced: !!(roleBased || (admins.length && verifiedIdentity)), roleBased, role: actor.role || null, alertRulesShared: !!(roleBased && state.alertRules), adminsConfigured: admins.length > 0, identityVerified: !!actor.verified } };
   }
@@ -107,6 +109,26 @@ function createPolicy(opts) {
         state.alertRules = next; return { count: next.length };
       });
     },
+    // location alerts: the whole list is sent each time (like the alert rules), every change needs a reason and is audited rule by rule
+    setGeoRules(actor, baseVersion, rules, why) {
+      return change(actor, baseVersion, () => {
+        if (!Array.isArray(rules) || rules.length > 50) throw err(400, "Send between 0 and 50 location rules.");
+        const note = needWhy(why), next = rules.map(r => normalizeGeoRule(r)), ids = new Set(next.map(r => r.id)), now = new Date().toISOString();
+        if (ids.size !== next.length) throw err(400, "Two location rules have the same id.");
+        const prev = new Map(state.geoRules.map(r => [r.id, r])), core = r => JSON.stringify({ ...r, createdBy: 0, createdAt: 0, updatedBy: 0, updatedAt: 0 });
+        for (const r of next) {
+          const o = prev.get(r.id);
+          if (!o) { r.createdBy = actor.name; r.createdAt = now; audit(actor, "georule.create", r.id, null, r, note); continue; }
+          r.createdBy = o.createdBy; r.createdAt = o.createdAt;
+          if (core(o) === core(r)) { r.updatedBy = o.updatedBy; r.updatedAt = o.updatedAt; continue; }
+          r.updatedBy = actor.name; r.updatedAt = now;
+          audit(actor, o.enabled !== r.enabled && core({ ...o, enabled: r.enabled }) === core(r) ? (r.enabled ? "georule.enable" : "georule.disable") : "georule.update", r.id, o, r, note);
+        }
+        for (const o of state.geoRules) if (!ids.has(o.id)) audit(actor, "georule.delete", o.id, o, null, note);
+        state.geoRules = next; return { count: next.length };
+      });
+    },
+    geoRulesEnabled() { return state.geoRules.filter(r => r.enabled); },
     createSuppression(actor, baseVersion, input) {
       return change(actor, baseVersion, () => {
         if (state.suppressions.length >= LIMITS.rules) throw err(400, "There are already " + LIMITS.rules + " rules. Remove ones you no longer need.");

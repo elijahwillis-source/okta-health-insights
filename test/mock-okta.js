@@ -1,7 +1,7 @@
 "use strict";
 // Minimal fake Okta org for local development: node test/mock-okta.js
 // Then run the app with OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test
-// Env: MOCK_PORT (default 4010), MOCK_NO_RESULT_FILTER=1 (reject filters that use outcome.result, like an Okta that does not support them)
+// Env: MOCK_PORT (default 4010), MOCK_GEO=1 (give events a location and add some Okta sign-ins from several countries; /_inject?... adds one on demand), MOCK_NO_RESULT_FILTER=1 (reject filters that use outcome.result, like an Okta that does not support them)
 const http = require("http");
 const crypto = require("crypto");
 
@@ -45,6 +45,19 @@ for (let i = 0; i < 14; i++) events.push(burst(2 + i * 2, "ServiceNow", `burst${
 for (let i = 0; i < 3; i++) events.push(burst(3 + i * 3, "Slack", `burst0${i + 1}@example.com`, "INVALID_CREDENTIALS", "user.authentication.sso"));
 // one fixed person with the very long "member ID ... does not exist" error, so tests about tidying it never depend on chance
 events.push(burst(20, "ServiceNow", "longerr01@example.com", LONG, "application.user_membership.add"));
+// MOCK_GEO=1: locations on the sign-in events, plus a spread of Okta sign-ins (user.session.start) from several countries, all 1 to 33 hours old
+// (older than the 30 minutes a location alert treats as news, so starting the app never raises one)
+const GEO = [["United States", "Texas", "Austin", "203.0.113.10"], ["United States", "California", "San Jose", "203.0.113.11"], ["Canada", "Ontario", "Toronto", "203.0.113.20"],
+  ["United Kingdom", "England", "London", "203.0.113.30"], ["Germany", "Berlin", "Berlin", "203.0.113.40"], ["Brazil", "Sao Paulo", "Sao Paulo", "203.0.113.50"],
+  ["Russia", "Moscow", "Moscow", "203.0.113.60"], ["China", "Beijing", "Beijing", "203.0.113.70"], ["Iran", "Tehran", "Tehran", "203.0.113.80"]];
+const withGeo = (e, g) => { e.client = { ipAddress: g[3], geographicalContext: { city: g[2], state: g[1], country: g[0] } }; return e; };
+const session = (minAgo, user, result, reason, g) => withGeo({ uuid: crypto.randomUUID(), published: new Date(now - minAgo * 60000).toISOString(), severity: result === "SUCCESS" ? "INFO" : "WARN", eventType: "user.session.start",
+  displayMessage: result === "SUCCESS" ? "User login to Okta" : "User login to Okta (failed)", outcome: { result, reason }, actor: { type: "User", id: "00u" + user.length, alternateId: user, displayName: user.split("@")[0] }, target: [] }, g);
+if (process.env.MOCK_GEO) {
+  for (const e of events) if (e.eventType === "user.authentication.sso") withGeo(e, GEO[Math.floor(Math.random() * 6)]);
+  for (let i = 0; i < 60; i++) events.push(session(60 + i * 30, USERS[i % USERS.length], "SUCCESS", null, GEO[i % 6]));
+  for (let i = 0; i < 9; i++) events.push(session(90 + i * 100, `target0${i % 3}@example.com`, "FAILURE", "INVALID_CREDENTIALS", GEO[6 + (i % 3)]));
+}
 events.sort((a, b) => (a.published < b.published ? -1 : 1));
 setInterval(() => events.push(makeEvent(Date.now(), true)), 5000);   // a new event every 5s
 
@@ -53,6 +66,17 @@ http.createServer((req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   const json = (o, h = {}) => { res.writeHead(200, { "content-type": "application/json", ...h }); res.end(JSON.stringify(o)); };
   if (u.pathname === "/_rlstats") return json({ ...rlStats, limit: RL });
+  // /_inject?type=user.session.start&result=FAILURE&reason=INVALID_CREDENTIALS&user=a@x.test&country=Russia&region=Moscow&city=Moscow&ip=198.51.100.7&minutesAgo=0&n=1&distinct=1&app=Slack
+  if (u.pathname === "/_inject") {
+    const q = u.searchParams, n = Math.min(500, +q.get("n") || 1), type = q.get("type") || "user.session.start", result = q.get("result") || "FAILURE", ago = +q.get("minutesAgo") || 0;
+    for (let i = 0; i < n; i++) {
+      const user = q.get("distinct") ? q.get("user").replace("@", i + "@") : (q.get("user") || "someone@x.test"), g = q.get("country") ? [q.get("country"), q.get("region") || "", q.get("city") || "", q.get("ip") || "198.51.100.7"] : null;
+      const e = { uuid: crypto.randomUUID(), published: new Date(Date.now() - ago * 60000 + i).toISOString(), severity: result === "SUCCESS" ? "INFO" : "WARN", eventType: type, displayMessage: q.get("message") || type,
+        outcome: { result, reason: q.get("reason") || null }, actor: { type: "User", id: "00uINJ", alternateId: user, displayName: q.get("name") || user.split("@")[0] }, target: q.get("app") ? [{ type: "AppInstance", displayName: q.get("app"), id: appId(q.get("app")) }] : [] };
+      if (g) withGeo(e, g); events.push(e);
+    }
+    events.sort((a, b) => (a.published < b.published ? -1 : 1)); return json({ injected: n });
+  }
   if (u.pathname === "/api/v1/logs") {
     // optional: MOCK_RL=24 makes the System Log behave like a token limited to 24 requests a minute (headers, then 429)
     let rlHeaders = {};

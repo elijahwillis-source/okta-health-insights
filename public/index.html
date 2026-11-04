@@ -85,6 +85,22 @@ html.assist{--aw:var(--aw-set)}
 .tab:hover{color:var(--text);background:var(--surface2)}.tab.on{color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}.tab .tn{margin-left:6px;font-size:11px;background:var(--surface2);border-radius:99px;padding:0 7px;color:var(--muted)}.tab .tn.att{background:rgba(255,184,77,.18);color:var(--warn)}
 .st{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}.st.active,.st.approved{background:rgba(63,185,119,.16);color:var(--ok)}.st.soon,.st.expired,.st.drift,.st.none{background:rgba(255,184,77,.16);color:var(--warn)}.st.flagged{background:rgba(255,107,107,.16);color:var(--bad)}.st.off{background:var(--surface2);color:var(--muted)}
 .cpill.known{background:rgba(125,140,255,.16);color:var(--accent)}.navsoon{margin-left:auto;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,184,77,.16);color:var(--warn);border-radius:99px;padding:1px 8px}.shell.collapsed .navsoon{display:none}
+#geoModal input[type=number],#geoModal textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}#geoModal p.hint{margin:-4px 0 0;color:var(--muted);font-size:12.5px}
+.mcard.sg{width:min(780px,100%)}.mcard.sg>*{align-self:stretch}.sghead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.sghead h3{flex:1;margin:0;min-width:200px}.sgstep{font-size:12.5px;color:var(--muted)}
+.sgdots{display:flex;gap:6px;flex-wrap:wrap}.sgdots button{width:28px;height:28px;border-radius:50%;padding:0;font-size:12px;font-weight:600}.sgdots button.on{background:var(--accent);border-color:var(--accent);color:#fff}.sgdots button.done{border-color:var(--ok);color:var(--ok)}
+.sgart{width:100%;height:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg)}.sgcap{font-size:12px;color:var(--muted);margin:-6px 0 0}
+.sgbody{display:flex;flex-direction:column;gap:10px;font-size:14px;line-height:1.55}.sgbody h4{margin:0;font-size:16px;outline:none}.sgbody p{margin:0}
+.sgsee{border-left:3px solid var(--accent);padding:6px 10px;background:var(--surface2);border-radius:0 8px 8px 0;font-size:13px}.sgwarn{border-left:3px solid var(--warn);padding:6px 10px;background:var(--warn-soft);border-radius:0 8px 8px 0;font-size:13px}
+.sgcode{max-height:140px;overflow:auto;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
+.sgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.sgmsg{width:100%;box-sizing:border-box;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
+a.sglink{display:inline-block;text-decoration:none;font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px}
+.geohead h2{margin:0 0 4px}.geoline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 10px}
+.gchip{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:2px 10px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}.gchip.ok{color:var(--ok);border-color:var(--ok)}.gchip.warn{color:var(--warn);border-color:var(--warn)}
+a.sglinkplain{display:inline-block;text-decoration:none;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px}a.sglinkplain:hover{border-color:var(--accent)}
+.gplaces{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;width:100%;box-sizing:border-box}
+.gchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.gchips button{font-size:12px;padding:2px 9px}
+.gprev{margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.5}.gprev ul{margin:6px 0 0 18px;padding:0}
+.geolist{margin-top:14px}.geolist h3{font-size:14px;margin:0 0 6px}
 .construction{border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden;margin-top:6px}
 .tape{height:26px;background:repeating-linear-gradient(-45deg,#F5B700 0 18px,#14161f 18px 36px)}
 .cbody{display:flex;align-items:center;justify-content:center;gap:40px;flex-wrap:wrap;padding:52px 28px}
@@ -444,6 +460,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 
       <section class="view" id="view-alerts" data-view="alerts" hidden>
         <div class="vhead"><div><p class="vs">Get told in the app when certain errors show up.</p></div><div id="alertsTools"></div></div>
+        <div class="card" id="geoCard"><div id="geoBody"></div></div>
         <div class="alertgrid"><div class="card"><h2>Rules</h2><p class="hint">What to watch for. Rules are checked every time the data refreshes.</p><div id="rulesNote"></div><div id="rulesList"></div></div>
         <div class="card"><h2>Notifications</h2><div id="notifFeed"></div></div></div>
       </section>
@@ -1723,6 +1740,7 @@ function announce(list){
   try{ if(prefs.desktopNotif&&typeof Notification!=="undefined"&&Notification.permission==="granted"&&document.hidden) list.slice(0,3).forEach(n=>new Notification(n.title,{body:n.body})); }catch(_){}
 }
 function renderAlertsView(){
+  renderGeoCard();
   $("#alertsTools").innerHTML='<button class="primary" id="ruleNew">New rule</button> <button class="ghost" id="ruleReset" title="Replace your rules with the starter rules">Reset to starter rules</button>';
   $("#rulesList").innerHTML= S.rules.length? S.rules.map(r=>'<div class="rule'+(r.enabled?"":" off")+'" data-rid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-rtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
       '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>').join("")
@@ -1777,6 +1795,223 @@ function openRuleEditor(init){
     saveRules(); close(); go("alerts"); renderAlertsView(); evaluateAlerts(S.C||compute());
   };
 }
+/* ---------- location alerts: worked out on the server (so they fire with nobody watching); managed and shown here ---------- */
+const GEO_KIND={signin:"Successful sign-ins",signin_failed:"Failed sign-ins",invalid_password:"Invalid passwords",mfa_failed:"MFA failures"};
+S.geo={alerts:[],slack:null,places:null,seenAt:LS.get("okta.geoseen.v1",0),first:!LS.get("okta.geoseen.v1",0),msg:""};
+const gPlace=p=>[p.country,p.region,p.city].filter(Boolean).join(" / ");
+const gWin=m=> m<60? m+" minutes" : m%60===0? (m===60? "1 hour" : (m/60)+" hours") : m+" minutes";
+const geoWhere=a=>[a.where.city,a.where.region,a.where.country].filter(Boolean).join(", ")||"unknown location";
+const geoBody=a=>(a.person||"unknown")+" \u00b7 "+geoWhere(a)+(a.threshold>1? " \u00b7 "+a.matched+" in "+gWin(a.windowMinutes) : "");
+function describeGeo(r){
+  const ps=r.places.map(gPlace), where=(r.mode==="outside"? "from anywhere except " : "from ")+(ps.length<=3? ps.join(", ") : ps.slice(0,3).join(", ")+" and "+(ps.length-3)+" more");
+  return GEO_KIND[r.kind]+" "+where+" \u00b7 "+(r.count>1? r.count+" or more in "+gWin(r.windowMinutes)+(r.per==="person"? ", per person" : ", in total") : "any one")+" \u00b7 "+(r.slack? "also sent to Slack" : "in the app only");
+}
+function geoLast(r){ const mine=S.geo.alerts.filter(a=>a.ruleId===r.id); if(!mine.length) return "Has not alerted yet"; const day=mine.filter(a=>Date.now()-Date.parse(a.createdAt)<864e5).length;
+  return "Last alerted "+ago(Date.now()-Date.parse(mine[0].createdAt))+" \u00b7 "+day+" in the last 24 hours"; }
+function geoSlackText(a){ const st=(a.slack||{}).state; return st==="sent"? "posted to Slack" : st==="failed"? "Slack did not take it"+(a.slack.hint? ": "+a.slack.hint : "") : st==="summarized"? "in a Slack summary" : st==="not_configured"? "Slack is not set up" : st==="queued"? "sending to Slack" : "in the app only"; }
+// the server's alerts go into the same bell and list as every other alert; on a first visit only the last six hours count as new
+async function loadGeoAlerts(){
+  try{
+    const r=await fetch("api/geo/alerts"); if(!r.ok) return; const j=await r.json(); S.geo.alerts=j.alerts||[];
+    const have=new Set(S.notifs.map(n=>n.id)), old=Date.now()-24*36e5, out=[];
+    for(const a of S.geo.alerts.slice().reverse()){ const id="geo:"+a.id, t=Date.parse(a.createdAt); if(have.has(id)||t<old) continue;
+      out.push({id,ruleId:a.ruleId,ruleName:a.ruleName,type:"location",ts:t,title:a.ruleName,body:geoBody(a),sev:a.severity,link:{view:"alerts"},unread:S.geo.first? t>Date.now()-6*36e5 : t>S.geo.seenAt}); }
+    S.geo.seenAt=Date.now(); S.geo.first=false; LS.set("okta.geoseen.v1",S.geo.seenAt);
+    if(out.length){ S.notifs=out.concat(S.notifs).sort((x,y)=>y.ts-x.ts).slice(0,200); saveNotifs(); if(S.alertsPrimed) announce(out.filter(n=>n.unread)); }
+    renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView();
+  }catch(_){ /* the server may be restarting: try again next time */ }
+}
+async function loadSlackInfo(){
+  if(S.geo.slackBusy) return; S.geo.slackBusy=true;
+  try{ const r=await fetch("api/slack"); S.geo.slack= r.ok? await r.json() : false; }catch(_){ S.geo.slack=false; }
+  S.geo.slackBusy=false; if(S.view==="alerts") renderGeoCard();
+}
+function renderGeoCard(){
+  const el=$("#geoBody"); if(!el) return;
+  const can=canEditRules(), rules=S.policy.geoRules||[], sl=S.geo.slack, on=!!(sl&&sl.configured)||(sl!==false&&sl!==null? false : !!S.slackOn);
+  if(can&&sl===null) loadSlackInfo();
+  const chip= sl&&sl.configured? '<span class="gchip ok">Slack: connected to '+esc(sl.channel)+'</span>'+(sl.lastError? '<span class="gchip warn">Last Slack problem: '+esc(sl.lastErrorHint||sl.lastError)+'</span>' : "")
+    : (!sl&&S.slackOn)? '<span class="gchip ok">Slack is on</span>' : '<span class="gchip">Slack is not set up</span>';
+  const list= rules.length? rules.map(r=>'<div class="rule'+(r.enabled?"":" off")+'" data-grid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-gtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+(can?"":" disabled")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
+      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeGeo(r))+'</div><div class="rnow">'+esc(geoLast(r))+'</div></div>'+
+      (can? '<div class="ract"><button class="ghost" data-gedit="'+esc(r.id)+'">Edit</button><button class="ghost" data-gdel="'+esc(r.id)+'">Delete</button></div>' : "")+'</div>').join("")
+    : '<div class="empty">No location rules yet.'+(can? " Add one to be told when sign-ins or wrong passwords come from places you consider risky." : "")+'</div>';
+  const recent=S.geo.alerts.slice(0,8), rec= recent.length? '<div class="nlist flat">'+recent.map(a=>'<div class="nitem '+esc(a.severity)+'"><span class="ndot" aria-hidden="true"></span><div class="nbody"><b>'+esc(a.ruleName)+'</b><span>'+esc(geoBody(a))+'</span><small>'+esc(ago(Date.now()-Date.parse(a.createdAt)))+' \u00b7 '+esc(geoSlackText(a))+'</small></div></div>').join("")+'</div>' : '<div class="empty">No location alerts yet.</div>';
+  el.innerHTML='<div class="geohead"><h2>Location alerts</h2><p class="hint">Be told when sign-ins, failed sign-ins, wrong passwords or MFA failures come from places you consider risky, or from anywhere outside the places you expect. These are checked on the server around the clock, so you do not need the page open, and each alert is raised once for everyone.</p></div>'+
+    '<div class="geoline">'+chip+(can&&sl&&sl.configured? '<button class="ghost" id="geoSlackTest" type="button">Send a test message</button>' : "")+(can? '<button class="'+(sl&&sl.configured? "ghost" : "primary")+'" id="geoSlackGuide" type="button">'+(sl&&sl.configured? "Slack setup guide" : "Set up Slack")+'</button>' : "")+(can? '<span class="spacer"></span><button class="primary" id="geoNew" type="button">New location rule</button>' : "")+'</div>'+
+    (S.geo.msg? '<p class="hint" id="geoMsg" role="status">'+esc(S.geo.msg)+'</p>' : "")+""+
+    (S.policy.meta.roleBased&&!can? '<p class="hint">Only admins can change location rules.</p>' : "")+list+
+    '<div class="geolist"><h3>Recent location alerts</h3>'+rec+'</div>';
+}
+// every change to a location rule needs a reason, which is kept in the audit log with the person's name
+function geoAskWhy(title,rules){
+  const root=document.createElement("div"); root.className="modal"; root.id="geoWhy";
+  root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><h3>'+esc(title)+'</h3><p class="hint">Say why. The reason is kept in the audit log with your name.</p><label class="fl">Reason<input type="text" id="gwWhy" maxlength="300" placeholder="For example: Paused while we review the list"></label><div class="merr" id="gwErr" hidden></div><div class="mact"><button class="ghost" id="gwCancel" type="button">Cancel</button><button class="primary" id="gwOk" type="button">Save</button></div></div>';
+  document.body.appendChild(root); const q=sel=>root.querySelector(sel), close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
+  document.addEventListener("keydown",esc2); q("#gwWhy").focus(); q("#gwCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
+  q("#gwOk").onclick=async ()=>{ const why=q("#gwWhy").value.trim(), e=q("#gwErr"); if(why.length<10){ e.hidden=false; e.textContent="Say why, in at least a short sentence."; return; }
+    q("#gwOk").disabled=true; try{ await geoPut(rules,why); close(); }catch(x){ q("#gwOk").disabled=false; e.hidden=false; e.textContent=x.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : x.message; } };
+  q("#gwWhy").addEventListener("keydown",e=>{ if(e.key==="Enter") q("#gwOk").click(); });
+}
+async function geoPut(rules,why){ await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules,why}); renderAlertsView(); }
+function geoClick(ev){
+  const t=ev.target; let b;
+  if(t.closest("#geoNew")){ openGeoEditor(); return true; }
+  if((b=t.closest("[data-gedit]"))){ const r=(S.policy.geoRules||[]).find(x=>x.id===b.dataset.gedit); if(r) openGeoEditor(JSON.parse(JSON.stringify(r))); return true; }
+  if((b=t.closest("[data-gdel]"))){ const all=S.policy.geoRules||[], r=all.find(x=>x.id===b.dataset.gdel); if(r) geoAskWhy("Delete \u201c"+r.name+"\u201d",all.filter(x=>x.id!==r.id)); return true; }
+  if(t.closest("#geoSlackTest")){ geoSlackTest(); return true; }
+  if(t.closest("#geoSlackGuide")){ openSlackGuide(); return true; }
+  return false;
+}
+async function geoSlackTest(){
+  S.geo.msg="Sending a test message\u2026"; renderGeoCard();
+  try{ const r=await fetch("api/slack/test",{method:"POST",headers:polHeaders()}), j=await r.json().catch(()=>({})); S.geo.msg= j.ok? "Test message sent. Look for it in the channel." : "The test message did not go through: "+(j.hint||j.error||("HTTP "+r.status)); S.geo.slack=null; }
+  catch(e){ S.geo.msg="The test message did not go through: "+e.message; } renderGeoCard();
+}
+/* ---------- Slack setup guide: one step at a time, with a simplified picture of each Slack screen and what to click ---------- */
+const sgSt=(f,st,w)=>'style="fill:'+(f||"none")+(st? ";stroke:"+st+";stroke-width:"+(w||1) : "")+'"';
+const sgRect=(x,y,w,h,f,st,r,sw)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(r==null? 6 : r)+'" '+sgSt(f,st,sw)+'/>';
+const sgText=(x,y,t,o)=>{ o=o||{}; return '<text x="'+x+'" y="'+y+'" font-size="'+(o.size||11)+'"'+(o.bold? ' font-weight="700"' : "")+(o.anchor? ' text-anchor="'+o.anchor+'"' : "")+(o.mono? ' font-family="ui-monospace,Menlo,monospace"' : "")+' style="fill:'+(o.fill||"var(--muted)")+'">'+esc(t)+'</text>'; };
+const sgWin=(x,y,w,h,title)=>sgRect(x,y,w,h,"var(--surface)","var(--border)")+sgRect(x,y,w,20,"var(--surface2)","var(--border)")+[10,20,30].map(d=>'<circle cx="'+(x+d)+'" cy="'+(y+10)+'" r="3" '+sgSt("var(--border)")+'/>').join("")+sgText(x+w/2,y+14,title,{anchor:"middle",size:10});
+const sgBtn=(x,y,w,h,label,primary)=>sgRect(x,y,w,h,primary? "var(--accent)" : "var(--surface2)","var(--border)")+sgText(x+w/2,y+h/2+4,label,{anchor:"middle",bold:primary,fill:primary? "#fff" : "var(--text)"});
+const sgHi=(x,y,w,h)=>sgRect(x-3,y-3,w+6,h+6,"none","var(--accent)",9,2.5);                         // the ring round the thing to click
+const sgLines=(x,y,n,w)=>Array.from({length:n},(_,i)=>sgRect(x,y+i*14,w-(i%3)*24,6,"var(--border)","",3)).join("");
+const sgArrow=(x,y)=>'<path d="M'+x+' '+y+' h24 m-7 -7 l7 7 l-7 7" '+sgSt("none","var(--accent)",2.5)+' stroke-linecap="round" stroke-linejoin="round"/>';
+const sgSvg=(label,inner)=>'<svg class="sgart" viewBox="0 0 520 170" role="img" aria-label="'+esc(label)+'">'+inner+'</svg>';
+const SG_ART={
+  app:()=>sgSvg("A simplified picture. On Slack's apps page you click Create New App, then choose the option that says From a manifest.",
+    sgWin(10,10,235,150,"Your apps")+sgLines(24,40,4,150)+sgBtn(24,112,124,28,"Create New App",true)+sgHi(24,112,124,28)+sgArrow(250,85)+
+    sgWin(280,10,230,150,"Create an app")+sgRect(294,42,98,96,"var(--surface2)","var(--border)")+sgText(343,92,"From scratch",{anchor:"middle",fill:"var(--text)"})+
+    sgRect(400,42,98,96,"var(--surface2)","var(--border)")+sgText(449,92,"From a manifest",{anchor:"middle",fill:"var(--text)",bold:true})+sgHi(400,42,98,96)),
+  paste:()=>sgSvg("A simplified picture. You pick your workspace and click Next. Then you choose the JSON tab, paste the manifest, and click Next.",
+    sgWin(10,10,235,150,"Pick a workspace")+sgRect(30,56,195,28,"var(--surface2)","var(--border)")+sgText(42,74,"Your workspace  \u25be",{fill:"var(--text)"})+sgHi(30,56,195,28)+sgBtn(165,118,60,26,"Next",true)+sgArrow(250,85)+
+    sgWin(280,10,230,150,"App manifest")+sgRect(294,34,50,20,"var(--accent)","",5)+sgText(319,48,"JSON",{anchor:"middle",fill:"#fff",bold:true,size:10})+sgRect(348,34,50,20,"var(--surface2)","var(--border)",5)+sgText(373,48,"YAML",{anchor:"middle",size:10})+sgHi(294,34,50,20)+
+    sgRect(294,60,202,62,"var(--bg)","var(--border)")+sgText(302,76,'{ "display_information": {',{mono:true,size:9})+sgText(310,88,'"name": "Sightline", ...',{mono:true,size:9})+sgText(302,100,'"scopes": { "bot": [ "chat:write",',{mono:true,size:9})+sgText(302,112,"... } }",{mono:true,size:9})+sgBtn(436,130,60,22,"Next",true)),
+  install:()=>sgSvg("A simplified picture. You check the summary and click Create. Then you click Install to Workspace and Allow.",
+    sgWin(10,10,235,150,"Review and create")+sgLines(24,40,4,170)+sgRect(24,100,100,6,"var(--border)","",3)+sgBtn(150,118,75,26,"Create",true)+sgHi(150,118,75,26)+sgArrow(250,85)+
+    sgWin(280,10,230,150,"Your app")+sgText(296,46,"Install your app",{fill:"var(--text)",bold:true})+sgLines(296,56,2,170)+sgBtn(296,92,150,28,"Install to Workspace",true)+sgHi(296,92,150,28)+sgBtn(440,128,56,22,"Allow",false)),
+  token:()=>sgSvg("A simplified picture. In the left menu you click OAuth and Permissions, and then copy the Bot User OAuth Token, which starts with xoxb.",
+    sgWin(10,10,235,150,"Your app")+sgRect(22,34,92,114,"var(--surface2)","var(--border)")+sgText(30,52,"Basic Info",{size:10})+sgText(30,72,"OAuth &",{size:10,fill:"var(--text)",bold:true})+sgText(30,84,"Permissions",{size:10,fill:"var(--text)",bold:true})+sgHi(24,60,88,32)+sgText(30,108,"Features",{size:10})+sgLines(124,40,5,100)+sgArrow(250,85)+
+    sgWin(280,10,230,150,"OAuth and Permissions")+sgText(296,46,"Bot User OAuth Token",{fill:"var(--text)",bold:true})+sgRect(296,56,140,26,"var(--bg)","var(--border)")+sgText(304,73,"xoxb-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",{mono:true,size:10,fill:"var(--text)"})+sgBtn(444,56,52,26,"Copy",true)+sgHi(444,56,52,26)+sgLines(296,100,3,190)),
+  settings:()=>sgSvg("A simplified picture. The person who runs Sightline sets two settings, SLACK_BOT_TOKEN and SLACK_CHANNEL, and redeploys.",
+    sgWin(60,10,400,150,"Sightline settings")+sgText(98,49,"SLACK_BOT_TOKEN",{mono:true,size:11,fill:"var(--text)"})+sgRect(250,34,190,22,"var(--bg)","var(--border)")+sgText(258,49,"xoxb-\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",{mono:true,size:10})+
+    sgText(98,85,"SLACK_CHANNEL",{mono:true,size:11,fill:"var(--text)"})+sgRect(250,70,190,22,"var(--bg)","var(--border)")+sgText(258,85,"#it-alerts",{mono:true,size:10})+sgHi(82,32,364,64)+sgBtn(340,116,100,28,"Redeploy",true)),
+  test:()=>sgSvg("A simplified picture. In Sightline you click Send a test message, and a message from Sightline appears in your Slack channel.",
+    sgWin(10,10,235,150,"Sightline: Alerts")+sgRect(24,40,150,22,"var(--bg)","var(--ok)",11)+sgText(36,55,"Slack: connected",{size:10,fill:"var(--ok)",bold:true})+sgBtn(24,84,150,28,"Send a test message",true)+sgHi(24,84,150,28)+sgArrow(250,85)+
+    sgWin(280,10,230,150,"# it-alerts")+sgRect(296,46,24,24,"var(--accent)","",6)+sgText(330,56,"Sightline",{fill:"var(--text)",bold:true,size:11})+sgText(330,72,"Sightline test message from you.",{size:10})+sgText(330,86,"If you can read this, Slack alerts work.",{size:10}))
+};
+const SG_TITLES=["Create a Slack app","Paste the manifest","Create it and install it","Copy the token","Give the token to Sightline","Check that it works"];
+const SG_CHAN=/^(#?[a-z0-9][a-z0-9._-]{0,79}|[CGD][A-Z0-9]{8,14})$/;
+async function openSlackGuide(){
+  const root=document.createElement("div"); root.className="modal"; root.id="slackGuide";
+  const sg={i:0,channel:(S.geo.slack&&S.geo.slack.channel)||"#it-alerts",manifest:"",manifestErr:"",note:"",poll:null,seen:0};
+  try{ const r=await fetch("api/slack"); if(r.ok) S.geo.slack=await r.json(); }catch(_){ /* the page keeps what it knew */ }          // start from the truth, not from what was known a while ago
+  try{ const r=await fetch("api/slack/manifest"); if(!r.ok) throw new Error("HTTP "+r.status); sg.manifest=JSON.stringify(JSON.parse(await r.text()),null,2); }catch(e){ sg.manifestErr="The manifest could not be loaded: "+e.message; }
+  const cap=i=>'<p class="sgcap">'+(i===5? "A simplified picture of what you will see once it works." : "A simplified picture. Slack may word things a little differently, but the buttons are the same ones.")+'</p>';
+  const chan=()=>{ const c=sg.channel.trim(); return !c? "" : SG_CHAN.test(c)? (/^[CGD][A-Z0-9]{8,14}$/.test(c)||c[0]==="#"? c : "#"+c) : null; };
+  const connected=()=>{ const x=S.geo.slack; return !!(x&&x.configured); };
+  const status=()=>connected()? '<span class="gchip ok">Slack is connected to '+esc(S.geo.slack.channel)+'</span>' : '<span class="gchip">Not connected yet. Sightline notices by itself, a few seconds after the settings are in and it has restarted.</span>';
+  const steps=[
+    ()=>'<p>Slack needs a small app that Sightline can post as. You make it once, in about five minutes. You need to be allowed to add apps to your Slack workspace; if you are not, send this guide to a Slack admin.</p>'+
+      '<div class="sgrow"><a class="sglink" href="https://api.slack.com/apps?new_app=1" target="_blank" rel="noopener noreferrer">Open Slack\u2019s apps page</a></div>'+
+      '<p>Sign in to the workspace where the alerts should go, click <b>Create New App</b>, then choose the option that mentions a <b>manifest</b> (it reads \u201cFrom a manifest\u201d or \u201cFrom an app manifest\u201d). Do not choose \u201cFrom scratch\u201d.</p>'+
+      '<div class="sgsee"><b>You should see</b> a screen asking you to pick a workspace.</div>',
+    ()=>'<p>Pick your workspace and click <b>Next</b>. Slack now shows a box for the manifest. Choose the <b>JSON</b> tab (not YAML), delete whatever is in the box, and paste this in. It is the whole setup, including the two permissions Sightline needs.</p>'+
+      (sg.manifestErr? '<div class="sgwarn">'+esc(sg.manifestErr)+'</div>' : '<pre class="sgcode" tabindex="0" aria-label="The Slack app manifest" id="sgManifest">'+esc(sg.manifest)+'</pre>')+
+      '<div class="sgrow"><button class="primary" type="button" id="sgCopyManifest"'+(sg.manifestErr?" disabled":"")+'>Copy the manifest</button><a class="ghost sglinkplain" href="api/slack/manifest">Download it as a file</a></div>'+
+      '<p>The app can <b>only post messages</b>: one permission to post as Sightline, and one to post in public channels without being invited. It cannot read your channels, messages or people. Then click <b>Next</b>.</p>',
+    ()=>'<p>Slack shows a summary of the app. Click <b>Create</b>. On the next page click <b>Install to Workspace</b> (it may say \u201cInstall to\u201d and your workspace name), then <b>Allow</b>.</p>'+
+      '<div class="sgsee"><b>You should see</b> a message that the app was installed. If Slack says an admin has to approve the app first, ask a Slack admin to approve it; it only asks for the two permissions above.</div>',
+    ()=>'<p>In the menu on the left, click <b>OAuth &amp; Permissions</b>. Near the top, under the OAuth tokens, you will see the <b>Bot User OAuth Token</b>. It starts with <code>xoxb-</code>. Click <b>Copy</b>.</p>'+
+      '<div class="sgwarn"><b>Treat it like a password.</b> Anyone who has it can post as Sightline. Do not paste it into a chat, an email or a ticket. Give it only to the person who sets it up in the next step, in a private way, or enter it yourself if you have access.</div>',
+    ()=>'<p>Sightline reads two settings. They are set where Sightline runs (your Coolify, usually by whoever manages it), by name, and then Sightline is redeployed once. Which channel should alerts go to?</p>'+
+      '<label class="fl">Channel<input type="text" id="sgChan" value="'+esc(sg.channel)+'" placeholder="#it-alerts" autocomplete="off"></label><div class="merr" id="sgChanErr" hidden></div>'+
+      '<p>Here is a message you can send to them. It does not contain the token.</p><textarea class="sgmsg" id="sgMsg" rows="9" readonly></textarea>'+
+      '<div class="sgrow"><button class="primary" type="button" id="sgCopyMsg">Copy this message</button></div>'+
+      '<div class="sgsee">For a <b>private</b> channel, first open the channel in Slack and type <code>/invite @Sightline</code>. Public channels need nothing.</div>',
+    ()=>'<p>Once the two settings are in and Sightline has restarted, this page notices by itself.</p><div class="sgrow" id="sgStatus" role="status">'+status()+'</div>'+
+      '<div class="sgrow"><button class="primary" type="button" id="sgTest">Send a test message</button></div><p id="sgNote" role="status"></p>'+
+      '<div class="sgsee"><b>You should see</b> a message from Sightline in the channel. After that you are done: create a rule with <b>New location rule</b>, and tick <b>Also send to Slack</b>.</div>'
+  ];
+  const artKeys=["app","paste","install","token","settings","test"];
+  const msgText=()=>{ const c=chan(); return "Please set two settings on the Sightline application, then redeploy once (not a restart):\n\nSLACK_CHANNEL = "+(c||"#it-alerts")+"\nSLACK_BOT_TOKEN = the Slack bot token (I will give it to you privately, please do not post it in any chat)\n\nThen tell me the names of the settings you changed, not their values."; };
+  const copy=async(text,ok)=>{ try{ await navigator.clipboard.writeText(text); sg.note=ok; }catch(_){ sg.note="Copying is blocked here. Select the text and copy it yourself."; } const n=root.querySelector("#sgNote2"); if(n) n.textContent=sg.note; };
+  const draw=()=>{
+    const i=sg.i, last=i===steps.length-1;
+    root.innerHTML='<div class="mcard sg" role="dialog" aria-modal="true" aria-label="Set up Slack, step '+(i+1)+' of '+steps.length+'">'+
+      '<div class="sghead"><h3>Set up Slack</h3><span class="sgstep">Step '+(i+1)+' of '+steps.length+'</span><div class="sgdots" role="group" aria-label="Steps">'+steps.map((_,k)=>'<button type="button" class="ghost'+(k===i?" on":k<i?" done":"")+'" data-sgi="'+k+'" aria-label="Step '+(k+1)+': '+esc(SG_TITLES[k])+'"'+(k===i?' aria-current="step"':"")+'>'+(k+1)+'</button>').join("")+'</div></div>'+
+      (connected()&&i===0? '<div class="sgsee">Slack is already connected to <b>'+esc(S.geo.slack.channel)+'</b>. You can use this guide to change the channel or to set it up again.</div>' : "")+
+      '<div class="sgbody"><h4 tabindex="-1" id="sgTitle">'+(i+1)+'. '+esc(SG_TITLES[i])+'</h4>'+SG_ART[artKeys[i]]()+cap(i)+steps[i]()+'<p class="hint" id="sgNote2" role="status">'+esc(sg.note)+'</p></div>'+
+      '<div class="mact"><button class="ghost" type="button" id="sgClose">Close</button><span class="spacer" style="flex:1"></span><button class="ghost" type="button" id="sgBack"'+(i===0?" disabled":"")+'>Back</button><button class="primary" type="button" id="sgNext">'+(last? "Done" : "Next")+'</button></div></div>';
+    if(i===4) fillMsg();
+    const t=root.querySelector("#sgTitle"); if(t) t.focus();
+  };
+  const fillMsg=()=>{ const ta=root.querySelector("#sgMsg"), e=root.querySelector("#sgChanErr"), c=chan(); if(ta) ta.value=msgText(); if(e){ e.hidden=c!==null; e.textContent=c===null? "That does not look like a Slack channel. Use a name like #it-alerts, or the channel ID." : ""; } };
+  const close=()=>{ clearInterval(sg.poll); root.remove(); document.removeEventListener("keydown",esc2); if(S.view==="alerts") renderGeoCard(); };
+  const esc2=e=>{ if(e.key==="Escape") close(); };
+  const go2=k=>{ sg.i=Math.max(0,Math.min(steps.length-1,k)); sg.note=""; draw(); };
+  root.addEventListener("click",e=>{
+    const t=e.target;
+    if(t.closest("#sgNext")){ if(sg.i===steps.length-1) close(); else go2(sg.i+1); return; }
+    if(t.closest("#sgBack")){ go2(sg.i-1); return; }
+    if(t.closest("#sgClose")){ close(); return; }
+    const d=t.closest("[data-sgi]"); if(d){ go2(+d.dataset.sgi); return; }
+    if(t.closest("#sgCopyManifest")){ copy(sg.manifest,"The manifest is copied. Paste it into Slack."); return; }
+    if(t.closest("#sgCopyMsg")){ if(chan()===null) return; copy(msgText(),"The message is copied."); return; }
+    if(t.closest("#sgTest")){ sgTest(); return; }
+  });
+  root.addEventListener("input",e=>{ if(e.target.id==="sgChan"){ sg.channel=e.target.value; fillMsg(); } });
+  root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
+  async function sgTest(){
+    const n=root.querySelector("#sgNote"); if(n) n.textContent="Sending\u2026";
+    try{ const r=await fetch("api/slack/test",{method:"POST",headers:polHeaders()}), j=await r.json().catch(()=>({})); if(n) n.textContent= j.ok? "Test message sent. Look for it in the channel." : "It did not go through: "+(j.hint||j.error||("HTTP "+r.status)); }
+    catch(x){ if(n) n.textContent="It did not go through: "+x.message; }
+  }
+  // while the guide is open, check every few seconds whether Slack has been connected, so the last step turns green by itself
+  sg.poll=setInterval(async()=>{ try{ const r=await fetch("api/slack"); if(!r.ok) return; S.geo.slack=await r.json(); const el=root.querySelector("#sgStatus"); if(el) el.innerHTML=status(); }catch(_){ /* try again soon */ } },5000);
+  document.body.appendChild(root); document.addEventListener("keydown",esc2); draw();
+}
+function geoPreviewHtml(j){
+  const hs=j.heldFrom? new Date(j.heldFrom).toLocaleString() : "", unseen=(j.placesSeen||[]).filter(x=>!x.seen).map(x=>x.text);
+  return '<b>Understood as:</b> '+esc(GEO_KIND[j.rule.kind].toLowerCase())+' '+(j.rule.mode==="outside"? "from anywhere except " : "from ")+esc(j.rule.places.map(gPlace).join(", "))+'.<br>'+
+    '<b>On the '+fmtN(j.held)+' events held'+(hs? ' (back to '+esc(hs)+')' : "")+':</b> '+fmtN(j.events)+' matching event'+(j.events===1? "" : "s")+(j.events? ' from '+fmtN(j.people)+(j.people===1? " person" : " people") : "")+'. This rule would have raised <b>'+fmtN(j.wouldAlert)+' alert'+(j.wouldAlert===1? "" : "s")+'</b>.'+
+    (j.samples&&j.samples.length? '<ul>'+j.samples.slice(0,5).map(x=>'<li>'+esc(new Date(x.time).toLocaleString())+' \u00b7 '+esc(x.person)+' \u00b7 '+esc(x.where)+'</li>').join("")+'</ul>' : "")+
+    (unseen.length&&j.rule.mode==="in"? '<br><span class="hint">Nothing has come from '+esc(unseen.join(", "))+' in the data held. That is normal for a watch list.</span>' : "");
+}
+async function openGeoEditor(init){
+  const editing=init&&init.id, r=Object.assign({id:"",name:"",kind:"invalid_password",mode:"in",places:[],count:1,windowMinutes:60,per:"person",severity:"bad",cooldownMinutes:60,slack:false,channel:"",enabled:true},init||{});
+  if(!S.geo.places){ try{ const x=await fetch("api/geo/places"); if(x.ok) S.geo.places=await x.json(); }catch(_){ /* the list of places is a convenience */ } }
+  const root=document.createElement("div"); root.className="modal"; root.id="geoModal";
+  const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>', seen=((S.geo.places&&S.geo.places.countries)||[]).slice(0,14), slackOk=!!(S.slackOn||(S.geo.slack&&S.geo.slack.configured));
+  root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit location rule":"New location rule")+'"><h3>'+(editing?"Edit location rule":"New location rule")+'</h3>'+
+    '<label class="fl">Name<input type="text" id="gName" value="'+esc(r.name)+'" placeholder="For example: Invalid passwords from high-risk regions"></label>'+
+    '<label class="fl">Watch for<select id="gKind">'+Object.keys(GEO_KIND).map(k=>opt(k,GEO_KIND[k].toLowerCase(),r.kind)).join("")+'</select></label>'+
+    '<div class="fl">Where<div class="chkrow"><label class="chk"><input type="radio" name="gMode" value="in"'+(r.mode==="in"?" checked":"")+'> From these places</label><label class="chk"><input type="radio" name="gMode" value="outside"'+(r.mode==="outside"?" checked":"")+'> From anywhere except these places</label></div></div>'+
+    '<label class="fl">Places, one per line<textarea id="gPlaces" rows="4" class="gplaces" placeholder="Russia&#10;China&#10;United States / Texas">'+esc(r.places.map(gPlace).join("\n"))+'</textarea></label>'+
+    '<p class="hint">A country, or add a state or city after a slash. Short names such as RU or USA work. Events with no known location are ignored.</p>'+
+    (seen.length? '<div class="fl">Countries in your data, click to add<div class="gchips">'+seen.map(c=>'<button type="button" class="ghost" data-gadd="'+esc(c.country)+'">'+esc(c.country)+' ('+fmtN(c.signins+c.failed+c.mfaFailures)+')</button>').join("")+'</div></div>' : "")+
+    '<div class="frow"><label class="fl">Alert when there are at least<input type="number" id="gCount" min="1" max="1000" value="'+r.count+'"></label><label class="fl">within<select id="gWin">'+[5,15,30,60,360,1440].map(m=>opt(m,gWin(m),r.windowMinutes)).join("")+'</select></label><label class="fl">counted<select id="gPer">'+opt("person","per person",r.per)+opt("all","in total",r.per)+'</select></label></div>'+
+    '<div class="frow"><label class="fl">How serious<select id="gSev">'+opt("info","Low",r.severity)+opt("warn","Medium",r.severity)+opt("bad","High",r.severity)+'</select></label><label class="fl">Do not repeat the same alert for<select id="gCool">'+[0,15,30,60,360,1440].map(m=>opt(m,m? gWin(m) : "no wait",r.cooldownMinutes)).join("")+'</select></label></div>'+
+    '<div class="fl"><label class="chk"><input type="checkbox" id="gSlack"'+(r.slack?" checked":"")+'> Also send to Slack</label>'+(slackOk? "" : '<span class="hint">Slack is not set up yet, so this only starts working once it is.</span>')+'</div>'+
+    '<label class="fl" id="gChanWrap">Slack channel for this rule (empty means the default channel)<input type="text" id="gChan" value="'+esc(r.channel||"")+'" placeholder="#it-security"></label>'+
+    '<label class="fl">Reason for this change (kept in the audit log)<input type="text" id="gWhy" maxlength="300" placeholder="For example: The security team asked us to watch these regions"></label>'+
+    '<div class="gprev" id="gPrev" hidden role="status"></div><div class="merr" id="gErr" hidden></div>'+
+    '<div class="mact"><button class="ghost" id="gCancel" type="button">Cancel</button><button class="ghost" id="gTry" type="button">Try it on recent data</button><button class="primary" id="gSave" type="button">'+(editing?"Save changes":"Create rule")+'</button></div></div>';
+  document.body.appendChild(root);
+  const q=sel=>root.querySelector(sel), err=m=>{ const e=q("#gErr"); e.hidden=!m; e.textContent=m||""; };
+  const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
+  const form=()=>({id:r.id||undefined,name:q("#gName").value.trim(),kind:q("#gKind").value,mode:(root.querySelector('input[name="gMode"]:checked')||{}).value||"in",places:q("#gPlaces").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),count:+q("#gCount").value||1,windowMinutes:+q("#gWin").value,per:q("#gPer").value,severity:q("#gSev").value,cooldownMinutes:+q("#gCool").value,slack:q("#gSlack").checked,channel:q("#gChan").value.trim(),enabled:r.enabled!==false});
+  const syncSlack=()=>{ q("#gChanWrap").hidden=!q("#gSlack").checked; }; q("#gSlack").onchange=syncSlack; syncSlack();           // the channel only matters when Slack is on
+  document.addEventListener("keydown",esc2); q("#gName").focus(); q("#gCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
+  root.addEventListener("click",e=>{ const b=e.target.closest("[data-gadd]"); if(!b) return; const ta=q("#gPlaces"), have=ta.value.split(/\r?\n/).map(x=>x.trim().toLowerCase());
+    if(!have.includes(b.dataset.gadd.toLowerCase())) ta.value=(ta.value.trim()? ta.value.replace(/\s+$/,"")+"\n" : "")+b.dataset.gadd; });
+  q("#gTry").onclick=async ()=>{ err(""); const box=q("#gPrev"); box.hidden=false; box.textContent="Checking\u2026";
+    try{ const resp=await fetch("api/geo/preview",{method:"POST",headers:polHeaders(),body:JSON.stringify({rule:form()})}), j=await resp.json().catch(()=>({})); if(!resp.ok) throw new Error(j.error||("HTTP "+resp.status)); box.innerHTML=geoPreviewHtml(j); }
+    catch(e){ box.hidden=true; err(e.message); } };
+  q("#gSave").onclick=async ()=>{ err(""); const why=q("#gWhy").value.trim(); if(why.length<10){ err("Say why, in at least a short sentence. It is kept in the audit log."); q("#gWhy").focus(); return; }
+    const rule=form(), rules=(S.policy.geoRules||[]).slice(), i=editing? rules.findIndex(x=>x.id===editing) : -1; if(i>=0) rules[i]=Object.assign({},rules[i],rule,{id:editing}); else rules.push(rule);
+    q("#gSave").disabled=true; try{ await geoPut(rules,why); close(); }catch(e){ q("#gSave").disabled=false; err(e.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please make your change again." : e.message); } };
+}
 document.addEventListener("click",ev=>{
   const bell=ev.target.closest("#bell"); if(bell){ const p=$("#notifPanel"); p.hidden=!p.hidden; bell.setAttribute("aria-expanded",String(!p.hidden)); if(!p.hidden) renderNotifPanel(); return; }
   if(!ev.target.closest("#notifPanel")&&!$("#notifPanel").hidden){ $("#notifPanel").hidden=true; $("#bell").setAttribute("aria-expanded","false"); }
@@ -1787,12 +2022,15 @@ document.addEventListener("click",ev=>{
   if(ev.target.closest("#ruleReset")){ S.rules=defaultRules(); saveRules(); renderAlertsView(); return; }
   const ed=ev.target.closest("[data-redit]"); if(ed){ const r=S.rules.find(x=>x.id===ed.dataset.redit); if(r) openRuleEditor(JSON.parse(JSON.stringify(r))); return; }
   const dl=ev.target.closest("[data-rdel]"); if(dl){ if(dl.dataset.armed){ S.rules=S.rules.filter(x=>x.id!==dl.dataset.rdel); saveRules(); renderAlertsView(); } else { dl.dataset.armed="1"; dl.textContent="Click again to delete"; setTimeout(()=>{ try{ dl.dataset.armed=""; dl.textContent="Delete"; }catch(_){} },3000); } return; }
+  if(geoClick(ev)) return;
   const no=ev.target.closest("[data-nopen]"); if(no){ openNotif(no.dataset.nopen); return; }
   const na=ev.target.closest("[data-nask]"); if(na){ const n=S.notifs.find(x=>x.id===na.dataset.nask); if(n){ markRead(n.id); ask(n.type&&n.type[0]==="g"? "A Google OAuth alert fired: “"+n.title+"” — "+n.body+". Is this app safe to allow? What does the access allow and what should I check in the Google Admin console?" : "An alert fired: “"+n.title+"” — "+n.body+". What is likely going on, and what should I check first?"); } return; }
   const nd=ev.target.closest("[data-ndel]"); if(nd){ S.notifs=S.notifs.filter(x=>x.id!==nd.dataset.ndel); saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
   const ni=ev.target.closest(".nitem[data-nid]"); if(ni&&!ev.target.closest("button")){ openNotif(ni.dataset.nid); }
 });
 document.addEventListener("change",ev=>{
+  { const gt=ev.target.closest("[data-gtoggle]"); if(gt){ const id=gt.dataset.gtoggle, on=gt.checked, all=S.policy.geoRules||[], nm=all.find(r=>r.id===id); gt.checked=!on;       // changes only once saved, and a change needs a reason
+      geoAskWhy((on? "Turn on " : "Turn off ")+"“"+(nm? nm.name : "")+"”",all.map(r=>r.id===id? Object.assign({},r,{enabled:on}) : r)); return; } }
   const t=ev.target.closest("[data-rtoggle]"); if(t){ const r=S.rules.find(x=>x.id===t.dataset.rtoggle); if(r){ r.enabled=t.checked; saveRules(); renderAlertsView(); if(r.enabled) evaluateAlerts(S.C||compute()); } return; }
   if(ev.target.id==="nSel"){ S.nfilter=ev.target.value; renderAlertsView(); }
 });
@@ -2112,7 +2350,7 @@ function saveRules(){ if(S.policy.meta.alertRulesShared) queuePublishRules(); el
 /* ---------- policy: known errors and reviewed Google apps (shared by everyone, kept on the server) ---------- */
 // A known-error rule hides matching errors from the counts and from alerts, but never silently: every page says how many are hidden.
 // An app decision records that a Google app was reviewed (approved for exactly the access it had then) or is not allowed.
-S.policy={suppressions:[],approvals:[],meta:{version:-1,persistent:true,canEdit:false,actor:{name:"",verified:false},rolesEnforced:false,requireExpiry:false,identityVerified:false},loaded:false,unavailable:false};
+S.policy={suppressions:[],approvals:[],geoRules:[],meta:{version:-1,persistent:true,canEdit:false,actor:{name:"",verified:false},rolesEnforced:false,requireExpiry:false,identityVerified:false},loaded:false,unavailable:false};
 S.showSup=false; S.ptab="rules"; S.pname=LS.get("okta.pname","")||"";
 const activeSuppressions=()=>{ const now=Date.now(); return S.policy.suppressions.filter(r=>r.enabled&&(!r.expiresAt||Date.parse(r.expiresAt)>now)); };
 function ruleState(r){ const now=Date.now(); if(!r.enabled) return "off"; if(r.expiresAt&&Date.parse(r.expiresAt)<=now) return "expired"; if(r.expiresAt&&Date.parse(r.expiresAt)-now<7*864e5) return "soon"; return "active"; }
@@ -2130,7 +2368,7 @@ function approvalOf(a){
   return {state:"approved",ap};
 }
 const polHeaders=()=>({"content-type":"application/json","x-sightline-name":S.pname||""});
-function adoptPolicy(j){ S.policy=Object.assign(S.policy,{suppressions:j.suppressions||[],approvals:j.approvals||[],meta:j.meta,loaded:true,unavailable:false}); S._supTok=null; if(S.g) S.g._ck=null;
+function adoptPolicy(j){ S.policy=Object.assign(S.policy,{suppressions:j.suppressions||[],approvals:j.approvals||[],geoRules:j.geoRules||[],meta:j.meta,loaded:true,unavailable:false}); S._supTok=null; if(S.g) S.g._ck=null;
   if(j.alertRules&&j.meta&&j.meta.roleBased){ S.rules=normRules(j.alertRules); S.rulesShared=true; } }
 async function loadPolicy(){
   try{ const r=await fetch("api/policy"); if(!r.ok) throw new Error("HTTP "+r.status); const j=await r.json(); const changed=j.meta.version!==S.policy.meta.version||!S.policy.loaded; adoptPolicy(j); return changed; }
@@ -2480,7 +2718,7 @@ async function refreshLive(){
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+(st&&st.rateLimit&&st.rateLimit.budgetRpm<=120? "Paced to about "+st.rateLimit.budgetRpm+" requests a minute so Okta’s rate limit is not exceeded, so this takes a while. ":"")+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
-    await refreshGoogle(st); await loadPolicy();
+    await refreshGoogle(st); await loadPolicy(); S.slackOn=!!(st&&st.slack&&st.slack.configured); await loadGeoAlerts();
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);
