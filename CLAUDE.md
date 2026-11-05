@@ -42,7 +42,7 @@ node test/fake-anthropic.js &       # fake AI on :4020; GET /_last shows the las
 OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=http://localhost:4020 PORT=8090 node server.js
 ```
 
-**Browser (UI) tests:** only one exists, for the Location alerts section and the Slack setup guide: `bash test/browser/run-geo-ui.sh` (74 checks; one time first: `cd test/browser && npm install && npx playwright install chromium`).
+**Browser (UI) tests:** only one exists, for the Alerts page, the Integrations pages and the Slack setup guide: `bash test/browser/run-geo-ui.sh` (99 checks, covering Alerts, Integrations and the Slack guide; one time first: `cd test/browser && npm install && npx playwright install chromium`).
 The older UI tests lived outside the repo and were lost: see "Rebuild the browser tests" in `docs/HANDOFF.md`. Check any other UI change by looking at it (Playwright screenshots) and keep UI changes small.
 
 ## Rules that matter
@@ -68,6 +68,7 @@ The older UI tests lived outside the repo and were lost: see "Rebuild the browse
 - **Two polling loops, on purpose:** `pollLogs` (new events, on a steady beat) and `backfillLoop` (old history). They were one loop and a history step waiting for the Okta rate limit delayed new events (and so alerts) by up to a minute. Both trim the buffer. Keep them separate.
 - **Slack:** post only (`chat:write`, `chat:write.public`). The token comes only from `SLACK_BOT_TOKEN`; it must never appear in an API answer, a log or the audit log (a test checks). Everything from outside that goes into a Slack message is escaped (`mx` in `slack.js`), including the notification fallback text.
   Links in Slack use `SLACK_LINK_URL` (falling back to `PUBLIC_URL`): **setting `PUBLIC_URL` alone switches single sign-on on and locks the app out**, so never suggest it to someone without sign-in.
+- **Alerts and Integrations are separate on purpose.** The Alerts page starts empty (no starter alerts) and "New alert" first asks what it is about (`openAlertPicker`); location alerts are just one kind in the same list. Anything about Slack lives on the Integrations page (`renderIntegrations`, `slackDetail`): the connection, the setup guide, and **Alert routing**, which edits `slack` and `channel` on the location rules (through the same audited `PUT /api/policy/geo-rules`, so it needs a reason). Only server-checked alerts can be routed to Slack; the browser-checked ones cannot yet. The alert editor deliberately has no Slack fields. The Teams, Email and Webhook cards are "Coming soon" placeholders, not features.
 - **The Slack setup guide** (`openSlackGuide` in `public/index.html`) is a six-step dialog with simplified SVG pictures built by small helpers (`sg*`). The pictures are drawings of the steps, not copies of Slack's screens, and say so; if Slack changes its wording, update the text and `SG_ART`. It reads the live status from `GET /api/slack` when it opens and every 5 seconds, so the last step turns green by itself.
 - **A notification's `type` must not start with "g"**: the page treats those as Google alerts (and offers an Explain button that asks about a Google app). Location alerts use `"location"`.
 - localStorage keys keep the old `okta.*` names on purpose.

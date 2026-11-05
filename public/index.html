@@ -94,6 +94,17 @@ html.assist{--aw:var(--aw-set)}
 .sgcode{max-height:140px;overflow:auto;margin:0;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre}
 .sgrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.sgmsg{width:100%;box-sizing:border-box;font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px}
 a.sglink{display:inline-block;text-decoration:none;font:inherit;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:8px;padding:6px 12px}
+.pickgrid{display:grid;gap:8px}.pick{display:flex;flex-direction:column;gap:2px;text-align:left;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--surface)}.pick span{font-size:12.5px;color:var(--muted);font-weight:400}.alertsempty{padding:18px 4px;line-height:1.7}
+.ibar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.itabs{display:flex;gap:6px}.itab{border-radius:99px;padding:5px 14px;font-size:13px;background:transparent}.itab.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}.isearch{min-width:220px}
+.isec{margin-bottom:22px}.isec h3{margin:0 0 2px;font-size:15px}.isec>.hint{margin:0 0 10px}.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.icard{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);text-decoration:none;color:inherit}a.icard:hover{border-color:var(--accent)}.icard.soon{opacity:.62}
+.itile{width:36px;height:36px;border-radius:9px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;color:var(--text);flex:none}.itile svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.itile svg.irisface{width:26px;height:26px;stroke:none}.itile.big{width:48px;height:48px}.itile.big svg{width:26px;height:26px}.itile.big svg.irisface{width:34px;height:34px}
+.icbody{display:flex;flex-direction:column;gap:2px;min-width:0}.icbody>span{font-size:12.5px;color:var(--muted);line-height:1.45}.icfoot{grid-column:1 / -1;margin-top:6px}
+.idhead{display:flex;gap:14px;align-items:center;margin:6px 0 16px}.idhead h2{margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.idhead .hint{margin:2px 0 0}
+.idl{margin:8px 0 0;display:grid;gap:8px}.idl>div{display:grid;grid-template-columns:170px 1fr;gap:10px;font-size:13.5px}.idl dt{color:var(--muted)}.idl dd{margin:0;overflow-wrap:anywhere}
+.rrow{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}.rrow:last-of-type{border-bottom:none}.rrow .rbody{flex:1;min-width:220px}.rrow input[type=text]{min-width:210px}
+.rbar{display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap}.idcard{margin-bottom:14px}.idcard h3{margin:0 0 4px;font-size:15px}
+.isearch{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 10px}.isec>.hint{color:var(--muted);font-size:13px;margin:0 0 10px}.alertsempty button{margin-top:10px}
 .geohead h2{margin:0 0 4px}.geoline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 10px}
 .gchip{display:inline-block;font-size:12px;font-weight:600;border-radius:99px;padding:2px 10px;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}.gchip.ok{color:var(--ok);border-color:var(--ok)}.gchip.warn{color:var(--warn);border-color:var(--warn)}
 a.sglinkplain{display:inline-block;text-decoration:none;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px 12px}a.sglinkplain:hover{border-color:var(--accent)}
@@ -306,6 +317,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     </div>
     <div class="navgrp bottom">
       <button class="navi" id="navAssistant" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span class="nl">Ask Iris</span></button>
+      <a class="navi" href="#/integrations" data-view="integrations" title="Integrations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2v5M15 2v5"/><path d="M6 7h12v4a6 6 0 0 1-12 0z"/><path d="M12 17v5"/></svg><span class="nl">Integrations</span></a>
       <a class="navi" href="#/settings" data-view="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg><span class="nl">Data &amp; settings</span></a>
       <button class="navi" id="navCollapse" type="button" aria-label="Collapse the menu"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg><span class="nl">Collapse</span></button>
     </div>
@@ -459,9 +471,8 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       </section>
 
       <section class="view" id="view-alerts" data-view="alerts" hidden>
-        <div class="vhead"><div><p class="vs">Get told in the app when certain errors show up.</p></div><div id="alertsTools"></div></div>
-        <div class="card" id="geoCard"><div id="geoBody"></div></div>
-        <div class="alertgrid"><div class="card"><h2>Rules</h2><p class="hint">What to watch for. Rules are checked every time the data refreshes.</p><div id="rulesNote"></div><div id="rulesList"></div></div>
+        <div class="vhead"><div><p class="vs">Choose what you want to be told about.</p></div><div id="alertsTools"></div></div>
+        <div class="alertgrid"><div class="card"><h2>Your alerts</h2><p class="hint">What you want to be told about. You start with none.</p><div id="rulesNote"></div><div id="rulesList"></div></div>
         <div class="card"><h2>Notifications</h2><div id="notifFeed"></div></div></div>
       </section>
 
@@ -470,6 +481,11 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
         <div id="polBanner"></div>
         <div class="tabs" id="polTabs" role="tablist"></div>
         <div class="card" id="polBody"></div>
+      </section>
+
+      <section class="view" id="view-integrations" data-view="integrations" hidden>
+        <div class="vhead"><div><p class="vs">Connect Sightline to the tools you use.</p></div></div>
+        <div id="integBody"></div>
       </section>
 
       <section class="view" id="view-settings" data-view="settings" hidden>
@@ -841,7 +857,7 @@ function render(){
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
-  evaluateAlerts(C); renderBell(); renderLatestAlerts(); renderPolicyBadge(); if(S.view==="policy") renderPolicy(); if(S.view==="google") renderGoogleView(true);
+  evaluateAlerts(C); renderBell(); renderLatestAlerts(); renderPolicyBadge(); if(S.view==="policy") renderPolicy(); if(S.view==="google") renderGoogleView(true); if(S.view==="integrations"){ const a=document.activeElement; if(!(a&&a.closest&&a.closest("#view-integrations input"))) renderIntegrations(); }          // keep the status chips current, but never while someone is typing
   updateFilterPill();
 
   renderTimeline(C);
@@ -1173,7 +1189,7 @@ $("#errView").addEventListener("click",ev=>{
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
-function renderViewExtras(v){ if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); if(v==="policy") renderPolicy(); }
+function renderViewExtras(v){ if(v==="integrations") renderIntegrations(); if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); if(v==="policy") renderPolicy(); }
 // Why is a list of errors empty? Say so plainly, and offer to clear the filters when they are the cause.
 function emptyErrors(C,what){
   const on=filterActive(S.fil), clr=on? ' <button type="button" class="ghost" data-fa="clear">Clear filters</button>' : "";
@@ -1538,7 +1554,7 @@ document.addEventListener("click",ev=>{
 });
 
 /* ---------- app shell: navigation, assistant drawer, preferences ---------- */
-const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",devices:"Device health",alerts:"Alerts",policy:"Policy",settings:"Data & settings"};
+const VIEWS={overview:"Overview",errors:"Errors",apps:"Apps",people:"People",google:"Google OAuth",devices:"Device health",alerts:"Alerts",policy:"Policy",integrations:"Integrations",settings:"Data & settings"};
 const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.get("okta.prefs.v1",{}));
 const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
 function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
@@ -1613,13 +1629,7 @@ $("#orgName").textContent="IT health";
 // Each firing becomes a notification (bell, toast, feed). A cooldown stops the same alert repeating.
 const winText=m=> m<60? m+" minutes" : m===60? "hour" : (m>1440&&m%1440===0)? (m/1440)+" days" : m%60===0? (m/60)+" hours" : m+" minutes";
 const lastText=m=> m===60? "the last hour" : "the last "+winText(m);
-function defaultRules(){ const f=(o)=>Object.assign(emptyFilter(),o||{}); return [
-  {id:"r-prov",name:"Provisioning failures for one app",type:"spike",enabled:true,filter:f({cats:["provision"]}),n:10,windowMin:60,by:"app",cooldownMin:60},
-  {id:"r-person",name:"One person hitting many errors",type:"spike",enabled:true,filter:f(),n:20,windowMin:60,by:"person",cooldownMin:120},
-  {id:"r-token",name:"Token and OAuth errors",type:"spike",enabled:true,filter:f({cats:["token"]}),n:25,windowMin:60,by:"total",cooldownMin:60},
-  {id:"r-new",name:"A new kind of error appears",type:"new",enabled:true,filter:f(),n:1,windowMin:60,by:"total",cooldownMin:60},
-  {id:"r-silent",name:"An app goes silent",type:"silent",enabled:true,filter:f(),n:1,windowMin:60,by:"total",cooldownMin:0} ]; }
-function loadRules(){ let r=LS.get("okta.rules.v1",null); if(!Array.isArray(r)||!r.length) r=defaultRules(); return r.map(x=>Object.assign({n:10,windowMin:60,by:"total",cooldownMin:60,enabled:true},x,{filter:Object.assign(emptyFilter(),x.filter||{})})); }
+function loadRules(){ let r=LS.get("okta.rules.v1",null); if(!Array.isArray(r)) r=[]; return r.map(x=>Object.assign({n:10,windowMin:60,by:"total",cooldownMin:60,enabled:true},x,{filter:Object.assign(emptyFilter(),x.filter||{})})); }
 S.rules=loadRules(); S.notifs=LS.get("okta.notifs.v1",[]); S.astate=Object.assign({fired:{},silent:null},LS.get("okta.alertstate.v1",{}));
 const saveNotifs=()=>LS.set("okta.notifs.v1",S.notifs.slice(0,200)), saveAState=()=>LS.set("okta.alertstate.v1",S.astate);
 
@@ -1739,17 +1749,25 @@ function announce(list){
   list.slice(0,3).forEach(toast);
   try{ if(prefs.desktopNotif&&typeof Notification!=="undefined"&&Notification.permission==="granted"&&document.hidden) list.slice(0,3).forEach(n=>new Notification(n.title,{body:n.body})); }catch(_){}
 }
+function geoRow(r,can){
+  return '<div class="rule'+(r.enabled?"":" off")+'" data-grid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-gtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+(can?"":" disabled")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
+    '<div class="rbody"><b>'+esc(r.name)+'</b> <span class="gchip">Location</span>'+(r.slack? ' <span class="gchip ok">Slack: '+esc(r.channel||"default channel")+'</span>' : "")+'<div class="gsub">'+esc(describeGeo(r))+'</div><div class="rnow">'+esc(geoLast(r))+'</div></div>'+
+    (can? '<div class="ract"><button class="ghost" data-gedit="'+esc(r.id)+'">Edit</button><button class="ghost" data-gdel="'+esc(r.id)+'">Delete</button></div>' : "")+'</div>';
+}
+function browserRow(r){
+  return '<div class="rule'+(r.enabled?"":" off")+'" data-rid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-rtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
+    '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>';
+}
 function renderAlertsView(){
-  renderGeoCard();
-  $("#alertsTools").innerHTML='<button class="primary" id="ruleNew">New rule</button> <button class="ghost" id="ruleReset" title="Replace your rules with the starter rules">Reset to starter rules</button>';
-  $("#rulesList").innerHTML= S.rules.length? S.rules.map(r=>'<div class="rule'+(r.enabled?"":" off")+'" data-rid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-rtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
-      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>').join("")
-    : '<div class="empty">No rules yet. Create one, or reset to the starter rules.</div>';
-  { const m=S.policy.meta, can=canEditRules(); let n="";
-    if(m.roleBased){ if(m.alertRulesShared) n='<p class="hint">These rules are shared by everyone, and every change is recorded in the audit log.'+(can? "" : " Only admins can change them.")+'</p>';
-      else n= can? '<div class="gwarn">These alert rules exist only in this browser. <button class="primary" id="rulesPublish">Publish them for everyone</button><br>From then on everyone sees the same rules, and every change is recorded.</div>' : '<p class="hint">These are starter rules in your browser. An admin can publish shared rules for everyone.</p>'; }
+  const can=canEditRules(), geo=S.policy.geoRules||[];
+  $("#alertsTools").innerHTML='<button class="primary" id="alertNew" type="button">New alert</button>';
+  const rows=geo.map(r=>geoRow(r,can)).join("")+S.rules.map(browserRow).join("");
+  $("#rulesList").innerHTML= rows || '<div class="empty alertsempty"><b>No alerts yet.</b><br>Choose what you want to be told about: too many errors, a new kind of error, a Google app, or sign-ins from places you consider risky.'+(can? '<br><button class="primary" id="alertNew2" type="button">Create your first alert</button>' : "")+'</div>';
+  { const m=S.policy.meta; let n="";
+    if(S.rules.length&&m.roleBased){ if(m.alertRulesShared) n='<p class="hint">Error and Google alerts are shared by everyone, and every change is recorded in the audit log.'+(can? "" : " Only admins can change them.")+'</p>';
+      else n= can? '<div class="gwarn">The error and Google alerts above exist only in this browser. <button class="primary" id="rulesPublish">Publish them for everyone</button><br>From then on everyone sees the same alerts, and every change is recorded.</div>' : '<p class="hint">The error and Google alerts above are in your browser only. An admin can publish shared ones.</p>'; }
     $("#rulesNote").innerHTML=n;
-    if(!can) for(const el of document.querySelectorAll("#view-alerts #rulesList input, #view-alerts #rulesList button, #ruleNew, #ruleReset")) el.disabled=true; }
+    if(!can) for(const el of document.querySelectorAll("#view-alerts #rulesList input, #view-alerts #rulesList button, #alertNew")) el.disabled=true; }
   const unread=unreadCount(), sel=S.nfilter||"all", feed=S.notifs.filter(n=>sel==="all"||n.unread);
   $("#notifFeed").innerHTML='<div class="nhead2"><select id="nSel" aria-label="Which notifications"><option value="all"'+(sel==="all"?" selected":"")+'>All ('+S.notifs.length+')</option><option value="unread"'+(sel==="unread"?" selected":"")+'>Unread ('+unread+')</option></select><span class="spacer"></span><button class="ghost" id="nAllRead2"'+(unread?"":" disabled")+'>Mark all read</button><button class="ghost" id="nClear"'+(S.notifs.length?"":" disabled")+'>Clear all</button></div>'+
     (feed.length? '<div class="nlist flat">'+feed.slice(0,60).map(n=>notifItem(n,true)).join("")+'</div>' : '<div class="empty">'+(S.notifs.length?"No unread notifications.":"Nothing yet. When a rule fires, it shows up here, in the bell, and as a pop-up.")+'</div>');
@@ -1804,11 +1822,10 @@ const geoWhere=a=>[a.where.city,a.where.region,a.where.country].filter(Boolean).
 const geoBody=a=>(a.person||"unknown")+" \u00b7 "+geoWhere(a)+(a.threshold>1? " \u00b7 "+a.matched+" in "+gWin(a.windowMinutes) : "");
 function describeGeo(r){
   const ps=r.places.map(gPlace), where=(r.mode==="outside"? "from anywhere except " : "from ")+(ps.length<=3? ps.join(", ") : ps.slice(0,3).join(", ")+" and "+(ps.length-3)+" more");
-  return GEO_KIND[r.kind]+" "+where+" \u00b7 "+(r.count>1? r.count+" or more in "+gWin(r.windowMinutes)+(r.per==="person"? ", per person" : ", in total") : "any one")+" \u00b7 "+(r.slack? "also sent to Slack" : "in the app only");
+  return GEO_KIND[r.kind]+" "+where+" \u00b7 "+(r.count>1? r.count+" or more in "+gWin(r.windowMinutes)+(r.per==="person"? ", per person" : ", in total") : "any one");
 }
 function geoLast(r){ const mine=S.geo.alerts.filter(a=>a.ruleId===r.id); if(!mine.length) return "Has not alerted yet"; const day=mine.filter(a=>Date.now()-Date.parse(a.createdAt)<864e5).length;
   return "Last alerted "+ago(Date.now()-Date.parse(mine[0].createdAt))+" \u00b7 "+day+" in the last 24 hours"; }
-function geoSlackText(a){ const st=(a.slack||{}).state; return st==="sent"? "posted to Slack" : st==="failed"? "Slack did not take it"+(a.slack.hint? ": "+a.slack.hint : "") : st==="summarized"? "in a Slack summary" : st==="not_configured"? "Slack is not set up" : st==="queued"? "sending to Slack" : "in the app only"; }
 // the server's alerts go into the same bell and list as every other alert; on a first visit only the last six hours count as new
 async function loadGeoAlerts(){
   try{
@@ -1824,24 +1841,7 @@ async function loadGeoAlerts(){
 async function loadSlackInfo(){
   if(S.geo.slackBusy) return; S.geo.slackBusy=true;
   try{ const r=await fetch("api/slack"); S.geo.slack= r.ok? await r.json() : false; }catch(_){ S.geo.slack=false; }
-  S.geo.slackBusy=false; if(S.view==="alerts") renderGeoCard();
-}
-function renderGeoCard(){
-  const el=$("#geoBody"); if(!el) return;
-  const can=canEditRules(), rules=S.policy.geoRules||[], sl=S.geo.slack, on=!!(sl&&sl.configured)||(sl!==false&&sl!==null? false : !!S.slackOn);
-  if(can&&sl===null) loadSlackInfo();
-  const chip= sl&&sl.configured? '<span class="gchip ok">Slack: connected to '+esc(sl.channel)+'</span>'+(sl.lastError? '<span class="gchip warn">Last Slack problem: '+esc(sl.lastErrorHint||sl.lastError)+'</span>' : "")
-    : (!sl&&S.slackOn)? '<span class="gchip ok">Slack is on</span>' : '<span class="gchip">Slack is not set up</span>';
-  const list= rules.length? rules.map(r=>'<div class="rule'+(r.enabled?"":" off")+'" data-grid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-gtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+(can?"":" disabled")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
-      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeGeo(r))+'</div><div class="rnow">'+esc(geoLast(r))+'</div></div>'+
-      (can? '<div class="ract"><button class="ghost" data-gedit="'+esc(r.id)+'">Edit</button><button class="ghost" data-gdel="'+esc(r.id)+'">Delete</button></div>' : "")+'</div>').join("")
-    : '<div class="empty">No location rules yet.'+(can? " Add one to be told when sign-ins or wrong passwords come from places you consider risky." : "")+'</div>';
-  const recent=S.geo.alerts.slice(0,8), rec= recent.length? '<div class="nlist flat">'+recent.map(a=>'<div class="nitem '+esc(a.severity)+'"><span class="ndot" aria-hidden="true"></span><div class="nbody"><b>'+esc(a.ruleName)+'</b><span>'+esc(geoBody(a))+'</span><small>'+esc(ago(Date.now()-Date.parse(a.createdAt)))+' \u00b7 '+esc(geoSlackText(a))+'</small></div></div>').join("")+'</div>' : '<div class="empty">No location alerts yet.</div>';
-  el.innerHTML='<div class="geohead"><h2>Location alerts</h2><p class="hint">Be told when sign-ins, failed sign-ins, wrong passwords or MFA failures come from places you consider risky, or from anywhere outside the places you expect. These are checked on the server around the clock, so you do not need the page open, and each alert is raised once for everyone.</p></div>'+
-    '<div class="geoline">'+chip+(can&&sl&&sl.configured? '<button class="ghost" id="geoSlackTest" type="button">Send a test message</button>' : "")+(can? '<button class="'+(sl&&sl.configured? "ghost" : "primary")+'" id="geoSlackGuide" type="button">'+(sl&&sl.configured? "Slack setup guide" : "Set up Slack")+'</button>' : "")+(can? '<span class="spacer"></span><button class="primary" id="geoNew" type="button">New location rule</button>' : "")+'</div>'+
-    (S.geo.msg? '<p class="hint" id="geoMsg" role="status">'+esc(S.geo.msg)+'</p>' : "")+""+
-    (S.policy.meta.roleBased&&!can? '<p class="hint">Only admins can change location rules.</p>' : "")+list+
-    '<div class="geolist"><h3>Recent location alerts</h3>'+rec+'</div>';
+  S.geo.slackBusy=false; if(S.view==="integrations") renderIntegrations();
 }
 // every change to a location rule needs a reason, which is kept in the audit log with the person's name
 function geoAskWhy(title,rules){
@@ -1853,21 +1853,124 @@ function geoAskWhy(title,rules){
     q("#gwOk").disabled=true; try{ await geoPut(rules,why); close(); }catch(x){ q("#gwOk").disabled=false; e.hidden=false; e.textContent=x.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : x.message; } };
   q("#gwWhy").addEventListener("keydown",e=>{ if(e.key==="Enter") q("#gwOk").click(); });
 }
-async function geoPut(rules,why){ await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules,why}); renderAlertsView(); }
+async function geoPut(rules,why){ await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules,why}); S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations(); }
 function geoClick(ev){
   const t=ev.target; let b;
-  if(t.closest("#geoNew")){ openGeoEditor(); return true; }
   if((b=t.closest("[data-gedit]"))){ const r=(S.policy.geoRules||[]).find(x=>x.id===b.dataset.gedit); if(r) openGeoEditor(JSON.parse(JSON.stringify(r))); return true; }
   if((b=t.closest("[data-gdel]"))){ const all=S.policy.geoRules||[], r=all.find(x=>x.id===b.dataset.gdel); if(r) geoAskWhy("Delete \u201c"+r.name+"\u201d",all.filter(x=>x.id!==r.id)); return true; }
-  if(t.closest("#geoSlackTest")){ geoSlackTest(); return true; }
-  if(t.closest("#geoSlackGuide")){ openSlackGuide(); return true; }
   return false;
 }
-async function geoSlackTest(){
-  S.geo.msg="Sending a test message\u2026"; renderGeoCard();
-  try{ const r=await fetch("api/slack/test",{method:"POST",headers:polHeaders()}), j=await r.json().catch(()=>({})); S.geo.msg= j.ok? "Test message sent. Look for it in the channel." : "The test message did not go through: "+(j.hint||j.error||("HTTP "+r.status)); S.geo.slack=null; }
-  catch(e){ S.geo.msg="The test message did not go through: "+e.message; } renderGeoCard();
+// "New alert": first choose what it is about
+function openAlertPicker(){
+  const root=document.createElement("div"); root.className="modal"; root.id="alertPicker";
+  const kinds=[["spike","Too many errors","When errors pile up, for everything, one app or one person."],["new","A new kind of error","When an error appears that Sightline has not seen before."],["silent","An app goes silent","When an app stops showing any activity."],
+    ["gnew","Google app activity","When a new Google app is authorized, its access grows, or many people authorize the same app."],["location","Sign-ins from certain places","When sign-ins, wrong passwords or MFA failures come from places you consider risky. Checked around the clock on the server, and it can be sent to Slack."]];
+  root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="New alert"><h3>What do you want to be told about?</h3><div class="pickgrid">'+kinds.map(k=>'<button type="button" class="pick" data-pick="'+k[0]+'"><b>'+esc(k[1])+'</b><span>'+esc(k[2])+'</span></button>').join("")+'</div><div class="mact"><button class="ghost" id="pkCancel" type="button">Cancel</button></div></div>';
+  const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
+  root.addEventListener("click",e=>{ if(e.target.closest("#pkCancel")){ close(); return; } const b=e.target.closest("[data-pick]"); if(!b) return; close(); if(b.dataset.pick==="location") openGeoEditor(); else openRuleEditor({type:b.dataset.pick}); });
+  root.addEventListener("mousedown",e=>{ if(e.target===root) close(); }); document.addEventListener("keydown",esc2); document.body.appendChild(root); root.querySelector("[data-pick]").focus();
 }
+/* ---------- Integrations: where Sightline reads from, and where it sends things ---------- */
+S.integ={tab:"overview",q:"",route:{}};
+const ICONS={slack:'<path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>',okta:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',google:'<path d="M12 3l8 3v6c0 4.5-3.2 8-8 9-4.8-1-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  teams:'<rect x="4" y="6" width="16" height="12" rx="2"/><path d="M9 10h6M12 10v5"/>',email:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',webhook:'<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"/>'};
+const integIcon=id=> id==="iris"? '<svg viewBox="0 0 120 120" class="irisface" aria-hidden="true"><use href="#iris-hi"/></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true">'+ICONS[id]+'</svg>';
+const INTEG_GROUPS=[["Notifications","Where alerts are sent."],["Data sources","Where Sightline reads its information from."],["AI","What powers Iris."]];
+const stateChip=st=>({connected:'<span class="gchip ok">\u2713 Connected</span>',connect:'<span class="gchip">+ Connect</span>',soon:'<span class="gchip">Coming soon</span>',problem:'<span class="gchip warn">Needs attention</span>',sample:'<span class="gchip">Sample data</span>'})[st];
+function integList(){
+  const st=S.stat||{}, sl=S.geo.slack, slackOn=!!(sl&&sl.configured)||(!sl&&!!S.slackOn);
+  return [
+    {id:"slack",group:"Notifications",name:"Slack",desc:"Post alerts to the channels you choose.",state:slackOn? "connected" : "connect"},
+    {id:"teams",group:"Notifications",name:"Microsoft Teams",desc:"Post alerts to Teams channels.",state:"soon"},
+    {id:"email",group:"Notifications",name:"Email",desc:"Send alerts to an address or a list.",state:"soon"},
+    {id:"webhook",group:"Notifications",name:"Webhook",desc:"Send alerts to any system that can receive them.",state:"soon"},
+    {id:"okta",group:"Data sources",name:"Okta",desc:"Reads the System Log: sign-ins, errors, apps and people.",state:S.demo? "sample" : st.lastError? "problem" : st.live? "connected" : "connect"},
+    {id:"google",group:"Data sources",name:"Google Workspace",desc:"Reads which apps people connected to their Google accounts.",state:(S.g&&S.g.configured)? "connected" : "connect"},
+    {id:"iris",group:"AI",name:"Iris",desc:"Answers questions and explains errors in plain words. Powered by Anthropic.",state:st.assistant? "connected" : "connect"}
+  ];
+}
+const integCard=x=>{ const inner='<span class="itile">'+integIcon(x.id)+'</span><span class="icbody"><b>'+esc(x.name)+'</b><span>'+esc(x.desc)+'</span></span><span class="icfoot">'+stateChip(x.state)+'</span>';
+  return x.state==="soon"? '<div class="icard soon" aria-disabled="true">'+inner+'</div>' : '<a class="icard" href="#/integrations/'+x.id+'">'+inner+'</a>'; };
+function integSub(){ try{ const p=String(location.hash||"").replace(/^#\/?/,"").split("?")[0].split("/"); return p[0]==="integrations"&&p[1]? p[1] : ""; }catch(_){ return ""; } }
+function drawIntegList(){
+  const box=$("#integList"); if(!box) return; const q=S.integ.q.trim().toLowerCase(), tab=S.integ.tab;
+  let all=integList().filter(x=>!q||(x.name+" "+x.desc+" "+x.group).toLowerCase().includes(q)); if(tab==="connected") all=all.filter(x=>x.state==="connected"||x.state==="problem");
+  box.innerHTML= !all.length? '<div class="empty">'+(q? "No integrations match \u201c"+esc(S.integ.q.trim())+"\u201d." : "Nothing is connected yet.")+'</div>'
+    : tab==="overview"? INTEG_GROUPS.map(g=>{ const xs=all.filter(x=>x.group===g[0]); return xs.length? '<section class="isec"><h3>'+esc(g[0])+'</h3><p class="hint">'+esc(g[1])+'</p><div class="igrid">'+xs.map(integCard).join("")+'</div></section>' : ""; }).join("")
+    : '<div class="igrid">'+all.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(integCard).join("")+'</div>';
+}
+function renderIntegrations(){
+  const el=$("#integBody"); if(!el) return; if(canEditRules()&&S.geo.slack===null) loadSlackInfo();
+  const sub=integSub(); if(sub){ renderIntegDetail(el,sub); return; }
+  const tabs=[["overview","Overview"],["all","All"],["connected","Connected"]].map(t=>'<button type="button" class="itab'+(S.integ.tab===t[0]?" on":"")+'" role="tab" aria-selected="'+(S.integ.tab===t[0])+'" data-itab="'+t[0]+'">'+t[1]+'</button>').join("");
+  el.innerHTML='<div class="ibar"><div class="itabs" role="tablist" aria-label="Show">'+tabs+'</div><span class="spacer" style="flex:1"></span><input type="search" id="integQ" class="isearch" placeholder="Search integrations" aria-label="Search integrations" value="'+esc(S.integ.q)+'"></div><div id="integList"></div>';
+  drawIntegList();
+}
+function integFacts(rows){ return '<dl class="idl">'+rows.map(r=>'<div><dt>'+esc(r[0])+'</dt><dd>'+(r[2]? r[1] : esc(r[1]))+'</dd></div>').join("")+'</dl>'; }
+function renderIntegDetail(el,id){
+  const x=integList().find(i=>i.id===id);
+  if(!x||x.state==="soon"){ el.innerHTML='<p><a class="lnk" href="#/integrations">\u2190 All integrations</a></p><div class="empty">There is no integration called \u201c'+esc(id)+'\u201d yet.</div>'; return; }
+  el.innerHTML='<p><a class="lnk" href="#/integrations">\u2190 All integrations</a></p><div class="idhead"><span class="itile big">'+integIcon(x.id)+'</span><div class="icbody"><h2>'+esc(x.name)+' '+stateChip(x.state)+'</h2><p class="hint">'+esc(x.desc)+'</p></div></div>'+(id==="slack"? slackDetail() : otherDetail(x));
+}
+function otherDetail(x){
+  const st=S.stat||{}; let rows=[], how="", extra="";
+  if(x.id==="okta"){
+    rows=[["Organization",st.org||"not connected"],["Last successful check",st.lastPollOk? ago(Date.now()-Date.parse(st.lastPollOk)) : "not yet"],["Events held",fmtN(st.eventCount||0)+(st.lookbackDays? " (up to the last "+st.lookbackDays+" days, newest first)" : "")]];
+    if(st.catchUp&&!st.catchUp.historyDone) rows.push(["Loading older history",st.catchUp.pct+"% of "+st.lookbackDays+" days"]);
+    if(st.rateLimit&&st.rateLimit.maxRpm) rows.push(["Pace","At most "+st.rateLimit.maxRpm+" requests a minute, so Okta\u2019s rate limit is never exceeded"]);
+    if(st.lastError) rows.push(["Problem",st.lastError]);
+    how='Set by whoever runs Sightline: <code>OKTA_ORG_URL</code> and <code>OKTA_API_TOKEN</code>, a dedicated read-only token.';
+  } else if(x.id==="google"){
+    const g=S.g||{}, gs=g.status||{};
+    rows=[["Status",g.configured? (g.demo? "Sample data" : "Connected") : "Not connected yet"]]; if(g.configured){ rows.push(["Acts as",gs.admin||"the configured admin"],["Events held",fmtN((g.events||[]).length)]); if(gs.lastError) rows.push(["Problem",gs.lastError]); }
+    how= g.configured? 'Set by whoever runs Sightline: <code>GOOGLE_SA_KEY</code> and <code>GOOGLE_ADMIN_EMAIL</code>.' : 'To connect it, whoever runs Sightline sets <code>GOOGLE_SA_KEY</code> and <code>GOOGLE_ADMIN_EMAIL</code>. The <a class="lnk" href="#/google">Google OAuth page</a> explains how.';
+  } else if(x.id==="iris"){
+    rows=[["Status",st.assistant? "Available" : "Not available yet"],["What she sees","Your question and the log data she looks up are sent to Anthropic\u2019s API to write an answer."],["What she cannot do","Change anything in Okta or Google. She only reads."]];
+    how= st.assistant? 'Set by whoever runs Sightline: <code>ANTHROPIC_API_KEY</code>.' : 'To turn Iris on, whoever runs Sightline sets <code>ANTHROPIC_API_KEY</code>.';
+  }
+  return '<div class="card idcard"><h3>Details</h3>'+integFacts(rows)+'</div><div class="card idcard"><h3>How it is set up</h3><p class="hint" style="margin:0">'+how+' Nothing secret is ever shown on this page.</p></div>';
+}
+function slackDetail(){
+  const sl=S.geo.slack, ok=!!(sl&&sl.configured), can=canEditRules(), geo=S.policy.geoRules||[], route=S.integ.route, def=ok? sl.channel : "";
+  const rows=[["Status",ok? "Connected" : "Not connected yet"]]; if(ok) rows.push(["Default channel",def]); rows.push(["Posts as","Sightline. It can only post messages: it cannot read channels, messages or people."]);
+  if(ok&&sl.sent!=null) rows.push(["Messages posted",fmtN(sl.sent)+(sl.failed? " ("+fmtN(sl.failed)+" did not go through)" : "")]); if(sl&&sl.lastError) rows.push(["Last problem",sl.lastErrorHint||sl.lastError]);
+  const conn='<div class="card idcard"><h3>Connection</h3>'+integFacts(rows)+(can? '<div class="rbar"><button class="'+(ok?"ghost":"primary")+'" id="integSlackGuide" type="button">'+(ok? "Slack setup guide" : "Set up Slack")+'</button>'+(ok? '<button class="ghost" id="integSlackTest" type="button">Send a test message</button>' : "")+'</div>' : '<p class="hint">Only admins can set up or test Slack.</p>')+(S.geo.msg? '<p class="hint" id="geoMsg" role="status">'+esc(S.geo.msg)+'</p>' : "")+'</div>';
+  const cur=r=>route[r.id]||{slack:r.slack===true,channel:r.channel||""}, dirty=geo.some(r=>{ const c=cur(r); return c.slack!==(r.slack===true)||c.channel!==(r.channel||""); });
+  const list= geo.length? geo.map(r=>{ const c=cur(r); return '<div class="rrow" data-rr="'+esc(r.id)+'"><label class="sw" title="Send to Slack"><input type="checkbox" data-rslack="'+esc(r.id)+'"'+(c.slack?" checked":"")+((can&&ok)?"":" disabled")+' aria-label="Send \u201c'+esc(r.name)+'\u201d to Slack"><span></span></label>'+
+      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeGeo(r))+'</div></div><input type="text" data-rchan="'+esc(r.id)+'" value="'+esc(c.channel)+'" placeholder="Default channel'+(def? " ("+esc(def)+")" : "")+'" aria-label="Slack channel for '+esc(r.name)+'" autocomplete="off"'+((can&&ok&&c.slack)?"":" disabled")+'></div>'; }).join("")
+    : '<div class="empty">You have no alerts that can go to Slack yet. <a class="lnk" href="#/alerts">Create a location alert</a>, then choose its channel here.</div>';
+  const others=S.rules.length? '<p class="hint" style="margin-top:12px">These alerts cannot go to Slack yet, because they are checked in the browser and not on the server: '+S.rules.map(r=>esc(r.name)).join(", ")+'.</p>' : "";
+  const routing='<div class="card idcard"><h3>Alert routing</h3><p class="hint" style="margin:0 0 6px">Choose which alerts go to Slack, and which channel each one posts to. An alert you leave off stays in Sightline only. Leave the channel empty to use the default one.'+(ok? "" : " This works once Slack is connected.")+'</p>'+list+others+
+    (geo.length&&can&&ok? '<div class="rbar"><button class="primary" id="routeSave" type="button"'+(dirty?"":" disabled")+'>Save routing</button><button class="ghost" id="routeDiscard" type="button"'+(dirty?"":" disabled")+'>Discard changes</button><span class="hint" id="routeErr" role="status"></span></div>' : "")+'</div>';
+  return conn+routing;
+}
+function routeSet(id,patch){ const r=(S.policy.geoRules||[]).find(x=>x.id===id); if(!r) return; S.integ.route[id]=Object.assign(S.integ.route[id]||{slack:r.slack===true,channel:r.channel||""},patch); }
+function routeDirty(){ return (S.policy.geoRules||[]).some(r=>{ const c=S.integ.route[r.id]; return c&&(c.slack!==(r.slack===true)||c.channel!==(r.channel||"")); }); }
+function routeSave(){
+  const err=$("#routeErr"), rules=(S.policy.geoRules||[]).map(r=>{ const c=S.integ.route[r.id]; return c? Object.assign({},r,{slack:c.slack,channel:c.slack? (c.channel||"").trim() : ""}) : r; });
+  const bad=rules.find(r=>r.slack&&r.channel&&!SG_CHAN.test(r.channel)); if(bad){ err.textContent="The channel for \u201c"+bad.name+"\u201d does not look like a Slack channel. Use a name like #it-alerts, or the channel ID."; return; }
+  geoAskWhy("Save Slack routing",rules);
+}
+async function integSlackTest(){
+  S.geo.msg="Sending a test message\u2026"; renderIntegrations();
+  try{ const r=await fetch("api/slack/test",{method:"POST",headers:polHeaders()}), j=await r.json().catch(()=>({})); S.geo.msg= j.ok? "Test message sent. Look for it in the channel." : "The test message did not go through: "+(j.hint||j.error||("HTTP "+r.status)); S.geo.slack=null; }
+  catch(e){ S.geo.msg="The test message did not go through: "+e.message; } renderIntegrations();
+}
+function integClick(ev){
+  const t=ev.target; let b;
+  if((b=t.closest("[data-itab]"))){ S.integ.tab=b.dataset.itab; renderIntegrations(); return true; }
+  if(t.closest("#integSlackGuide")){ openSlackGuide(); return true; }
+  if(t.closest("#integSlackTest")){ integSlackTest(); return true; }
+  if(t.closest("#routeSave")){ routeSave(); return true; }
+  if(t.closest("#routeDiscard")){ S.integ.route={}; renderIntegrations(); return true; }
+  return false;
+}
+$("#view-integrations").addEventListener("input",ev=>{
+  if(ev.target.id==="integQ"){ S.integ.q=ev.target.value; drawIntegList(); return; }
+  const c=ev.target.closest("[data-rchan]"); if(c){ routeSet(c.dataset.rchan,{channel:c.value}); const sv=$("#routeSave"), dc=$("#routeDiscard"); if(sv) sv.disabled=!routeDirty(); if(dc) dc.disabled=!routeDirty(); const e=$("#routeErr"); if(e) e.textContent=""; }
+});
+$("#view-integrations").addEventListener("change",ev=>{ const sw=ev.target.closest("[data-rslack]"); if(sw){ routeSet(sw.dataset.rslack,{slack:sw.checked}); renderIntegrations(); } });
+
 /* ---------- Slack setup guide: one step at a time, with a simplified picture of each Slack screen and what to click ---------- */
 const sgSt=(f,st,w)=>'style="fill:'+(f||"none")+(st? ";stroke:"+st+";stroke-width:"+(w||1) : "")+'"';
 const sgRect=(x,y,w,h,f,st,r,sw)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+(r==null? 6 : r)+'" '+sgSt(f,st,sw)+'/>';
@@ -1931,7 +2034,7 @@ async function openSlackGuide(){
       '<div class="sgsee">For a <b>private</b> channel, first open the channel in Slack and type <code>/invite @Sightline</code>. Public channels need nothing.</div>',
     ()=>'<p>Once the two settings are in and Sightline has restarted, this page notices by itself.</p><div class="sgrow" id="sgStatus" role="status">'+status()+'</div>'+
       '<div class="sgrow"><button class="primary" type="button" id="sgTest">Send a test message</button></div><p id="sgNote" role="status"></p>'+
-      '<div class="sgsee"><b>You should see</b> a message from Sightline in the channel. After that you are done: create a rule with <b>New location rule</b>, and tick <b>Also send to Slack</b>.</div>'
+      '<div class="sgsee"><b>You should see</b> a message from Sightline in the channel. After that you are done: create an alert on the Alerts page, then come back to this page to choose which alerts go to Slack, and to which channel.</div>'
   ];
   const artKeys=["app","paste","install","token","settings","test"];
   const msgText=()=>{ const c=chan(); return "Please set two settings on the Sightline application, then redeploy once (not a restart):\n\nSLACK_CHANNEL = "+(c||"#it-alerts")+"\nSLACK_BOT_TOKEN = the Slack bot token (I will give it to you privately, please do not post it in any chat)\n\nThen tell me the names of the settings you changed, not their values."; };
@@ -1947,7 +2050,7 @@ async function openSlackGuide(){
     const t=root.querySelector("#sgTitle"); if(t) t.focus();
   };
   const fillMsg=()=>{ const ta=root.querySelector("#sgMsg"), e=root.querySelector("#sgChanErr"), c=chan(); if(ta) ta.value=msgText(); if(e){ e.hidden=c!==null; e.textContent=c===null? "That does not look like a Slack channel. Use a name like #it-alerts, or the channel ID." : ""; } };
-  const close=()=>{ clearInterval(sg.poll); root.remove(); document.removeEventListener("keydown",esc2); if(S.view==="alerts") renderGeoCard(); };
+  const close=()=>{ clearInterval(sg.poll); root.remove(); document.removeEventListener("keydown",esc2); if(S.view==="integrations") renderIntegrations(); };
   const esc2=e=>{ if(e.key==="Escape") close(); };
   const go2=k=>{ sg.i=Math.max(0,Math.min(steps.length-1,k)); sg.note=""; draw(); };
   root.addEventListener("click",e=>{
@@ -1982,7 +2085,7 @@ async function openGeoEditor(init){
   const editing=init&&init.id, r=Object.assign({id:"",name:"",kind:"invalid_password",mode:"in",places:[],count:1,windowMinutes:60,per:"person",severity:"bad",cooldownMinutes:60,slack:false,channel:"",enabled:true},init||{});
   if(!S.geo.places){ try{ const x=await fetch("api/geo/places"); if(x.ok) S.geo.places=await x.json(); }catch(_){ /* the list of places is a convenience */ } }
   const root=document.createElement("div"); root.className="modal"; root.id="geoModal";
-  const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>', seen=((S.geo.places&&S.geo.places.countries)||[]).slice(0,14), slackOk=!!(S.slackOn||(S.geo.slack&&S.geo.slack.configured));
+  const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>', seen=((S.geo.places&&S.geo.places.countries)||[]).slice(0,14);
   root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit location rule":"New location rule")+'"><h3>'+(editing?"Edit location rule":"New location rule")+'</h3>'+
     '<label class="fl">Name<input type="text" id="gName" value="'+esc(r.name)+'" placeholder="For example: Invalid passwords from high-risk regions"></label>'+
     '<label class="fl">Watch for<select id="gKind">'+Object.keys(GEO_KIND).map(k=>opt(k,GEO_KIND[k].toLowerCase(),r.kind)).join("")+'</select></label>'+
@@ -1992,16 +2095,14 @@ async function openGeoEditor(init){
     (seen.length? '<div class="fl">Countries in your data, click to add<div class="gchips">'+seen.map(c=>'<button type="button" class="ghost" data-gadd="'+esc(c.country)+'">'+esc(c.country)+' ('+fmtN(c.signins+c.failed+c.mfaFailures)+')</button>').join("")+'</div></div>' : "")+
     '<div class="frow"><label class="fl">Alert when there are at least<input type="number" id="gCount" min="1" max="1000" value="'+r.count+'"></label><label class="fl">within<select id="gWin">'+[5,15,30,60,360,1440].map(m=>opt(m,gWin(m),r.windowMinutes)).join("")+'</select></label><label class="fl">counted<select id="gPer">'+opt("person","per person",r.per)+opt("all","in total",r.per)+'</select></label></div>'+
     '<div class="frow"><label class="fl">How serious<select id="gSev">'+opt("info","Low",r.severity)+opt("warn","Medium",r.severity)+opt("bad","High",r.severity)+'</select></label><label class="fl">Do not repeat the same alert for<select id="gCool">'+[0,15,30,60,360,1440].map(m=>opt(m,m? gWin(m) : "no wait",r.cooldownMinutes)).join("")+'</select></label></div>'+
-    '<div class="fl"><label class="chk"><input type="checkbox" id="gSlack"'+(r.slack?" checked":"")+'> Also send to Slack</label>'+(slackOk? "" : '<span class="hint">Slack is not set up yet, so this only starts working once it is.</span>')+'</div>'+
-    '<label class="fl" id="gChanWrap">Slack channel for this rule (empty means the default channel)<input type="text" id="gChan" value="'+esc(r.channel||"")+'" placeholder="#it-security"></label>'+
+    '<p class="hint">To send this alert to Slack, use <a href="#/integrations/slack">Slack under Integrations</a> once it is saved.</p>'+
     '<label class="fl">Reason for this change (kept in the audit log)<input type="text" id="gWhy" maxlength="300" placeholder="For example: The security team asked us to watch these regions"></label>'+
     '<div class="gprev" id="gPrev" hidden role="status"></div><div class="merr" id="gErr" hidden></div>'+
     '<div class="mact"><button class="ghost" id="gCancel" type="button">Cancel</button><button class="ghost" id="gTry" type="button">Try it on recent data</button><button class="primary" id="gSave" type="button">'+(editing?"Save changes":"Create rule")+'</button></div></div>';
   document.body.appendChild(root);
   const q=sel=>root.querySelector(sel), err=m=>{ const e=q("#gErr"); e.hidden=!m; e.textContent=m||""; };
   const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
-  const form=()=>({id:r.id||undefined,name:q("#gName").value.trim(),kind:q("#gKind").value,mode:(root.querySelector('input[name="gMode"]:checked')||{}).value||"in",places:q("#gPlaces").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),count:+q("#gCount").value||1,windowMinutes:+q("#gWin").value,per:q("#gPer").value,severity:q("#gSev").value,cooldownMinutes:+q("#gCool").value,slack:q("#gSlack").checked,channel:q("#gChan").value.trim(),enabled:r.enabled!==false});
-  const syncSlack=()=>{ q("#gChanWrap").hidden=!q("#gSlack").checked; }; q("#gSlack").onchange=syncSlack; syncSlack();           // the channel only matters when Slack is on
+  const form=()=>({id:r.id||undefined,name:q("#gName").value.trim(),kind:q("#gKind").value,mode:(root.querySelector('input[name="gMode"]:checked')||{}).value||"in",places:q("#gPlaces").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),count:+q("#gCount").value||1,windowMinutes:+q("#gWin").value,per:q("#gPer").value,severity:q("#gSev").value,cooldownMinutes:+q("#gCool").value,slack:r.slack===true,channel:r.channel||"",enabled:r.enabled!==false});          // Slack choices are made under Integrations, and kept as they were
   document.addEventListener("keydown",esc2); q("#gName").focus(); q("#gCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
   root.addEventListener("click",e=>{ const b=e.target.closest("[data-gadd]"); if(!b) return; const ta=q("#gPlaces"), have=ta.value.split(/\r?\n/).map(x=>x.trim().toLowerCase());
     if(!have.includes(b.dataset.gadd.toLowerCase())) ta.value=(ta.value.trim()? ta.value.replace(/\s+$/,"")+"\n" : "")+b.dataset.gadd; });
@@ -2018,11 +2119,10 @@ document.addEventListener("click",ev=>{
   if(ev.target.closest("#nAllRead,#nAllRead2")){ S.notifs.forEach(n=>{ n.unread=false; }); saveNotifs(); renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView(); return; }
   if(ev.target.closest("#nSeeAll")){ $("#notifPanel").hidden=true; return; }
   if(ev.target.closest("#nClear")){ S.notifs=[]; saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
-  if(ev.target.closest("#ruleNew")){ openRuleEditor(); return; }
-  if(ev.target.closest("#ruleReset")){ S.rules=defaultRules(); saveRules(); renderAlertsView(); return; }
+  if(ev.target.closest("#alertNew,#alertNew2")){ openAlertPicker(); return; }
   const ed=ev.target.closest("[data-redit]"); if(ed){ const r=S.rules.find(x=>x.id===ed.dataset.redit); if(r) openRuleEditor(JSON.parse(JSON.stringify(r))); return; }
   const dl=ev.target.closest("[data-rdel]"); if(dl){ if(dl.dataset.armed){ S.rules=S.rules.filter(x=>x.id!==dl.dataset.rdel); saveRules(); renderAlertsView(); } else { dl.dataset.armed="1"; dl.textContent="Click again to delete"; setTimeout(()=>{ try{ dl.dataset.armed=""; dl.textContent="Delete"; }catch(_){} },3000); } return; }
-  if(geoClick(ev)) return;
+  if(integClick(ev)||geoClick(ev)) return;
   const no=ev.target.closest("[data-nopen]"); if(no){ openNotif(no.dataset.nopen); return; }
   const na=ev.target.closest("[data-nask]"); if(na){ const n=S.notifs.find(x=>x.id===na.dataset.nask); if(n){ markRead(n.id); ask(n.type&&n.type[0]==="g"? "A Google OAuth alert fired: “"+n.title+"” — "+n.body+". Is this app safe to allow? What does the access allow and what should I check in the Google Admin console?" : "An alert fired: “"+n.title+"” — "+n.body+". What is likely going on, and what should I check first?"); } return; }
   const nd=ev.target.closest("[data-ndel]"); if(nd){ S.notifs=S.notifs.filter(x=>x.id!==nd.dataset.ndel); saveNotifs(); renderBell(); renderLatestAlerts(); renderAlertsView(); return; }
@@ -2709,7 +2809,7 @@ async function refreshLive(){
     const ej=await er.json(), aj=ar.ok? await ar.json():{apps:[]};
     for(const e of ej.events){ if(e.id&&seen.has(e.id)) continue; if(e.id) seen.add(e.id); S.events.push(e); const t=ts(e); if(!S.lastTs||t>S.lastTs) S.lastTs=t; }
     const cutoff=Date.now()-31*864e5; if(S.events.length&&ts(S.events[0])<cutoff) S.events=S.events.filter(e=>ts(e)>=cutoff);
-    const st=sr.ok? await sr.json():null;
+    const st=sr.ok? await sr.json():null; S.stat=st;
     const wasCatching=!!S.catchingUp; S.catchingUp=!!(st&&st.catchingUp); S.lookupApi=!!(st&&st.lookup); S.appLookupApi=!!(st&&st.appLookup);
     S.inventory=aj.apps||[]; S.invItems=aj.items||[]; S.seen=aj.seen||[];
     S.ref=Date.now(); S.demo=false; S.live=true;
