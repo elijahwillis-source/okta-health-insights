@@ -87,14 +87,21 @@ function createPolicy(opts) {
   const RULE_TYPES = ["spike", "new", "silent", "gnew", "grisk", "gspike", "gdrift", "gflag"];
   const num = (v, lo, hi, d) => { v = +v; return isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d; };
   function cleanFilter(f) { f = f || {}; return { cats: strList(f.cats, 5, 20).filter(c => CATS.includes(c)), results: strList(f.results, 2, 10).filter(r => r === "FAILURE" || r === "DENY"), apps: strList(f.apps, LIMITS.list, 120), include: str(f.include, LIMITS.text), exclude: str(f.exclude, LIMITS.text), person: str(f.person, 120) }; }
+  // where an alert is also posted: Slack on or off, and which channel (empty means the default one)
+  const cleanChannel = v => { const c = str(v, 80); if (c && !/^(#?[a-z0-9][a-z0-9._-]{0,79}|[CGD][A-Z0-9]{8,14})$/.test(c)) throw err(400, "That Slack channel does not look right. Use a name like #it-alerts, or the channel ID."); return c; };
   function cleanRule(r) {
     if (!r || typeof r !== "object") throw err(400, "An alert rule is not valid.");
     const id = str(r.id, 40); if (!/^[\w-]{1,40}$/.test(id)) throw err(400, "An alert rule needs a simple id.");
     const type = RULE_TYPES.includes(r.type) ? r.type : (() => { throw err(400, "Unknown alert type: " + str(r.type, 30)); })();
-    return { id, name: str(r.name, LIMITS.name) || type, type, enabled: r.enabled !== false, filter: cleanFilter(r.filter), n: num(r.n, 1, 100000, 10), by: ["total", "app", "person"].includes(r.by) ? r.by : "total", windowMin: num(r.windowMin, 1, 43200, 60), cooldownMin: num(r.cooldownMin, 0, 43200, 60), minRisk: ["any", "medium", "high"].includes(r.minRisk) ? r.minRisk : "any", gApp: str(r.gApp, 120) };
+    return { id, name: str(r.name, LIMITS.name) || type, type, enabled: r.enabled !== false, filter: cleanFilter(r.filter), n: num(r.n, 1, 100000, 10), by: ["total", "app", "person"].includes(r.by) ? r.by : "total", windowMin: num(r.windowMin, 1, 43200, 60), cooldownMin: num(r.cooldownMin, 0, 43200, 60), minRisk: ["any", "medium", "high"].includes(r.minRisk) ? r.minRisk : "any", gApp: str(r.gApp, 120), slack: r.slack === true, channel: r.slack === true ? cleanChannel(r.channel) : "" };
   }
   return {
     snapshot,
+    // what the server's own alert checks need
+    sharedAlertRules() { return roleBased ? state.alertRules : null; },
+    approvals() { return state.approvals; },
+    activeSuppressions() { const now = Date.now(); return state.suppressions.filter(r => r.enabled && (!r.expiresAt || Date.parse(r.expiresAt) > now)); },
+    version() { return state.version; },
     setAlertRules(actor, baseVersion, rules, why) {
       if (!roleBased) throw err(409, "Shared alert rules need single sign-on to be set up.");
       return change(actor, baseVersion, () => {
@@ -103,7 +110,8 @@ function createPolicy(opts) {
         const prev = state.alertRules, byId = new Map((prev || []).map(r => [r.id, r])), note = str(why, LIMITS.why);
         if (!prev) audit(actor, "alertrules.publish", "alert-rules", null, { count: next.length, names: next.map(r => r.name).slice(0, 30) }, note || "Alert rules published for everyone");
         else {
-          for (const r of next) { const o = byId.get(r.id); if (!o) audit(actor, "alertrule.create", r.id, null, r, note); else if (JSON.stringify(o) !== JSON.stringify(r)) { const onlyOn = JSON.stringify({ ...o, enabled: r.enabled }) === JSON.stringify(r); audit(actor, onlyOn ? (r.enabled ? "alertrule.enable" : "alertrule.disable") : "alertrule.update", r.id, o, r, note); } }
+          // an older saved rule has no Slack fields, so it is compared in the new shape: adding them is not an "edit"
+        for (const r of next) { const o = byId.get(r.id); if (!o) audit(actor, "alertrule.create", r.id, null, r, note); else if (JSON.stringify(cleanRule(o)) !== JSON.stringify(r)) { const onlyOn = JSON.stringify({ ...o, enabled: r.enabled }) === JSON.stringify(r); audit(actor, onlyOn ? (r.enabled ? "alertrule.enable" : "alertrule.disable") : "alertrule.update", r.id, o, r, note); } }
           for (const o of prev) if (!ids.has(o.id)) audit(actor, "alertrule.delete", o.id, o, null, note);
         }
         state.alertRules = next; return { count: next.length };

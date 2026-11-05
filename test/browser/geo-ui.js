@@ -192,6 +192,33 @@ const getJson = async (page, url) => (await page.request.get(url)).json();
   ok("... and turns to 'connected' by itself within a few seconds, with no clicking", true);
   await page.unroute("**/api/slack"); await page.keyboard.press("Escape");
 
+  console.log("--- Slack routing for alerts the server checks (shown a policy where alerts are shared) ---");
+  const p3 = await ctx.newPage(); p3.on("pageerror", e => errs.push("p3: " + e.message));
+  const shared = { version: 100, rules: [
+    { id: "r-prov", name: "Provisioning failures", type: "spike", enabled: true, filter: { cats: ["provision"], results: [], apps: [], include: "", exclude: "", person: "" }, n: 10, by: "app", windowMin: 60, cooldownMin: 60, slack: false, channel: "" },
+    { id: "r-gnew", name: "A new Google app", type: "gnew", enabled: true, filter: { cats: [], results: [], apps: [], include: "", exclude: "", person: "" }, n: 1, by: "total", windowMin: 1440, cooldownMin: 1440, minRisk: "any", gApp: "", slack: true, channel: "#google" }] };
+  const puts = []; let geoPuts = 0; p3.on("request", r => { if (r.method() === "PUT" && /\/api\/policy\/geo-rules$/.test(r.url())) geoPuts++; });
+  await p3.route("**/api/policy", async route => { const resp = await route.fetch(), j = await resp.json(); j.alertRules = shared.rules; j.meta = Object.assign({}, j.meta, { roleBased: true, alertRulesShared: true, canEdit: true, version: shared.version }); await route.fulfill({ json: j }); });
+  await p3.route("**/api/policy/alert-rules", async route => { const body = JSON.parse(route.request().postData()); puts.push(body); shared.rules = body.rules; shared.version++; const resp = await (await p3.request.get(BASE + "/api/policy")).json(); resp.alertRules = shared.rules; resp.meta = Object.assign({}, resp.meta, { roleBased: true, alertRulesShared: true, canEdit: true, version: shared.version }); await route.fulfill({ json: Object.assign(resp, { result: { count: shared.rules.length } }) }); });
+  await p3.goto(BASE + "/#/alerts"); await p3.waitForSelector("#rulesList .rule"); await p3.waitForTimeout(800);
+  ok("shared alerts show where they go: the Google alert has a Slack tag with its channel", /Slack: #google/.test(await p3.locator('#rulesList .rule[data-rid="r-gnew"]').innerText()) && !/Slack:/.test(await p3.locator('#rulesList .rule[data-rid="r-prov"]').innerText()));
+  ok("... and no 'only in this browser' warning is shown, because the server checks them", !/exist only in this browser/.test(await p3.locator("#view-alerts").innerText()));
+  await p3.goto(BASE + "/#/integrations/slack"); await p3.waitForSelector("[data-rr]"); await p3.waitForTimeout(500);
+  const rr = await p3.locator("[data-rr]").allInnerTexts();
+  ok("the Slack page lists every alert for routing: the location one and both shared ones", rr.length === 3 && rr.some(t => /Provisioning failures/.test(t)) && rr.some(t => /A new Google app/.test(t)) && rr.some(t => /Invalid passwords from watched regions/.test(t)), JSON.stringify(rr.map(t => t.split("\n")[0])));
+  ok("... each shows its current routing (the Google one is on, with its channel)", await p3.locator('[data-rslack="r-gnew"]').isChecked() && (await p3.inputValue('[data-rchan="r-gnew"]')) === "#google" && !(await p3.locator('[data-rslack="r-prov"]').isChecked()));
+  await p3.locator('[data-rslack="r-prov"]').evaluate(el => el.click()); await p3.fill('[data-rchan="r-prov"]', "#provisioning");
+  await p3.click("#routeSave"); await p3.waitForSelector("#geoWhy"); await p3.fill("#gwWhy", "Send provisioning problems to their own channel"); await p3.click("#gwOk"); await p3.waitForSelector("#geoWhy", { state: "detached" });
+  ok("saving routing sends ONE change to the shared alerts, with the reason", puts.length === 1 && /own channel/.test(puts[0].why));
+  const sent = puts[0].rules;
+  ok("... the provisioning alert now goes to its channel; the Google alert is untouched; and nothing else about either was changed", sent.find(r => r.id === "r-prov").slack === true && sent.find(r => r.id === "r-prov").channel === "#provisioning" && sent.find(r => r.id === "r-gnew").slack === true && sent.find(r => r.id === "r-gnew").channel === "#google" && sent.find(r => r.id === "r-prov").n === 10 && sent.find(r => r.id === "r-prov").filter.cats[0] === "provision");
+  ok("the location alert, which did not change, was not saved again", geoPuts === 0, String(geoPuts));
+  await p3.goto(BASE + "/#/alerts"); await p3.waitForSelector("#rulesList .rule"); await p3.waitForTimeout(500);
+  ok("the Alerts list now tags it too", /Slack: #provisioning/.test(await p3.locator('#rulesList .rule[data-rid="r-prov"]').innerText()));
+  await p3.click('[data-redit="r-gnew"]'); await p3.waitForSelector("#ruleModal"); await p3.click("#rSave"); for (let i = 0; i < 40 && puts.length < 2; i++) await sleep(100);
+  ok("editing a shared alert keeps its Slack setting (saving it unchanged does not wipe the routing)", puts.length === 2 && puts[1].rules.find(r => r.id === "r-gnew").slack === true && puts[1].rules.find(r => r.id === "r-gnew").channel === "#google", JSON.stringify(puts[1] && puts[1].rules.find(r => r.id === "r-gnew")));
+  await p3.close();
+
   console.log("--- a first-time setup: an app with no Slack settings yet ---");
   const p2 = await ctx.newPage(); p2.on("pageerror", e => errs.push("p2: " + e.message));
   await p2.goto(BASE2 + "/#/overview"); await p2.waitForSelector("#kpis .kpi", { timeout: 40000 }); await p2.click('#side [data-view="integrations"]'); await p2.waitForSelector(".icard");
@@ -199,7 +226,7 @@ const getJson = async (page, url) => (await page.request.get(url)).json();
   await p2.screenshot({ path: shots + "/in-0-first-time.png" });
   await p2.click('a.icard[href="#/integrations/slack"]'); await p2.waitForSelector("#integSlackGuide");
   ok("the Slack page says it is not connected, and the main button is 'Set up Slack'", /Not connected yet/.test(await p2.locator("#integBody").innerText()) && /^Set up Slack$/.test((await p2.locator("#integSlackGuide").innerText()).trim()) && /primary/.test(await p2.locator("#integSlackGuide").getAttribute("class")) && await p2.locator("#integSlackTest").count() === 0);
-  ok("alert routing explains that it works once Slack is connected, and (with no alerts yet) points to the Alerts page", /works once Slack is connected/.test(await p2.locator("#integBody").innerText()) && /Create a location alert/.test(await p2.locator("#integBody").innerText()));
+  ok("alert routing explains that it works once Slack is connected, and (with no alerts yet) points to the Alerts page", /works once Slack is connected/.test(await p2.locator("#integBody").innerText()) && /Create an alert/.test(await p2.locator("#integBody").innerText()));
   await p2.click("#integSlackGuide"); await p2.waitForSelector("#slackGuide");
   ok("the guide has no 'already connected' note for a first-time setup", !/already connected/.test(await p2.locator("#slackGuide").innerText()));
   await p2.click('[data-sgi="5"]');

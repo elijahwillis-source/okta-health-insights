@@ -14,7 +14,9 @@
     "test:google-first": "bash test/smoke-google-first.sh",
     "test:auth": "bash test/smoke-auth.sh",
     "test:geo-unit": "node test/geo-unit.js",
-    "test:geo": "bash test/smoke-geo.sh"
+    "test:geo": "bash test/smoke-geo.sh",
+    "test:alerts-unit": "node test/alerts-unit.js",
+    "test:alerts": "bash test/smoke-alerts.sh"
   },
   "engines": {
     "node": ">=20"

@@ -527,35 +527,16 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
   <input type="file" id="fileApps" accept=".json,.csv,.txt" hidden>
   <div id="map" hidden><div class="mbody"></div></div>
 
+<script src="alerts-core.js"></script>
 <script>
 (function(){
 "use strict";
 const $ = s => document.querySelector(s);
 const esc = s => String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const FAIL = new Set(["FAILURE","DENY","ERROR"]);
-const ASSIGN_RE = /user_membership|provision|assign|\.push|import|user_management|app\.user|group\.user_membership/i;
 
 const S = { events:[], inventory:[], ref:Date.now(), win:604800000, sil:604800000, filter:null, demo:false, history:[], sample:null, busy:false, lseq:0, aseq:0 };
 
 /* ---------- helpers ---------- */
-const APP_ACTORS=/^(PublicClientApp|OAuth2Client|OAuth2AppInstance|AppInstance)$/;
-function appOf(e){
-  const t=(e.target||[]).find(x=>x.type==="AppInstance");
-  if(t) return String(t.displayName||t.alternateId||t.id||"").trim()||null;
-  const a=e.actor; if(a && APP_ACTORS.test(a.type||"")) return String(a.displayName||a.alternateId||"").trim()||null;   // OAuth/OIDC clients show up as the actor
-  return null;
-}
-function userOf(e){
-  const tg=e.target||[];
-  const t=tg.find(x=>x.type==="User")||tg.find(x=>x.type==="AppUser");   // AppUser = the user's account inside an app (e.g. Active Directory)
-  if(t) return t.alternateId||t.displayName;
-  if(e.actor && e.actor.type==="User") return e.actor.alternateId||e.actor.displayName;
-  return null;
-}
-function isFail(e){ return FAIL.has(e.outcome && e.outcome.result); }
-function isAssign(e){ return ASSIGN_RE.test(e.eventType||""); }
-function reasonOf(e){ return (e.outcome && e.outcome.reason) || e.displayMessage || "(no reason given)"; }
-function ts(e){ return e._t!==undefined? e._t : (e._t=new Date(e.published).getTime()); }
 function ago(ms){
   if(ms<0) ms=0; const m=Math.floor(ms/60000);
   if(m<1) return "just now"; if(m<60) return m+"m ago";
@@ -954,14 +935,6 @@ $("#appsCard").addEventListener("click",ev=>{
 // Clicking a row slides open that person's errors. Each error can be explained by the assistant (what it
 // means, likely causes, how to fix, how to confirm). Explanations are fetched on demand, cached on the server
 // and in the page, and keyed by the error text with ids removed so identical errors share one answer.
-function normErr(r){
-  const t=String(r==null?"":r).replace(/"[0-9a-f]{12,}"/gi,'"<id>"').replace(/\b[0-9a-f]{20,}\b/gi,"<id>").replace(/\b0[0-9a-z]{2}[A-Za-z0-9]{17}\b/g,"<id>");
-  const out=[]; for(const p of t.split(/;\s*/)){ const l=out[out.length-1];
-    if(l&&(l.t===p||l.u===p)) l.n++;
-    else if(l&&l.n===1&&l.t.length>p.length&&l.t.endsWith(p)){ l.n++; l.u=p; }       // the first copy is glued to a prefix
-    else out.push({t:p,n:1,u:null}); }
-  return out.map(x=>x.n>1? x.t+" (repeated "+x.n+" times)" : x.t).join("; ").slice(0,600);
-}
 function userErrors(u,C){
   const m=new Map();
   for(const e of C.assignFails){ if((userOf(e)||"(unknown)")!==u.user) continue;
@@ -1048,37 +1021,10 @@ $("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" 
   if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
 
 /* ---------- error filters ---------- */
-const CATS={signin:"Sign-in & password",provision:"Provisioning & assignment",token:"Token & OAuth",access:"Access denied",other:"Other"};
-const CAT_KEYS=["signin","provision","token","access","other"];
-function catOf(e){
-  if(e._c) return e._c;
-  const t=e.eventType||"", r=reasonOf(e); let c;
-  if(isAssign(e)) c="provision";
-  else if(/^app\.oauth2|token|oauth/i.test(t)||/refresh_token|invalid_grant|login_required|consent_required|interaction_required/i.test(r)) c="token";
-  else if((e.outcome&&e.outcome.result==="DENY")||/unauthorized access|not assigned|not authorized|access denied|policy/i.test(r)) c="access";
-  else if(/authentication|session|sso|mfa|password|lockout|account\.lock|auth_via/i.test(t)||/password|credential|locked/i.test(r)) c="signin";
-  else c="other";
-  return (e._c=c);
-}
-const emptyFilter=()=>({cats:[],results:[],apps:[],include:"",exclude:"",person:""});
 S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));      // the dashboard (Overview and People)
 S.efil=Object.assign(emptyFilter(),LS.get("okta.efilters.v1",{}));
 S.fil.person="";                       // a person is found on the People page now, not through a dashboard filter
 S.afil=emptyFilter(); S.pfil=emptyFilter(); S.pq=""; S.lcounts={app:new Map(),person:new Map()};     // the app and person lookups each have their own filters, kept only while you are looking   // the Errors page has its own, so the two never change each other
-const filterActive=f=>!!(f&&(f.cats.length||f.results.length||f.apps.length||(f.include||"").trim()||(f.exclude||"").trim()||(f.person||"").trim()));
-function compileFilter(f){
-  if(!filterActive(f)) return null;
-  const cats=new Set(f.cats), res=new Set(f.results), apps=new Set(f.apps), inc=(f.include||"").trim().toLowerCase(), per=(f.person||"").trim().toLowerCase();
-  const exc=(f.exclude||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
-  return e=>{
-    if(cats.size&&!cats.has(catOf(e))) return false;
-    if(res.size&&!res.has(e.outcome&&e.outcome.result)) return false;
-    if(apps.size&&!apps.has(appOf(e))) return false;
-    if(inc||exc.length){ const hay=(reasonOf(e)+" "+(e.eventType||"")).toLowerCase(); if(inc&&!hay.includes(inc)) return false; for(const t of exc) if(hay.includes(t)) return false; }
-    if(per&&!idRefs(e).some(([a,n])=>a.toLowerCase().includes(per)||String(n||"").toLowerCase().includes(per))) return false;
-    return true;
-  };
-}
 function describeFilter(f){
   const parts=[]; if(f.cats.length) parts.push(f.cats.map(c=>CATS[c]).join(" or ")); if(f.results.length) parts.push(f.results.map(r=>r.toLowerCase()).join(" or "));
   if(f.apps.length) parts.push("in "+f.apps.join(", ")); if((f.include||"").trim()) parts.push("reason contains “"+f.include.trim()+"”");
@@ -1161,7 +1107,6 @@ function errChart(errs){
 $("#errView").addEventListener("change",ev=>{ if(ev.target.id==="eShowSup"){ S.showSup=ev.target.checked; render(); } });
 // for a policy rule the whole message is wanted (up to 100 characters), cut before any long id
 function rulePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,100); }
-function mutePhrase(e){ const r=String(reasonOf(e)).split(/["\s=:][0-9a-f]{12,}/i)[0].trim(); return r.slice(0,60); }
 function renderErrorsView(C){
   const el=$("#errView"), kn=C.suppressed.length, epred=compileFilter(S.efil); const errs=(epred? C.failsAll.filter(epred) : C.failsAll.slice()).sort((a,b)=>ts(b)-ts(a));
   const people=new Set(errs.map(e=>{ const r=idRefs(e)[0]; return r? localPart(r[0]) : null; }).filter(Boolean)).size, apps=new Set(errs.map(appOf).filter(Boolean)).size;
@@ -1259,12 +1204,6 @@ function renderTimeline(C){
 // Searching a person asks the server to query Okta's System Log for THEM (live, up to 90 days), so it
 // works right after a deploy and does not depend on what has been loaded. Without the backend (file
 // upload / sample data) it searches the events already in the page.
-function idRefs(e){
-  const out=[]; const a=e.actor;
-  if(a&&a.type==="User"&&a.alternateId) out.push([a.alternateId,a.displayName]);
-  for(const t of (e.target||[])) if((t.type==="User"||t.type==="AppUser")&&t.alternateId) out.push([t.alternateId,t.displayName]);
-  return out;
-}
 const localPart=x=>String(x).trim().toLowerCase().split("@")[0];
 function peopleFrom(events){
   const m=new Map();
@@ -1627,58 +1566,28 @@ $("#orgName").textContent="IT health";
 //   new    - an error text that was not seen in the earlier history appears
 //   silent - an app moves into the Silent state
 // Each firing becomes a notification (bell, toast, feed). A cooldown stops the same alert repeating.
-const winText=m=> m<60? m+" minutes" : m===60? "hour" : (m>1440&&m%1440===0)? (m/1440)+" days" : m%60===0? (m/60)+" hours" : m+" minutes";
-const lastText=m=> m===60? "the last hour" : "the last "+winText(m);
 function loadRules(){ let r=LS.get("okta.rules.v1",null); if(!Array.isArray(r)) r=[]; return r.map(x=>Object.assign({n:10,windowMin:60,by:"total",cooldownMin:60,enabled:true},x,{filter:Object.assign(emptyFilter(),x.filter||{})})); }
 S.rules=loadRules(); S.notifs=LS.get("okta.notifs.v1",[]); S.astate=Object.assign({fired:{},silent:null},LS.get("okta.alertstate.v1",{}));
 const saveNotifs=()=>LS.set("okta.notifs.v1",S.notifs.slice(0,200)), saveAState=()=>LS.set("okta.alertstate.v1",S.astate);
+// The checks that decide when an alert fires live in alerts-core.js, shared with the server (which runs every shared alert around the clock).
+// These adapters give them this page's data. They keep the names the rest of the page already uses.
+const AC=SightlineAlerts;
+const pageCtx=C=>({events:S.events,supOf,catchingUp:S.catchingUp,astate:S.astate,silentNames:()=>(((C||S.C||{}).tiles)||[]).filter(t=>t.status==="silent").map(t=>t.name),google:{configured:S.g.configured,events:S.g.events,approvals:S.policy.approvals},googleApps});
+function recentFails(minutes,now,pred){ return AC.recentFails(S.events,minutes,now,pred,supOf); }
+function evalRule(r,now){ return AC.evalRule(r,pageCtx(),now); }
+function evalSilent(r,C){ return AC.evalSilent(r,pageCtx(C)); }
+function evalGoogleRule(r,now){ return AC.evalGoogleRule(r,pageCtx(),now); }
+function approvalOf(a){ return AC.approvalFrom(S.policy.approvals,a); }
+function googleApps(){                                                  // the Google apps, with the page-only extras (the areas shown on the Google screen), worked out again only when the data changes
+  const G=S.g, ck=G.events.length+":"+(G.events.length? G.events[G.events.length-1].time : 0)+":"+(G.lastSeq||0); if(G._ck===ck&&G._apps) return G._apps;
+  const apps=AC.googleAppsFrom(G.events); apps.forEach(a=>{ a.areas=appAreas(a); }); G._ck=ck; G._apps=apps; return apps;
+}
 
-function recentFails(minutes,now,pred){
-  const cut=now-minutes*60000, out=[]; for(const e of S.events){ const t=ts(e); if(t<cut||t>now+60000) continue; if(isFail(e)&&!supOf(e)&&(!pred||pred(e))) out.push(e); } return out;
-}
-function evalRule(r,now){
-  const pred=compileFilter(Object.assign(emptyFilter(),r.filter||{}));
-  if(r.type==="spike"){
-    const ev=recentFails(r.windowMin,now,pred), m=new Map();
-    for(const e of ev){ let k; if(r.by==="app") k=appOf(e)||"(no app)"; else if(r.by==="person"){ const x=idRefs(e)[0]; k=x? x[0] : "(no person)"; } else k="all"; m.set(k,(m.get(k)||0)+1); }
-    return [...m].filter(([,c])=>c>=r.n).sort((a,b)=>b[1]-a[1]).map(([k,c])=>({group:k,count:c,total:ev.length}));
-  }
-  if(r.type==="new"){
-    if(S.catchingUp) return [];
-    const cut=now-r.windowMin*60000, older=new Set(), recent=new Map();
-    for(const e of S.events){ if(!isFail(e)||supOf(e)||(pred&&!pred(e))) continue; const t=ts(e), n=normErr(reasonOf(e));
-      if(t<cut) older.add(n); else if(t<=now+60000){ let o=recent.get(n); if(!o){ o={n,count:0,app:appOf(e),raw:reasonOf(e)}; recent.set(n,o); } o.count++; } }
-    if(!older.size) return [];                       // no earlier history to compare with: nothing can be called new
-    return [...recent.values()].filter(x=>!older.has(x.n)).map(x=>({group:x.n,count:x.count,app:x.app,raw:x.raw}));
-  }
-  return [];
-}
-function evalSilent(r,C){
-  if(S.catchingUp) return {hits:[],cur:null};
-  const cur=C.tiles.filter(t=>t.status==="silent").map(t=>t.name), base=S.astate.silent;
-  if(base==null) return {hits:[],cur};                 // first run: remember what is silent now, say nothing
-  const known=new Set(base), only=new Set((r.filter&&r.filter.apps)||[]), fresh=cur.filter(n=>!known.has(n)&&(!only.size||only.has(n)));
-  return {hits: fresh.length? [{group:"silent",count:fresh.length,names:fresh}] : [], cur};
-}
-function makeNotif(r,h,now){
-  if(r.type&&r.type[0]==="g") return makeGoogleNotif(r,h,now);
-  const win=lastText(r.windowMin), f=JSON.parse(JSON.stringify(Object.assign(emptyFilter(),r.filter||{})));
-  let body, sev="warn", link={view:"errors",filter:f};
-  if(r.type==="spike"){ body=(r.by==="total"? "" : h.group+": ")+fmtN(h.count)+" error"+(h.count===1?"":"s")+" in "+win; sev=h.count>=2*r.n? "bad":"warn";
-    if(r.by==="app") f.apps=[h.group]; else if(r.by==="person") f.person=h.group; }
-  else if(r.type==="new"){ body="New: "+h.group.slice(0,150)+(h.app?" ("+h.app+")":"")+" · "+h.count+"×"; f.include=mutePhrase({outcome:{reason:h.raw},displayMessage:h.raw,eventType:""}); }
-  else { const n=h.names; body=(n.length<=3? n.join(", ") : n.slice(0,3).join(", ")+" and "+(n.length-3)+" more")+(n.length===1?" went silent":" went silent"); sev="info"; link={view:"apps"}; }
-  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev,link,unread:true};
-}
 function evaluateAlerts(C){
   if(!S.live||S.demo||(!S.events.length&&!S.g.events.length)) return;
-  const now=S.ref, fired=S.astate.fired, out=[]; let silentCur=null;
-  const fire=(r,hs)=>{ const list=hs.slice(0,5); list.forEach(h=>{ const key=r.id+"|"+h.group, cool=Math.max(r.cooldownMin||0,r.type==="new"? r.windowMin : 0)*60000;
-      if(fired[key]&&now-fired[key]<cool) return; fired[key]=now; const n=makeNotif(r,h,now); if(hs.length>5&&h===list[list.length-1]) n.body+=" (+"+(hs.length-5)+" more)"; out.push(n); }); };
-  for(const r of S.rules){ if(!r.enabled) continue;
-    try{ if(r.type==="silent"){ const x=evalSilent(r,C); if(x.cur) silentCur=x.cur; fire(r,x.hits); } else if(r.type&&r.type[0]==="g") fire(r,evalGoogleRule(r,now)); else fire(r,evalRule(r,now)); }catch(err){ console.warn("alert rule failed",r.name,err); } }
-  if(silentCur) S.astate.silent=silentCur;
-  for(const k of Object.keys(fired)) if(now-fired[k]>3*864e5) delete fired[k];
+  if(S.policy.meta.alertRulesShared) return;                 // shared alerts are checked on the server, around the clock, and arrive through loadServerAlerts: checking them here too would show each one twice
+  const ctx=pageCtx(C); ctx.onError=(r,err)=>console.warn("alert rule failed",r.name,err);
+  const out=AC.runRules(S.rules,ctx,S.ref);
   if(out.length){ S.notifs=out.concat(S.notifs).slice(0,200); saveNotifs(); }
   saveAState();
   if(out.length&&S.alertsPrimed) announce(out);       // the very first check after opening stays quiet: those are existing conditions
@@ -1756,7 +1665,7 @@ function geoRow(r,can){
 }
 function browserRow(r){
   return '<div class="rule'+(r.enabled?"":" off")+'" data-rid="'+esc(r.id)+'"><label class="sw" title="'+(r.enabled?"On":"Off")+'"><input type="checkbox" data-rtoggle="'+esc(r.id)+'"'+(r.enabled?" checked":"")+' aria-label="Turn '+esc(r.name)+' on or off"><span></span></label>'+
-    '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>';
+    '<div class="rbody"><b>'+esc(r.name)+'</b>'+(r.slack? ' <span class="gchip ok">Slack: '+esc(r.channel||"default channel")+'</span>' : "")+'<div class="gsub">'+esc(describeRule(r))+'</div><div class="rnow">'+esc(ruleNow(r))+'</div></div><div class="ract"><button class="ghost" data-redit="'+esc(r.id)+'">Edit</button><button class="ghost" data-rdel="'+esc(r.id)+'">Delete</button></div></div>';
 }
 function renderAlertsView(){
   const can=canEditRules(), geo=S.policy.geoRules||[];
@@ -1765,7 +1674,7 @@ function renderAlertsView(){
   $("#rulesList").innerHTML= rows || '<div class="empty alertsempty"><b>No alerts yet.</b><br>Choose what you want to be told about: too many errors, a new kind of error, a Google app, or sign-ins from places you consider risky.'+(can? '<br><button class="primary" id="alertNew2" type="button">Create your first alert</button>' : "")+'</div>';
   { const m=S.policy.meta; let n="";
     if(S.rules.length&&m.roleBased){ if(m.alertRulesShared) n='<p class="hint">Error and Google alerts are shared by everyone, and every change is recorded in the audit log.'+(can? "" : " Only admins can change them.")+'</p>';
-      else n= can? '<div class="gwarn">The error and Google alerts above exist only in this browser. <button class="primary" id="rulesPublish">Publish them for everyone</button><br>From then on everyone sees the same alerts, and every change is recorded.</div>' : '<p class="hint">The error and Google alerts above are in your browser only. An admin can publish shared ones.</p>'; }
+      else n= can? '<div class="gwarn">The error and Google alerts above exist only in this browser. <button class="primary" id="rulesPublish">Publish them for everyone</button><br>Once published, Sightline\u2019s server checks them around the clock, everyone sees the same alerts, they can go to Slack, and every change is recorded.</div>' : '<p class="hint">The error and Google alerts above are in your browser only. An admin can publish shared ones.</p>'; }
     $("#rulesNote").innerHTML=n;
     if(!can) for(const el of document.querySelectorAll("#view-alerts #rulesList input, #view-alerts #rulesList button, #alertNew")) el.disabled=true; }
   const unread=unreadCount(), sel=S.nfilter||"all", feed=S.notifs.filter(n=>sel==="all"||n.unread);
@@ -1799,7 +1708,7 @@ function openRuleEditor(init){
     const type=q("#rType").value, f=emptyFilter(), list=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
     if(type[0]==="g"){
       const gn=Math.max(2,Math.floor(+q("#rgN").value)||5), nm=q("#rName").value.trim()||G_TYPES[type];
-      const rule={id:editing||("r-"+Date.now().toString(36)),name:nm,type,enabled:r.enabled!==false,filter:emptyFilter(),n:type==="gspike"?gn:1,windowMin:+q("#rgWin").value||1440,by:"total",cooldownMin:+q("#rCool").value||1440,minRisk:q("#rgRisk").value,gApp:q("#rgApp").value.trim()};
+      const rule={id:editing||("r-"+Date.now().toString(36)),name:nm,type,enabled:r.enabled!==false,filter:emptyFilter(),n:type==="gspike"?gn:1,windowMin:+q("#rgWin").value||1440,by:"total",cooldownMin:+q("#rCool").value||1440,minRisk:q("#rgRisk").value,gApp:q("#rgApp").value.trim(),slack:r.slack===true,channel:r.channel||""};
       const gi=S.rules.findIndex(x=>x.id===rule.id); if(gi>=0) S.rules[gi]=rule; else S.rules.unshift(rule);
       saveRules(); close(); go("alerts"); renderAlertsView(); evaluateAlerts(S.C||compute()); return;
     }
@@ -1808,7 +1717,7 @@ function openRuleEditor(init){
     const n=Math.max(1,Math.floor(+q("#rN").value)||0), win=+(type==="new"? q("#rWin2").value : q("#rWin").value), cool=type==="silent"? 0 : +q("#rCool").value;
     let name=q("#rName").value.trim(); if(!name) name= type==="spike"? "Errors: "+describeFilter(f) : type==="new"? "A new kind of error appears" : "An app goes silent";
     if(type==="spike"&&!(n>=1)){ const e=q("#rErr"); e.hidden=false; e.textContent="Enter a number of errors, 1 or more."; return; }
-    const rule={id:editing||("r-"+Date.now().toString(36)),name,type,enabled:r.enabled!==false,filter:f,n:type==="spike"?n:1,windowMin:win||60,by:type==="spike"?q("#rBy").value:"total",cooldownMin:cool};
+    const rule={id:editing||("r-"+Date.now().toString(36)),name,type,enabled:r.enabled!==false,filter:f,n:type==="spike"?n:1,windowMin:win||60,by:type==="spike"?q("#rBy").value:"total",cooldownMin:cool,slack:r.slack===true,channel:r.channel||""};
     const i=S.rules.findIndex(x=>x.id===rule.id); if(i>=0) S.rules[i]=rule; else S.rules.unshift(rule);
     saveRules(); close(); go("alerts"); renderAlertsView(); evaluateAlerts(S.C||compute());
   };
@@ -1827,12 +1736,12 @@ function describeGeo(r){
 function geoLast(r){ const mine=S.geo.alerts.filter(a=>a.ruleId===r.id); if(!mine.length) return "Has not alerted yet"; const day=mine.filter(a=>Date.now()-Date.parse(a.createdAt)<864e5).length;
   return "Last alerted "+ago(Date.now()-Date.parse(mine[0].createdAt))+" \u00b7 "+day+" in the last 24 hours"; }
 // the server's alerts go into the same bell and list as every other alert; on a first visit only the last six hours count as new
-async function loadGeoAlerts(){
+async function loadServerAlerts(){
   try{
-    const r=await fetch("api/geo/alerts"); if(!r.ok) return; const j=await r.json(); S.geo.alerts=j.alerts||[];
+    const r=await fetch("api/alerts/feed"); if(!r.ok) return; const j=await r.json(); S.geo.alerts=j.alerts||[];
     const have=new Set(S.notifs.map(n=>n.id)), old=Date.now()-24*36e5, out=[];
-    for(const a of S.geo.alerts.slice().reverse()){ const id="geo:"+a.id, t=Date.parse(a.createdAt); if(have.has(id)||t<old) continue;
-      out.push({id,ruleId:a.ruleId,ruleName:a.ruleName,type:"location",ts:t,title:a.ruleName,body:geoBody(a),sev:a.severity,link:{view:"alerts"},unread:S.geo.first? t>Date.now()-6*36e5 : t>S.geo.seenAt}); }
+    for(const a of S.geo.alerts.slice().reverse()){ const id="srv:"+a.id, t=Date.parse(a.createdAt); if(have.has(id)||have.has("geo:"+a.id)||t<old) continue;
+      out.push({id,ruleId:a.ruleId,ruleName:a.ruleName,type:a.type||"location",ts:t,title:a.title||a.ruleName,body:a.body||geoBody(a),sev:a.severity,link:a.link||{view:"alerts"},unread:S.geo.first? t>Date.now()-6*36e5 : t>S.geo.seenAt}); }
     S.geo.seenAt=Date.now(); S.geo.first=false; LS.set("okta.geoseen.v1",S.geo.seenAt);
     if(out.length){ S.notifs=out.concat(S.notifs).sort((x,y)=>y.ts-x.ts).slice(0,200); saveNotifs(); if(S.alertsPrimed) announce(out.filter(n=>n.unread)); }
     renderBell(); renderLatestAlerts(); if(S.view==="alerts") renderAlertsView();
@@ -1844,13 +1753,13 @@ async function loadSlackInfo(){
   S.geo.slackBusy=false; if(S.view==="integrations") renderIntegrations();
 }
 // every change to a location rule needs a reason, which is kept in the audit log with the person's name
-function geoAskWhy(title,rules){
+function geoAskWhy(title,rules,saver){
   const root=document.createElement("div"); root.className="modal"; root.id="geoWhy";
   root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><h3>'+esc(title)+'</h3><p class="hint">Say why. The reason is kept in the audit log with your name.</p><label class="fl">Reason<input type="text" id="gwWhy" maxlength="300" placeholder="For example: Paused while we review the list"></label><div class="merr" id="gwErr" hidden></div><div class="mact"><button class="ghost" id="gwCancel" type="button">Cancel</button><button class="primary" id="gwOk" type="button">Save</button></div></div>';
   document.body.appendChild(root); const q=sel=>root.querySelector(sel), close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
   document.addEventListener("keydown",esc2); q("#gwWhy").focus(); q("#gwCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
   q("#gwOk").onclick=async ()=>{ const why=q("#gwWhy").value.trim(), e=q("#gwErr"); if(why.length<10){ e.hidden=false; e.textContent="Say why, in at least a short sentence."; return; }
-    q("#gwOk").disabled=true; try{ await geoPut(rules,why); close(); }catch(x){ q("#gwOk").disabled=false; e.hidden=false; e.textContent=x.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : x.message; } };
+    q("#gwOk").disabled=true; try{ await (saver? saver(why) : geoPut(rules,why)); close(); }catch(x){ q("#gwOk").disabled=false; e.hidden=false; e.textContent=x.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : x.message; } };
   q("#gwWhy").addEventListener("keydown",e=>{ if(e.key==="Enter") q("#gwOk").click(); });
 }
 async function geoPut(rules,why){ await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules,why}); S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations(); }
@@ -1930,26 +1839,37 @@ function otherDetail(x){
   }
   return '<div class="card idcard"><h3>Details</h3>'+integFacts(rows)+'</div><div class="card idcard"><h3>How it is set up</h3><p class="hint" style="margin:0">'+how+' Nothing secret is ever shown on this page.</p></div>';
 }
+const routeItems=()=>(S.policy.geoRules||[]).concat(S.policy.meta.alertRulesShared? S.rules : []);
 function slackDetail(){
-  const sl=S.geo.slack, ok=!!(sl&&sl.configured), can=canEditRules(), geo=S.policy.geoRules||[], route=S.integ.route, def=ok? sl.channel : "";
+  const sl=S.geo.slack, ok=!!(sl&&sl.configured), can=canEditRules(), route=S.integ.route, def=ok? sl.channel : "", shared=!!S.policy.meta.alertRulesShared, roleBased=!!S.policy.meta.roleBased;
   const rows=[["Status",ok? "Connected" : "Not connected yet"]]; if(ok) rows.push(["Default channel",def]); rows.push(["Posts as","Sightline. It can only post messages: it cannot read channels, messages or people."]);
   if(ok&&sl.sent!=null) rows.push(["Messages posted",fmtN(sl.sent)+(sl.failed? " ("+fmtN(sl.failed)+" did not go through)" : "")]); if(sl&&sl.lastError) rows.push(["Last problem",sl.lastErrorHint||sl.lastError]);
   const conn='<div class="card idcard"><h3>Connection</h3>'+integFacts(rows)+(can? '<div class="rbar"><button class="'+(ok?"ghost":"primary")+'" id="integSlackGuide" type="button">'+(ok? "Slack setup guide" : "Set up Slack")+'</button>'+(ok? '<button class="ghost" id="integSlackTest" type="button">Send a test message</button>' : "")+'</div>' : '<p class="hint">Only admins can set up or test Slack.</p>')+(S.geo.msg? '<p class="hint" id="geoMsg" role="status">'+esc(S.geo.msg)+'</p>' : "")+'</div>';
-  const cur=r=>route[r.id]||{slack:r.slack===true,channel:r.channel||""}, dirty=geo.some(r=>{ const c=cur(r); return c.slack!==(r.slack===true)||c.channel!==(r.channel||""); });
-  const list= geo.length? geo.map(r=>{ const c=cur(r); return '<div class="rrow" data-rr="'+esc(r.id)+'"><label class="sw" title="Send to Slack"><input type="checkbox" data-rslack="'+esc(r.id)+'"'+(c.slack?" checked":"")+((can&&ok)?"":" disabled")+' aria-label="Send \u201c'+esc(r.name)+'\u201d to Slack"><span></span></label>'+
-      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(describeGeo(r))+'</div></div><input type="text" data-rchan="'+esc(r.id)+'" value="'+esc(c.channel)+'" placeholder="Default channel'+(def? " ("+esc(def)+")" : "")+'" aria-label="Slack channel for '+esc(r.name)+'" autocomplete="off"'+((can&&ok&&c.slack)?"":" disabled")+'></div>'; }).join("")
-    : '<div class="empty">You have no alerts that can go to Slack yet. <a class="lnk" href="#/alerts">Create a location alert</a>, then choose its channel here.</div>';
-  const others=S.rules.length? '<p class="hint" style="margin-top:12px">These alerts cannot go to Slack yet, because they are checked in the browser and not on the server: '+S.rules.map(r=>esc(r.name)).join(", ")+'.</p>' : "";
-  const routing='<div class="card idcard"><h3>Alert routing</h3><p class="hint" style="margin:0 0 6px">Choose which alerts go to Slack, and which channel each one posts to. An alert you leave off stays in Sightline only. Leave the channel empty to use the default one.'+(ok? "" : " This works once Slack is connected.")+'</p>'+list+others+
-    (geo.length&&can&&ok? '<div class="rbar"><button class="primary" id="routeSave" type="button"'+(dirty?"":" disabled")+'>Save routing</button><button class="ghost" id="routeDiscard" type="button"'+(dirty?"":" disabled")+'>Discard changes</button><span class="hint" id="routeErr" role="status"></span></div>' : "")+'</div>';
+  const items=(S.policy.geoRules||[]).map(r=>({r,desc:describeGeo(r)})).concat(shared? S.rules.map(r=>({r,desc:describeRule(r)})) : []);
+  const cur=r=>route[r.id]||{slack:r.slack===true,channel:r.channel||""}, dirty=routeDirty();
+  const list= items.length? items.map(({r,desc})=>{ const c=cur(r); return '<div class="rrow" data-rr="'+esc(r.id)+'"><label class="sw" title="Send to Slack"><input type="checkbox" data-rslack="'+esc(r.id)+'"'+(c.slack?" checked":"")+((can&&ok)?"":" disabled")+' aria-label="Send \u201c'+esc(r.name)+'\u201d to Slack"><span></span></label>'+
+      '<div class="rbody"><b>'+esc(r.name)+'</b><div class="gsub">'+esc(desc)+'</div></div><input type="text" data-rchan="'+esc(r.id)+'" value="'+esc(c.channel)+'" placeholder="Default channel'+(def? " ("+esc(def)+")" : "")+'" aria-label="Slack channel for '+esc(r.name)+'" autocomplete="off"'+((can&&ok&&c.slack)?"":" disabled")+'></div>'; }).join("")
+    : '<div class="empty">You have no alerts to send yet. <a class="lnk" href="#/alerts">Create an alert</a>, then choose its channel here.</div>';
+  const names=S.rules.map(r=>esc(r.name)).join(", ");
+  const notes= (!shared&&S.rules.length)? (roleBased? '<div class="gwarn">These alerts are only in this browser: '+names+'. Sightline\u2019s server cannot check them around the clock, so they cannot go to Slack yet. '+(can? '<button class="primary" id="routePublish" type="button">Publish them for everyone</button>' : "An admin can publish them.")+'</div>'
+    : '<p class="hint" style="margin-top:12px">These alerts are checked in the browser, so they cannot go to Slack: '+names+'. Turn on single sign-in so alerts can be shared with everyone, checked around the clock, and sent to Slack.</p>') : "";
+  const routing='<div class="card idcard"><h3>Alert routing</h3><p class="hint" style="margin:0 0 6px">Choose which alerts go to Slack, and which channel each one posts to. An alert you leave off stays in Sightline only. Leave the channel empty to use the default one.'+(ok? "" : " This works once Slack is connected.")+'</p>'+list+notes+
+    (items.length&&can&&ok? '<div class="rbar"><button class="primary" id="routeSave" type="button"'+(dirty?"":" disabled")+'>Save routing</button><button class="ghost" id="routeDiscard" type="button"'+(dirty?"":" disabled")+'>Discard changes</button><span class="hint" id="routeErr" role="status"></span></div>' : "")+'</div>';
   return conn+routing;
 }
-function routeSet(id,patch){ const r=(S.policy.geoRules||[]).find(x=>x.id===id); if(!r) return; S.integ.route[id]=Object.assign(S.integ.route[id]||{slack:r.slack===true,channel:r.channel||""},patch); }
-function routeDirty(){ return (S.policy.geoRules||[]).some(r=>{ const c=S.integ.route[r.id]; return c&&(c.slack!==(r.slack===true)||c.channel!==(r.channel||"")); }); }
+function routeSet(id,patch){ const r=routeItems().find(x=>x.id===id); if(!r) return; S.integ.route[id]=Object.assign(S.integ.route[id]||{slack:r.slack===true,channel:r.channel||""},patch); }
+function routeDirty(){ return routeItems().some(r=>{ const c=S.integ.route[r.id]; return c&&(c.slack!==(r.slack===true)||c.channel!==(r.channel||"")); }); }
 function routeSave(){
-  const err=$("#routeErr"), rules=(S.policy.geoRules||[]).map(r=>{ const c=S.integ.route[r.id]; return c? Object.assign({},r,{slack:c.slack,channel:c.slack? (c.channel||"").trim() : ""}) : r; });
-  const bad=rules.find(r=>r.slack&&r.channel&&!SG_CHAN.test(r.channel)); if(bad){ err.textContent="The channel for \u201c"+bad.name+"\u201d does not look like a Slack channel. Use a name like #it-alerts, or the channel ID."; return; }
-  geoAskWhy("Save Slack routing",rules);
+  const err=$("#routeErr"), upd=r=>{ const c=S.integ.route[r.id]; return c? Object.assign({},r,{slack:c.slack,channel:c.slack? (c.channel||"").trim() : ""}) : r; };
+  const geoNext=(S.policy.geoRules||[]).map(upd), shared=!!S.policy.meta.alertRulesShared, ruleNext=shared? S.rules.map(upd) : null;
+  const bad=geoNext.concat(ruleNext||[]).find(r=>r.slack&&r.channel&&!SG_CHAN.test(r.channel)); if(bad){ err.textContent="The channel for \u201c"+bad.name+"\u201d does not look like a Slack channel. Use a name like #it-alerts, or the channel ID."; return; }
+  const changed=r=>{ const c=S.integ.route[r.id]; return !!c&&(c.slack!==(r.slack===true)||c.channel!==(r.channel||"")); };
+  const gChanged=(S.policy.geoRules||[]).some(changed), aChanged=shared&&S.rules.some(changed);
+  geoAskWhy("Save Slack routing",null,async why=>{
+    if(aChanged) await policyCall("PUT","/alert-rules",{baseVersion:S.policy.meta.version,rules:ruleNext,why});
+    if(gChanged) await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules:geoNext,why});
+    S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations();
+  });
 }
 async function integSlackTest(){
   S.geo.msg="Sending a test message\u2026"; renderIntegrations();
@@ -1962,6 +1882,7 @@ function integClick(ev){
   if(t.closest("#integSlackGuide")){ openSlackGuide(); return true; }
   if(t.closest("#integSlackTest")){ integSlackTest(); return true; }
   if(t.closest("#routeSave")){ routeSave(); return true; }
+  if(t.closest("#routePublish")){ publishRules("Published from the Slack page").then(()=>{ if(S.view==="integrations") renderIntegrations(); }); return true; }
   if(t.closest("#routeDiscard")){ S.integ.route={}; renderIntegrations(); return true; }
   return false;
 }
@@ -2154,49 +2075,6 @@ $("#btnBrowserNotif").onclick=async()=>{
 // Source: the Google Admin SDK "token" audit log (read only). It records consent events: who granted an app which scopes,
 // who asked, who revoked, and what an admin blocked. It is not a record of every later sign-in with that app.
 S.g={configured:false,demo:false,events:[],lastTs:0,lastSeq:0,epoch:null,status:null};
-const RISK_RANK={low:1,medium:2,high:3}, RISK_NAME={1:"low",2:"medium",3:"high"}, RISK_TEXT={low:"Low risk",medium:"Medium risk",high:"High risk"};
-// [pattern on the scope, how risky, what it lets the app do]. This list is this dashboard's own judgement, not Google's.
-const SCOPE_RULES=[
-  [/^openid$/,"low","Confirm who you are (Sign in with Google)"],
-  [/(^|\/)userinfo\.email$|^email$/,"low","See your email address"],
-  [/(^|\/)userinfo\.profile$|^profile$/,"low","See your name and profile picture"],
-  [/^https:\/\/mail\.google\.com\/?$/,"high","Read, send, delete and manage ALL your Gmail"],
-  [/gmail\.(modify|full)/,"high","Read, change and delete your Gmail"],
-  [/gmail\.readonly/,"high","Read all your Gmail"],
-  [/gmail\.(send|compose|insert)/,"high","Send email as you, or create drafts"],
-  [/gmail\.settings/,"high","Change Gmail settings such as filters and forwarding"],
-  [/gmail\.(labels|metadata)/,"medium","See or manage Gmail labels and message details"],
-  [/auth\/drive$/,"high","Read, edit and delete ALL your Google Drive files"],
-  [/auth\/drive\.readonly$/,"high","Read all your Google Drive files"],
-  [/auth\/drive\.file$/,"low","Only files this app creates or that you open with it"],
-  [/auth\/drive\.appdata$/,"low","Its own hidden settings folder in your Drive"],
-  [/auth\/drive\.(metadata|activity)/,"medium","See file names, owners and activity in your Drive"],
-  [/auth\/calendar(\.events)?$/,"medium","See, edit, share and delete your calendar events"],
-  [/auth\/calendar\.(readonly|events\.readonly|calendarlist)/,"medium","See your calendars and events"],
-  [/auth\/(contacts|directory)/,"medium","See your contacts or your organisation's directory"],
-  [/auth\/(spreadsheets|documents|presentations|forms)/,"medium","Read and edit your Sheets, Docs, Slides or Forms"],
-  [/auth\/(admin\.|cloud-identity|apps\.)/,"high","Manage Google Workspace admin data (users, groups, settings)"],
-  [/auth\/cloud-platform/,"high","Manage your Google Cloud resources"],
-  [/auth\/script\./,"medium","Run Apps Script on your behalf"],
-  [/auth\/(chat|meetings|tasks|youtube|photoslibrary|keep)/,"medium","Use your Chat, Meet, Tasks, YouTube, Photos or Keep data"],
-  [/auth\/(groups|cloudplatformprojects)/,"medium","See or manage groups and projects"]
-];
-function scopeInfo(sc){ sc=String(sc||""); for(const [re,risk,label] of SCOPE_RULES) if(re.test(sc)) return {risk,label,known:true}; return {risk:"medium",label:"Not in this dashboard's list: check what it allows before trusting it",known:false}; }
-const shortScope=sc=>String(sc||"").replace(/^https:\/\/www\.googleapis\.com\/auth\//,"").replace(/^https:\/\//,"");
-function googleApps(){
-  const G=S.g, ck=G.events.length+":"+(G.events.length? G.events[G.events.length-1].time : 0)+":"+(G.lastSeq||0); if(G._ck===ck&&G._apps) return G._apps;
-  const m=new Map();
-  for(const e of G.events){ if(!e.clientId&&!e.app) continue; const key=e.clientId||e.app; let a=m.get(key);
-    if(!a){ a={key,clientId:e.clientId,name:e.app||e.clientId,scopes:new Set(),state:new Map(),first:Infinity,firstAny:Infinity,last:0,grants:0,revokes:0,denies:0,requests:0,calls:0,events:[]}; m.set(key,a); }
-    a.events.push(e); a.last=Math.max(a.last,e.time); a.firstAny=Math.min(a.firstAny,e.time); if(e.app) a.name=e.app; e.scopes.forEach(x=>a.scopes.add(x));
-    if(e.type==="authorize"){ a.grants++; a.first=Math.min(a.first,e.time); a.state.set(e.actor,{on:true,time:e.time,scopes:e.scopes}); }
-    else if(e.type==="revoke"){ a.revokes+=(e.count||1); const prev=a.state.get(e.actor); a.state.set(e.actor,{on:false,time:e.time,scopes:(prev&&prev.scopes)||e.scopes}); }
-    else if(e.type==="deny") a.denies+=(e.count||1); else if(e.type==="request") a.requests+=(e.count||1); else a.calls+=(e.count||1); }
-  const apps=[...m.values()].map(a=>{ a.people=[...a.state].filter(([,v])=>v.on).map(([who,v])=>({who,time:v.time,scopes:v.scopes})).sort((x,y)=>y.time-x.time);
-    if(!isFinite(a.first)) a.first=a.firstAny; a.rank=Math.max(1,...[...a.scopes].map(x=>RISK_RANK[scopeInfo(x).risk])); a.riskName=RISK_NAME[a.rank]; a.areas=appAreas(a); return a; })
-    .sort((a,b)=>b.rank-a.rank||b.people.length-a.people.length||b.last-a.last);
-  G._ck=ck; G._apps=apps; return apps;
-}
 function gIsNew(a){ const G=S.g, old=G.events.length? G.events[0].time : 0; return a.first>=S.ref-7*864e5 && a.first>old+3*864e5; }
 async function refreshGoogle(st){
   const g=st&&st.google; if(!g||!g.configured){ S.g.configured=false; S.g.status=g||null; return; }
@@ -2387,7 +2265,6 @@ function googleSummary(){
 }
 /* Google alert rules */
 const G_TYPES={gnew:"A new Google app is authorized",grisk:"High-risk Google access is granted",gspike:"Many people authorize the same Google app",gdrift:"An approved Google app asked for new access",gflag:"A not-allowed Google app was authorized"};
-const G_NEED={any:1,medium:2,high:3};
 function gStarterRules(){ const b={enabled:true,filter:emptyFilter(),n:1,by:"total",windowMin:1440,cooldownMin:1440,gApp:""};
   return [Object.assign({},b,{id:"r-gnew",name:G_TYPES.gnew,type:"gnew",minRisk:"medium"}),Object.assign({},b,{id:"r-grisk",name:G_TYPES.grisk,type:"grisk",minRisk:"high"}),Object.assign({},b,{id:"r-gspike",name:G_TYPES.gspike,type:"gspike",minRisk:"any",n:5}),
     Object.assign({},b,{id:"r-gdrift",name:G_TYPES.gdrift,type:"gdrift",minRisk:"any"}),Object.assign({},b,{id:"r-gflag",name:G_TYPES.gflag,type:"gflag",minRisk:"any"})]; }
@@ -2396,31 +2273,6 @@ function ensureGoogleRules(){
   const copy=r=>Object.assign({},r,{filter:emptyFilter()}), have=t=>S.rules.some(r=>r.type===t);
   if(!LS.get("okta.grules.v1",false)&&!S.rules.some(r=>r.type&&r.type[0]==="g")){ S.rules=S.rules.concat(gStarterRules().filter(r=>["gnew","grisk","gspike"].includes(r.type)).map(copy)); saveRules(); LS.set("okta.grules.v1",true); }
   if(!LS.get("okta.grules.v2",false)){ const add=gStarterRules().filter(r=>["gdrift","gflag"].includes(r.type)&&!have(r.type)); if(add.length){ S.rules=S.rules.concat(add.map(copy)); saveRules(); } LS.set("okta.grules.v2",true); }      // approval alerts arrive once, even for people who already had the first three
-}
-function evalGoogleRule(r,now){
-  const G=S.g; if(!G.configured||!G.events.length) return [];
-  const cut=now-r.windowMin*60000, need=G_NEED[r.minRisk||"any"]||1, text=String(r.gApp||"").toLowerCase(), out=[], haveOlder=G.events[0].time<cut-864e5;
-  for(const a of googleApps()){
-    if(text&&!(a.name+" "+a.clientId).toLowerCase().includes(text)) continue;
-    const grants=a.events.filter(e=>e.type==="authorize"&&e.time>=cut&&e.time<=now+60000), who=[...new Set(grants.map(e=>e.actor))], ap=approvalOf(a);
-    if(r.type==="gdrift"){ if(ap.state==="drift") out.push({group:a.key+"|"+ap.extra.slice().sort().join(","),app:a.name,clientId:a.clientId,rank:Math.max(...ap.extra.map(x=>RISK_RANK[scopeInfo(x).risk])),people:a.people.length,extra:ap.extra}); continue; }
-    if(r.type==="gflag"){ if(ap.state==="flagged"&&grants.length) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length}); continue; }
-    if(ap.state==="approved") continue;                        // reviewed and approved for this access: no alert (a change in access is caught by the 'approved app asked for new access' rule)
-    if(r.type==="gnew"){ if(haveOlder&&a.first>=cut&&a.first<=now+60000&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length||1}); }
-    else if(r.type==="grisk"){ const hit=grants.filter(e=>e.scopes.some(x=>RISK_RANK[scopeInfo(x).risk]>=need)), ppl=[...new Set(hit.map(e=>e.actor))];
-      if(ppl.length){ const sc=[...new Set(hit.flatMap(e=>e.scopes).filter(x=>RISK_RANK[scopeInfo(x).risk]>=need))]; out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:ppl.length,scopes:sc}); } }
-    else if(r.type==="gspike"){ if(who.length>=r.n&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length}); }
-  }
-  return out.sort((x,y)=>y.rank-x.rank||y.people-x.people);
-}
-function makeGoogleNotif(r,h,now){
-  const win=lastText(r.windowMin), who=h.people+" "+(h.people===1?"person":"people"), risk=RISK_NAME[h.rank]; let body;
-  if(r.type==="gnew") body=h.app+" was authorized by "+who+" · "+risk+"-risk access";
-  else if(r.type==="grisk") body=h.app+" was granted "+h.scopes.slice(0,3).map(shortScope).join(", ")+(h.scopes.length>3?" +"+(h.scopes.length-3):"")+" by "+who;
-  else if(r.type==="gdrift") body=h.app+" was approved, but it now also asks for: "+h.extra.slice(0,3).map(shortScope).join(", ")+(h.extra.length>3?" +"+(h.extra.length-3):"")+" ("+(h.people===1?"1 person has":h.people+" people have")+" access)";
-  else if(r.type==="gflag") body=h.app+" is marked not allowed, and "+who+" authorized it in "+win;
-  else body=h.app+": "+who+" authorized it in "+win;
-  return {id:"n"+now+"-"+Math.random().toString(36).slice(2,7),ruleId:r.id,ruleName:r.name,type:r.type,ts:now,title:r.name,body,sev:(r.type==="gflag"||h.rank>=3)?"bad":h.rank===2?"warn":"info",link:{view:"google",app:String(h.group).split("|")[0]},unread:true};
 }
 
 /* ---------- who is signed in, and what they may do ---------- */
@@ -2454,19 +2306,10 @@ S.policy={suppressions:[],approvals:[],geoRules:[],meta:{version:-1,persistent:t
 S.showSup=false; S.ptab="rules"; S.pname=LS.get("okta.pname","")||"";
 const activeSuppressions=()=>{ const now=Date.now(); return S.policy.suppressions.filter(r=>r.enabled&&(!r.expiresAt||Date.parse(r.expiresAt)>now)); };
 function ruleState(r){ const now=Date.now(); if(!r.enabled) return "off"; if(r.expiresAt&&Date.parse(r.expiresAt)<=now) return "expired"; if(r.expiresAt&&Date.parse(r.expiresAt)-now<7*864e5) return "soon"; return "active"; }
-function compileRule(r){ const m=Object.assign(emptyFilter(),(r&&r.match)||{}), base=compileFilter(m), et=String((r&&r.match&&r.match.eventType)||"").toLowerCase(); return e=>(!base||base(e))&&(!et||String(e.eventType||"").toLowerCase().includes(et)); }
 const polTok=()=>S.policy.meta.version+":"+Math.floor(Date.now()/60000);          // changes when the policy changes, and every minute so that expiry takes effect
 function supIndex(){ const tok=polTok(); if(S._supTok!==tok){ S._supTok=tok; S._sup=activeSuppressions().map(r=>({r,test:compileRule(r)})); } return S._sup; }
 function supOf(e){ const idx=supIndex(); if(!idx.length) return null; if(e._st===S._supTok) return e._sr; let hit=null; for(const x of idx){ if(x.test(e)){ hit=x.r; break; } } e._st=S._supTok; e._sr=hit; return hit; }
 // where an app stands: none (never reviewed), approved, drift (approved, but it now has access the approval did not cover), expired (review due), flagged (not allowed)
-function approvalOf(a){
-  const ap=S.policy.approvals.find(x=>x.clientId===a.key); if(!ap) return {state:"none"};
-  if(ap.status==="flagged") return {state:"flagged",ap};
-  const covered=new Set(ap.scopes||[]), extra=[...a.scopes].filter(x=>!covered.has(x));
-  if(extra.length) return {state:"drift",ap,extra};
-  if(ap.expiresAt&&Date.parse(ap.expiresAt)<Date.now()) return {state:"expired",ap};
-  return {state:"approved",ap};
-}
 const polHeaders=()=>({"content-type":"application/json","x-sightline-name":S.pname||""});
 function adoptPolicy(j){ S.policy=Object.assign(S.policy,{suppressions:j.suppressions||[],approvals:j.approvals||[],geoRules:j.geoRules||[],meta:j.meta,loaded:true,unavailable:false}); S._supTok=null; if(S.g) S.g._ck=null;
   if(j.alertRules&&j.meta&&j.meta.roleBased){ S.rules=normRules(j.alertRules); S.rulesShared=true; } }
@@ -2818,7 +2661,7 @@ async function refreshLive(){
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+(st&&st.rateLimit&&st.rateLimit.budgetRpm<=120? "Paced to about "+st.rateLimit.budgetRpm+" requests a minute so Okta’s rate limit is not exceeded, so this takes a while. ":"")+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
-    await refreshGoogle(st); await loadPolicy(); S.slackOn=!!(st&&st.slack&&st.slack.configured); await loadGeoAlerts();
+    await refreshGoogle(st); await loadPolicy(); S.slackOn=!!(st&&st.slack&&st.slack.configured); await loadServerAlerts();
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);

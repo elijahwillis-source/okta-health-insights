@@ -101,6 +101,13 @@ function createSlack({ env, log, fetchFn }) {
       { type: "context", elements: [{ type: "mrkdwn", text: "Severity: *" + sev + "*" + (a.reason ? "  ·  " + mx(a.reason, 120) : "") + (publicUrl ? "  ·  <" + publicUrl + "/#/alerts|Open in Sightline>" : "") }] }];
     return { text: "Sightline: " + mx(a.ruleName, 100) + " (" + mx(a.person || "unknown", 80) + " from " + mx(place, 80) + ")", blocks };      // the notification text is parsed too, so it is escaped like the rest
   }
+  function genericMessage(a) {
+    const sev = { bad: "High", warn: "Medium", info: "Low" }[a.severity] || "Medium", link = publicUrl ? publicUrl + "/#/" + clip((a.link && a.link.view) || "alerts", 20) : "";
+    return { text: "Sightline: " + mx(a.title || a.ruleName, 100) + " (" + mx(a.body, 160) + ")", blocks: [
+      { type: "header", text: { type: "plain_text", text: clip(a.title || a.ruleName, 140).replace(/[<>]/g, "") || "Alert" } },
+      { type: "section", text: { type: "mrkdwn", text: mx(a.body, 600) || "(no details)" } },
+      { type: "context", elements: [{ type: "mrkdwn", text: "Severity: *" + sev + "*" + (link ? "  \u00b7  <" + link + "|Open in Sightline>" : "") }] }] };
+  }
   const info = () => ({ configured, channel: configured ? channel : "", tokenSet: !!token, channelSet: !!channel, maxPerMinute: cap, showIp,
     sent: stats.sent, failed: stats.failed, summarized: stats.summarized, lastOkAt: stats.lastOkAt, lastError: stats.lastError, lastErrorAt: stats.lastErrorAt,
     lastErrorHint: stats.lastError ? (HINTS[stats.lastError] || "Slack answered: " + stats.lastError) : null });
@@ -108,7 +115,7 @@ function createSlack({ env, log, fetchFn }) {
     configured, info, manifest: () => JSON.parse(JSON.stringify(MANIFEST)), hint: code => HINTS[code] || (code ? "Slack answered: " + code : ""),
     alertMessage, enqueue,
     // an alert from the rules; done({ok,error,ts,summarized}) says what happened to it
-    sendAlert(a, done) { const m = alertMessage(a); enqueue({ channel: a.slack && a.slack.channel || "", text: m.text, blocks: m.blocks, done }); },
+    sendAlert(a, done) { const m = a.where ? alertMessage(a) : genericMessage(a); enqueue({ channel: a.slack && a.slack.channel || "", text: m.text, blocks: m.blocks, done }); },
     // a message so an admin can check the setup end to end: it waits for the answer
     sendTest(who) {
       return new Promise(resolve => {

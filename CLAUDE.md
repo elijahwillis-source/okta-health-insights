@@ -13,6 +13,8 @@ one HTML file for the whole UI. Deployed on Coolify at https://sightline.coolify
 | `auth.js` | Okta OIDC sign-in (authorization code + PKCE), sessions, roles, CSRF/Origin check, `REQUIRE_SSO` |
 | `audit.js` | Shared audit log: `DATA_DIR/audit-log.jsonl` plus `AUDIT {json}` lines on stdout |
 | `policy.js` | Known-error rules, Google app decisions, shared alert rules, location rules, and their own history |
+| `public/alerts-core.js` | **The alert logic, in one place**: event helpers, error categories and filters, the Google scope-risk table, and the checks that decide when an alert fires. The page loads it and the server requires it |
+| `alerts.js` | The server engine for the shared alerts: gives those checks the server's data, remembers what already fired (`DATA_DIR/alerts-state.json`), keeps the alerts raised |
 | `geo.js` | Location alerts: rule validation, matching, the server-side check of each new event, preview, places summary (`DATA_DIR/geo-alerts.json`) |
 | `slack.js` | Slack sender (post only), the app manifest, message formatting and escaping, pacing, the per-minute cap |
 | `integrations/slack/app-manifest.json` | The Slack app manifest. Generated from `MANIFEST` in `slack.js`; a test checks they match, so change `slack.js` and regenerate the file |
@@ -28,8 +30,10 @@ Runtime data lives in `DATA_DIR` (`/app/data`, a persistent volume): `policy.jso
 # the checks: run all seven before every commit (each prints "N passed, M failed")
 for t in smoke smoke-auth smoke-policy smoke-google smoke-ratelimit smoke-google-first smoke-google-load; do bash test/$t.sh | tail -1; done
 node test/geo-unit.js | tail -1                    # location rules and Slack: logic, no servers
+node test/alerts-unit.js | tail -1                 # the shared alert checks and the server engine: logic, no servers
+bash test/smoke-alerts.sh | tail -1                # shared alerts on the server with sign-in on, routed to Slack; about 6 minutes, run it detached
 bash test/smoke-geo.sh | tail -1                   # location alerts and Slack end to end; takes 2 to 5 minutes, so run it detached if your tool has a time limit
-# baseline on the current main: 77, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (33, no FAIL); geo-unit 69; smoke-geo 73
+# baseline on the current main: 77, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (34, no FAIL); geo-unit 69; smoke-geo 73; alerts-unit 43; smoke-alerts 36
 # the suites share fixed ports (4010 and others), so run them one after another, never at the same time
 
 # syntax check, including the page's inline script
@@ -42,7 +46,7 @@ node test/fake-anthropic.js &       # fake AI on :4020; GET /_last shows the las
 OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=t ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=http://localhost:4020 PORT=8090 node server.js
 ```
 
-**Browser (UI) tests:** only one exists, for the Alerts page, the Integrations pages and the Slack setup guide: `bash test/browser/run-geo-ui.sh` (99 checks, covering Alerts, Integrations and the Slack guide; one time first: `cd test/browser && npm install && npx playwright install chromium`).
+**Browser (UI) tests:** only one exists, for the Alerts page, the Integrations pages and the Slack setup guide: `bash test/browser/run-geo-ui.sh` (108 checks, covering Alerts, Integrations, Slack routing and the Slack guide; `bash test/browser/run-geo-ui.sh tour.js` walks every page, 22 checks; one time first: `cd test/browser && npm install && npx playwright install chromium`).
 The older UI tests lived outside the repo and were lost: see "Rebuild the browser tests" in `docs/HANDOFF.md`. Check any other UI change by looking at it (Playwright screenshots) and keep UI changes small.
 
 ## Rules that matter
@@ -68,7 +72,9 @@ The older UI tests lived outside the repo and were lost: see "Rebuild the browse
 - **Two polling loops, on purpose:** `pollLogs` (new events, on a steady beat) and `backfillLoop` (old history). They were one loop and a history step waiting for the Okta rate limit delayed new events (and so alerts) by up to a minute. Both trim the buffer. Keep them separate.
 - **Slack:** post only (`chat:write`, `chat:write.public`). The token comes only from `SLACK_BOT_TOKEN`; it must never appear in an API answer, a log or the audit log (a test checks). Everything from outside that goes into a Slack message is escaped (`mx` in `slack.js`), including the notification fallback text.
   Links in Slack use `SLACK_LINK_URL` (falling back to `PUBLIC_URL`): **setting `PUBLIC_URL` alone switches single sign-on on and locks the app out**, so never suggest it to someone without sign-in.
-- **Alerts and Integrations are separate on purpose.** The Alerts page starts empty (no starter alerts) and "New alert" first asks what it is about (`openAlertPicker`); location alerts are just one kind in the same list. Anything about Slack lives on the Integrations page (`renderIntegrations`, `slackDetail`): the connection, the setup guide, and **Alert routing**, which edits `slack` and `channel` on the location rules (through the same audited `PUT /api/policy/geo-rules`, so it needs a reason). Only server-checked alerts can be routed to Slack; the browser-checked ones cannot yet. The alert editor deliberately has no Slack fields. The Teams, Email and Webhook cards are "Coming soon" placeholders, not features.
+- **ALERT LOGIC LIVES IN `public/alerts-core.js`, AND ONLY THERE.** Helpers such as `appOf`, `normErr`, `catOf`, `compileFilter`, `scopeInfo`, and the checks `evalRule`, `evalSilent`, `evalGoogleRule`, `makeNotif`, `runRules` are defined in that file (a browser global in the page, `require` on the server). Do not copy them back into `index.html` or `server.js`: the page and the server would drift and alerts would fire differently in each. The page only has thin adapters (`pageCtx`, `evalRule(r,now)` and friends) that hand the shared checks the page's data. Adding a helper? Put it in the core and export it.
+- **Shared alerts are checked on the server** (`runAlerts` in `server.js` every 30 s and after each poll, through `alerts.js`); the page skips them (`evaluateAlerts` returns early when `alertRulesShared`) and shows what the server raised, from `GET /api/alerts/feed` (`loadServerAlerts`). Alerts that are not shared stay in the browser, are checked by the same core, and cannot go to Slack. `slack` and `channel` are fields of every alert rule (validated in `policy.js` `cleanRule`); the alert editor must keep them when it saves (it does: both save branches carry them).
+- **Alerts and Integrations are separate on purpose.** The Alerts page starts empty (no starter alerts) and "New alert" first asks what it is about (`openAlertPicker`); location alerts are just one kind in the same list. Anything about Slack lives on the Integrations page (`renderIntegrations`, `slackDetail`): the connection, the setup guide, and **Alert routing**, which edits `slack` and `channel` on the location rules (through the same audited `PUT /api/policy/geo-rules`, so it needs a reason). Every shared alert and every location alert can be routed to Slack; alerts that are only in a browser cannot. The alert editor deliberately has no Slack fields. The Teams, Email and Webhook cards are "Coming soon" placeholders, not features.
 - **The Slack setup guide** (`openSlackGuide` in `public/index.html`) is a six-step dialog with simplified SVG pictures built by small helpers (`sg*`). The pictures are drawings of the steps, not copies of Slack's screens, and say so; if Slack changes its wording, update the text and `SG_ART`. It reads the live status from `GET /api/slack` when it opens and every 5 seconds, so the last step turns green by itself.
 - **A notification's `type` must not start with "g"**: the page treats those as Google alerts (and offers an Explain button that asks about a Google app). Location alerts use `"location"`.
 - localStorage keys keep the old `okta.*` names on purpose.

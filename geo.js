@@ -19,6 +19,7 @@ const clip = (v, n) => String(v == null ? "" : v).replace(/[\u0000-\u001f\u007f]
 const fold = s => String(s == null ? "" : s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}'., -]/gu, " ").replace(/\s+/g, " ").trim();
 const title = s => s.replace(/(^|[ -])(\p{L})/gu, (m, a, b) => a + b.toUpperCase());
 const MIN = 60000;
+const winTxt = m => m < 60 ? m + " minutes" : m % 60 === 0 ? (m === 60 ? "1 hour" : (m / 60) + " hours") : m + " minutes";
 
 /* Okta spells countries one way, people type another ("RU", "Russian Federation"). Both sides are folded to one name before comparing.
  * Each row: the name Okta uses first, then the other spellings. Anything not listed is compared as typed (ignoring case and accents). */
@@ -140,6 +141,8 @@ function createGeo({ dir, log, maxAgeMinutes = 30 }) {
           result: resultOf(e), reason: clip(e.outcome && e.outcome.reason, 120), matched: n, threshold: rule.count, windowMinutes: rule.windowMinutes, per: rule.per, eventId: e.id,
           slack: rule.slack ? { state: "queued", channel: rule.channel || "" } : { state: "off" }
         };
+        a.type = "location"; a.title = rule.name; a.link = { view: "alerts" };                         // the same shape as every other alert in the feed
+        a.body = (a.person || "unknown") + " \u00b7 " + ([a.where.city, a.where.region, a.where.country].filter(Boolean).join(", ") || "unknown location") + (n > 1 ? " \u00b7 " + n + " in " + winTxt(rule.windowMinutes) : "");
         alerts.unshift(a); out.push(a);
       }
     }

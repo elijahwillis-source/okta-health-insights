@@ -65,6 +65,9 @@ const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins:
 const geo = require("./geo").createGeo({ dir: cfg.dataDir, log, maxAgeMinutes: Math.max(5, +env.GEO_MAX_AGE_MINUTES || 30) });
 const slack = require("./slack").createSlack({ env, log });
 const SYSTEM_ACTOR = { name: "sightline", role: "system", verified: true, via: "system" };
+const alertCore = require("./public/alerts-core.js");
+const alertsEngine = require("./alerts").createAlerts({ dir: cfg.dataDir, log });
+const SILENT_MS = Math.max(1, +env.SILENT_AFTER_DAYS || 7) * 864e5;
 if (cfg.policyAdmins.length && !cfg.userHeader) log("NOTE: POLICY_ADMINS is set but USER_HEADER is not, so roles are NOT enforced (the sign-in name is shared and cannot prove who someone is). Set USER_HEADER only if a sign-in proxy sets it.");
 
 /* ------------------------------------------------------------------- state */
@@ -215,22 +218,57 @@ async function fetchRange(sinceIso, untilIso, kind = "fg") {
 
 // Location alerts are worked out here, as events arrive, so they fire with nobody looking at the page. A failure here must never stop the poll.
 let lastSlackAudit = 0;
+// An alert was raised: record it, and post it to Slack if that alert is routed there. "store" is whoever keeps the alert (geo, or the shared-alerts engine).
+function deliverAlert(a, store) {
+  const place = a.where ? [a.where.city, a.where.region, a.where.country].filter(Boolean).join(", ") : "";
+  const detail = a.type === "location" ? a.kindLabel + " for " + (a.person || "unknown") + " from " + (place || "unknown location") + (a.threshold > 1 ? " (" + a.matched + " in " + a.windowMinutes + " min)" : "") : (a.title + ": " + a.body).slice(0, 300);
+  audit.write({ cat: "alerts", action: a.type === "location" ? "alert.geo" : "alert.fired", actor: SYSTEM_ACTOR, target: a.ruleName, detail });
+  if (a.slack.state !== "queued") return;
+  if (!slack.configured) { store.setSlack(a.id, { state: "not_configured" }); return; }
+  slack.sendAlert(a, r => {
+    if (r.ok) return store.setSlack(a.id, { state: "sent" });
+    if (r.summarized) return store.setSlack(a.id, { state: "summarized" });
+    store.setSlack(a.id, { state: "failed", error: r.error, hint: slack.hint(r.error) });
+    if (Date.now() - lastSlackAudit > 60000) { lastSlackAudit = Date.now(); audit.write({ cat: "alerts", action: "alert.slack.failed", ok: false, actor: SYSTEM_ACTOR, target: a.ruleName, detail: "Slack did not accept the message: " + r.error }); }
+  });
+}
+// Location alerts are worked out here, as events arrive, so they fire with nobody looking at the page. A failure here must never stop the poll.
 function onFresh(fresh) {
   try {
     const rules = policy.geoRulesEnabled(); if (!rules.length) return;
-    for (const a of geo.evaluate(fresh, state.events, rules)) {
-      const where = [a.where.city, a.where.region, a.where.country].filter(Boolean).join(", ");
-      audit.write({ cat: "alerts", action: "alert.geo", actor: SYSTEM_ACTOR, target: a.ruleName, detail: a.kindLabel + " for " + (a.person || "unknown") + " from " + (where || "unknown location") + (a.threshold > 1 ? " (" + a.matched + " in " + a.windowMinutes + " min)" : "") });
-      if (a.slack.state !== "queued") continue;
-      if (!slack.configured) { geo.setSlack(a.id, { state: "not_configured" }); continue; }
-      slack.sendAlert(a, r => {
-        if (r.ok) return geo.setSlack(a.id, { state: "sent" });
-        if (r.summarized) return geo.setSlack(a.id, { state: "summarized" });
-        geo.setSlack(a.id, { state: "failed", error: r.error, hint: slack.hint(r.error) });
-        if (Date.now() - lastSlackAudit > 60000) { lastSlackAudit = Date.now(); audit.write({ cat: "alerts", action: "alert.slack.failed", ok: false, actor: SYSTEM_ACTOR, target: a.ruleName, detail: "Slack did not accept the message: " + r.error }); }
-      });
-    }
+    for (const a of geo.evaluate(fresh, state.events, rules)) deliverAlert(a, geo);
   } catch (e) { log("Location alerts failed: " + e.message); }
+}
+
+// The shared alerts (too many errors, a new kind of error, a silent app, the Google alerts) are checked here too, on the server, with the same
+// code the page uses (public/alerts-core.js). Once alerts are shared, the page stops checking them and shows what the server raised.
+let supTok = null, supIdx = [], gCk = null, gEvents = [], gApps = [];
+function supOf(e) {
+  const tok = policy.version() + ":" + Math.floor(Date.now() / 60000);
+  if (tok !== supTok) { supTok = tok; supIdx = policy.activeSuppressions().map(r => ({ r, test: alertCore.compileRule(r) })); }
+  for (const x of supIdx) if (x.test(e)) return x.r;
+  return null;
+}
+function silentNames() {
+  const now = Date.now(), names = new Set(), last = new Map(), active = state.apps.filter(a => a.status === "ACTIVE" || !a.status);
+  for (const e of state.events) { const a = alertCore.appOf(e); if (!a) continue; names.add(a); const t = alertCore.ts(e); if (!last.has(a) || t > last.get(a)) last.set(a, t); }
+  for (const a of active) names.add(a.label);
+  const label = new Map(active.map(x => [x.id, String(x.label || "").trim()]));
+  for (const x of state.appSeen.values()) { const nm = label.get(x.id) || String(x.name || "").trim(); if (!nm) continue; names.add(nm); if (!last.has(nm) || x.last > last.get(nm)) last.set(nm, x.last); }
+  const out = [];
+  for (const nm of names) { const ls = last.get(nm); if ((ls == null ? Infinity : now - ls) > SILENT_MS) out.push(nm); }
+  return out;
+}
+function runAlerts() {
+  try {
+    const rules = policy.sharedAlertRules(); if (!rules || !rules.some(r => r.enabled)) return;
+    const gst = google.configured ? google.status() : null;
+    if (!state.events.length && !(gst && gst.events)) return;
+    if (gst) { const ck = gst.events + ":" + gst.seq + ":" + gst.epoch; if (ck !== gCk) { gCk = ck; gEvents = google.events({}); gApps = alertCore.googleAppsFrom(gEvents); } }
+    else { gEvents = []; gApps = []; gCk = null; }
+    const raised = alertsEngine.evaluate({ rules, events: state.events, catchingUp: state.catchingUp, supOf, silentNames, google: { configured: !!gst, events: gEvents, approvals: policy.approvals() }, googleApps: () => gApps });
+    for (const a of raised) deliverAlert(a, alertsEngine);
+  } catch (e) { log("Shared alerts failed: " + e.message); }
 }
 
 async function pollHead() {
@@ -284,6 +322,7 @@ async function pollLogs() {
   try {
     await pollHead();                       // stay current: the newest events
     trim();
+    runAlerts();
     state.lastPollOk = new Date().toISOString(); state.lastError = null; state.polls++;
     state.catchingUp = !state.headCaughtUp || !bf.done;
     again = !state.headCaughtUp;            // quick follow-ups only while the newest events are still being caught up
@@ -768,6 +807,7 @@ const server = http.createServer(async (req, res) => {
         const s = auth.revoke(m[1]); if (!s) return send(req, res, 404, { error: "That session is already gone." });
         const a = actorOf(req); audit.write({ cat: "auth", action: "auth.session.revoked", actor: a, ip: a.ip, ua: a.ua, target: s.email, detail: "ended the session of " + s.email + " (" + s.role + ")" }); return send(req, res, 200, { ended: s.email });
       } }
+    if (req.method === "GET" && url.pathname === "/alerts-core.js") return send(req, res, 200, fs.readFileSync(path.join(__dirname, "public", "alerts-core.js")), "application/javascript; charset=utf-8");   // the alert logic the page shares with the server
     if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html"))
       return send(req, res, 200, fs.readFileSync(INDEX), "text/html; charset=utf-8");
 
@@ -775,7 +815,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus(), geo: geo.status(), slack: { configured: slack.configured }
+        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus(), geo: geo.status(), alerts: alertsEngine.status(), slack: { configured: slack.configured }
       });
 
     if (req.method === "GET" && url.pathname === "/api/google/events") {
@@ -835,7 +875,10 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, { rows: policy.audit(url.searchParams.get("limit")) });
     }
     // ---- location alerts and Slack
-    if (url.pathname === "/api/geo/alerts" && req.method === "GET") return send(req, res, 200, { serverTime: Date.now(), alerts: geo.recent(url.searchParams.get("since")) });
+    if ((url.pathname === "/api/alerts/feed" || url.pathname === "/api/geo/alerts") && req.method === "GET") {
+      const since = url.searchParams.get("since"), list = geo.recent(since).concat(alertsEngine.recent(since)).sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt)).slice(0, 200);
+      return send(req, res, 200, { serverTime: Date.now(), alerts: list });
+    }
     if (url.pathname === "/api/geo/places" && req.method === "GET") return send(req, res, 200, geo.places(state.events));
     if (url.pathname === "/api/geo/preview" && req.method === "POST") {
       if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
@@ -885,8 +928,8 @@ function start() {
   else if (!cfg.dashPass && !auth.misconfigured) log("NOTE: neither single sign-on nor DASHBOARD_PASSWORD is set — make sure access is restricted by your platform (SSO/VPN).");
   if (!cfg.anthropicKey) log("NOTE: ANTHROPIC_API_KEY is not set — the assistant will be disabled.");
   server.listen(cfg.port, () => log(`Sightline listening on :${cfg.port} for ${cfg.orgUrl}`));
-  for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { auth.flush(); geo.flush(); } catch { /* shutting down */ } process.exit(0); });          // a redeploy must not sign anyone out
-  initIngest(); pollLogs(); backfillLoop(); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
+  for (const sig of ["SIGTERM", "SIGINT"]) process.on(sig, () => { try { auth.flush(); geo.flush(); alertsEngine.flush(); } catch { /* shutting down */ } process.exit(0); });          // a redeploy must not sign anyone out
+  initIngest(); pollLogs(); backfillLoop(); setInterval(runAlerts, 30000); refreshApps(); setInterval(refreshApps, cfg.appsRefreshMin * 60000);
   google.start();
 }
 if (require.main === module) start();
