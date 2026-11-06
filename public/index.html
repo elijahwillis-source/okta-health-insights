@@ -1752,21 +1752,11 @@ async function loadSlackInfo(){
   try{ const r=await fetch("api/slack"); S.geo.slack= r.ok? await r.json() : false; }catch(_){ S.geo.slack=false; }
   S.geo.slackBusy=false; if(S.view==="integrations") renderIntegrations();
 }
-// every change to a location rule needs a reason, which is kept in the audit log with the person's name
-function geoAskWhy(title,rules,saver){
-  const root=document.createElement("div"); root.className="modal"; root.id="geoWhy";
-  root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><h3>'+esc(title)+'</h3><p class="hint">Say why. The reason is kept in the audit log with your name.</p><label class="fl">Reason<input type="text" id="gwWhy" maxlength="300" placeholder="For example: Paused while we review the list"></label><div class="merr" id="gwErr" hidden></div><div class="mact"><button class="ghost" id="gwCancel" type="button">Cancel</button><button class="primary" id="gwOk" type="button">Save</button></div></div>';
-  document.body.appendChild(root); const q=sel=>root.querySelector(sel), close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
-  document.addEventListener("keydown",esc2); q("#gwWhy").focus(); q("#gwCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
-  q("#gwOk").onclick=async ()=>{ const why=q("#gwWhy").value.trim(), e=q("#gwErr"); if(why.length<10){ e.hidden=false; e.textContent="Say why, in at least a short sentence."; return; }
-    q("#gwOk").disabled=true; try{ await (saver? saver(why) : geoPut(rules,why)); close(); }catch(x){ q("#gwOk").disabled=false; e.hidden=false; e.textContent=x.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : x.message; } };
-  q("#gwWhy").addEventListener("keydown",e=>{ if(e.key==="Enter") q("#gwOk").click(); });
-}
 async function geoPut(rules,why){ await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules,why}); S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations(); }
 function geoClick(ev){
   const t=ev.target; let b;
   if((b=t.closest("[data-gedit]"))){ const r=(S.policy.geoRules||[]).find(x=>x.id===b.dataset.gedit); if(r) openGeoEditor(JSON.parse(JSON.stringify(r))); return true; }
-  if((b=t.closest("[data-gdel]"))){ const all=S.policy.geoRules||[], r=all.find(x=>x.id===b.dataset.gdel); if(r) geoAskWhy("Delete \u201c"+r.name+"\u201d",all.filter(x=>x.id!==r.id)); return true; }
+  if((b=t.closest("[data-gdel]"))){ const all=S.policy.geoRules||[], r=all.find(x=>x.id===b.dataset.gdel); if(r) openConfirm("Delete \u201c"+r.name+"\u201d","This can't be undone. The rule stays in the audit log.","Delete rule",()=>geoPut(all.filter(x=>x.id!==r.id),"Deleted the rule \u201c"+r.name+"\u201d")); return true; }
   return false;
 }
 // "New alert": first choose what it is about
@@ -2229,7 +2219,7 @@ $("#googleView").addEventListener("click",ev=>{
   const gr=ev.target.closest("[data-greview]"); if(gr){ S.gf.review=gr.dataset.greview; S.gcap=25; renderGoogleView(); return; }
   const gap=ev.target.closest("[data-gapprove]"); if(gap){ const a=googleApps().find(x=>x.key===gap.dataset.gapprove); if(a) openApprovalEditor(a,"approved"); return; }
   const gfl=ev.target.closest("[data-gflagapp]"); if(gfl){ const a=googleApps().find(x=>x.key===gfl.dataset.gflagapp); if(a) openApprovalEditor(a,"flagged"); return; }
-  const gun=ev.target.closest("[data-gunreview]"); if(gun){ const a=googleApps().find(x=>x.key===gun.dataset.gunreview); if(a) openConfirm("Remove this decision?","“"+a.name+"” goes back to “not reviewed”. The decision stays in the audit log.","Remove decision",why=>policyCall("DELETE","/approvals/"+encodeURIComponent(a.key)+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
+  const gun=ev.target.closest("[data-gunreview]"); if(gun){ const a=googleApps().find(x=>x.key===gun.dataset.gunreview); if(a) openConfirm("Remove this decision?","“"+a.name+"” goes back to “not reviewed”. The decision stays in the audit log.","Remove decision",()=>policyCall("DELETE","/approvals/"+encodeURIComponent(a.key)+"?v="+polV()+"&why="+encodeURIComponent("Removed the review decision for \u201c"+a.name+"\u201d"))); return; }
   const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; S.gcap=25; renderGoogleView(); return; }
   const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); S.gcap=25; renderGoogleView(); return; }
   if(ev.target.closest("[data-gmore]")){ S.gmore=!S.gmore; renderGoogleView(); return; }
@@ -2481,20 +2471,20 @@ function openApprovalEditor(a,status){
     catch(e){ M.q("#aSave").disabled=false; err.hidden=false; err.textContent=e.status===409? "Someone else changed the policy while you were editing. It has been reloaded: please check and try again." : e.message; }
   };
 }
-function openConfirm(title,text,button,run){
-  const M=modalShell(title,'<h3>'+esc(title)+'</h3><p class="hint">'+esc(text)+'</p><label class="fl">Why? (kept in the audit log)<textarea id="cWhy" class="ptxt" maxlength="500" placeholder="For example: the vendor fixed it."></textarea></label>'+nameField()+'<div class="merr" id="cErr" hidden></div><div class="mact"><button class="ghost" id="cNo">Cancel</button><button class="primary" id="cYes">'+esc(button)+'</button></div>');
-  M.q("#cWhy").focus(); M.q("#cNo").onclick=M.close;
-  M.q("#cYes").onclick=async()=>{ const err=M.q("#cErr"); err.hidden=true; if(M.q("#cWhy").value.trim().length<5){ err.hidden=false; err.textContent="Say why, even briefly."; return; } if(needName(M,err)) return; rememberName(M); try{ M.q("#cYes").disabled=true; await run(M.q("#cWhy").value.trim()); M.close(); } catch(e){ M.q("#cYes").disabled=false; err.hidden=false; err.textContent=e.message; } };
+function openConfirm(title,text,button,run){   // confirms a destructive change; logged automatically, no reason to type
+  const M=modalShell(title,'<h3>'+esc(title)+'</h3><p class="hint">'+esc(text)+'</p>'+nameField()+'<div class="merr" id="cErr" hidden></div><div class="mact"><button class="ghost" id="cNo">Cancel</button><button class="primary" id="cYes">'+esc(button)+'</button></div>');
+  M.q("#cNo").onclick=M.close;
+  M.q("#cYes").onclick=async()=>{ const err=M.q("#cErr"); err.hidden=true; if(needName(M,err)) return; rememberName(M); try{ M.q("#cYes").disabled=true; await run(); M.close(); } catch(e){ M.q("#cYes").disabled=false; err.hidden=false; err.textContent=e.message; } };
 }
 const polV=()=>S.policy.meta.version;
 $("#view-policy").addEventListener("click",ev=>{
   const t=ev.target.closest("[data-ptab]"); if(t){ S.ptab=t.dataset.ptab; if(S.ptab==="audit") S.audit=undefined; renderPolicy(); return; }
   if(ev.target.closest("[data-spnew]")){ openSuppressEditor(); return; }
   const ed=ev.target.closest("[data-spedit]"); if(ed){ const r=S.policy.suppressions.find(x=>x.id===ed.dataset.spedit); if(r) openSuppressEditor(r,r.id); return; }
-  const del=ev.target.closest("[data-spdel]"); if(del){ const r=S.policy.suppressions.find(x=>x.id===del.dataset.spdel); if(r) openConfirm("Delete this rule?","The errors it hid will count again straight away. The rule and this decision stay in the audit log.","Delete rule",why=>policyCall("DELETE","/suppressions/"+r.id+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
+  const del=ev.target.closest("[data-spdel]"); if(del){ const r=S.policy.suppressions.find(x=>x.id===del.dataset.spdel); if(r) openConfirm("Delete this rule?","The errors it hid will count again straight away. The rule and this decision stay in the audit log.","Delete rule",()=>policyCall("DELETE","/suppressions/"+r.id+"?v="+polV()+"&why="+encodeURIComponent("Deleted the known-error rule \u201c"+r.name+"\u201d"))); return; }
   const vw=ev.target.closest("[data-spview]"); if(vw){ const r=S.policy.suppressions.find(x=>x.id===vw.dataset.spview); if(r){ S.efil=Object.assign(emptyFilter(),{include:r.match.include||"",apps:r.match.apps||[],person:r.match.person||"",cats:r.match.cats||[]}); S.showSup=true; S.errShown=50; go("errors"); render(); renderFilterBars(true); } return; }
   const av=ev.target.closest("[data-apview]"); if(av){ S.gfocus=av.dataset.apview; go("google"); renderGoogleView(); return; }
-  const ad=ev.target.closest("[data-apdel]"); if(ad){ const ap=S.policy.approvals.find(x=>x.clientId===ad.dataset.apdel); if(ap) openConfirm("Remove this decision?","The app goes back to “not reviewed”. This decision stays in the audit log.","Remove decision",why=>policyCall("DELETE","/approvals/"+encodeURIComponent(ap.clientId)+"?v="+polV()+"&why="+encodeURIComponent(why))); return; }
+  const ad=ev.target.closest("[data-apdel]"); if(ad){ const ap=S.policy.approvals.find(x=>x.clientId===ad.dataset.apdel); if(ap) openConfirm("Remove this decision?","The app goes back to “not reviewed”. This decision stays in the audit log.","Remove decision",()=>policyCall("DELETE","/approvals/"+encodeURIComponent(ap.clientId)+"?v="+polV()+"&why="+encodeURIComponent("Removed the review decision for \u201c"+ap.appName+"\u201d"))); return; }
   if(ev.target.closest("[data-gneeds]")){ S.gf=gDefault(); S.gf.access="has"; S.gf.review="needs"; go("google"); renderGoogleView(); return; }
   if(ev.target.closest("[data-pexport]")){ exportAuditCsv(); }
 });
