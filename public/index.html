@@ -1865,11 +1865,14 @@ function routeSave(){
   const bad=geoNext.concat(ruleNext||[]).find(r=>r.slack&&r.channel&&!SG_CHAN.test(r.channel)); if(bad){ err.textContent="The channel for \u201c"+bad.name+"\u201d does not look like a Slack channel. Use a name like #it-alerts, or the channel ID."; return; }
   const changed=r=>{ const c=S.integ.route[r.id]; return !!c&&(c.slack!==(r.slack===true)||c.channel!==(r.channel||"")); };
   const gChanged=(S.policy.geoRules||[]).some(changed), aChanged=shared&&S.rules.some(changed);
-  geoAskWhy("Save Slack routing",null,async why=>{
-    if(aChanged) await policyCall("PUT","/alert-rules",{baseVersion:S.policy.meta.version,rules:ruleNext,why});
-    if(gChanged) await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules:geoNext,why});
-    S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations();
-  });
+  (async ()=>{   // just a routing save: logged automatically, no reason to type
+    const why="Updated Slack alert routing";
+    try{
+      if(aChanged) await policyCall("PUT","/alert-rules",{baseVersion:S.policy.meta.version,rules:ruleNext,why});
+      if(gChanged) await policyCall("PUT","/geo-rules",{baseVersion:S.policy.meta.version,rules:geoNext,why});
+      S.integ.route={}; renderAlertsView(); if(S.view==="integrations") renderIntegrations();
+    }catch(e){ err.textContent=e.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : e.message; if(e.status===409) await loadPolicy(); renderIntegrations(); }
+  })();
 }
 async function integSlackTest(){
   S.geo.msg="Sending a test message\u2026"; renderIntegrations();
