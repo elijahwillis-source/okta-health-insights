@@ -40,8 +40,16 @@ const COUNTRY_GROUPS = [
   ["bolivia", "bo"], ["tanzania", "tz", "united republic of tanzania"], ["palestine", "ps", "state of palestine"], ["kazakhstan", "kz"], ["uzbekistan", "uz"]
 ];
 const ALIAS = new Map(); for (const g of COUNTRY_GROUPS) for (const a of g) ALIAS.set(fold(a), g[0]);
+const DISPLAY_NAME = { "democratic republic of the congo": "Democratic Republic of the Congo" };   // title() over-capitalizes "of"/"the" in this one
+const titleCountry = f => DISPLAY_NAME[f] || title(f);
 const cc = s => { const f = fold(s); return ALIAS.get(f) || f; };                       // the canonical, comparable form of a country name
-const shown = s => { const f = cc(s); return ALIAS.has(f) ? title(f) : clip(s, 60); };   // how a country is displayed once understood
+const shown = s => { const f = cc(s); return ALIAS.has(f) ? titleCountry(f) : clip(s, 60); };   // how a country is displayed once understood
+const allCountries = () => COUNTRY_GROUPS.map(g => titleCountry(g[0])).sort((a, b) => a.localeCompare(b));   // every country name this app recognizes, for a picker
+
+// countries commonly singled out for sanctions or export controls, offered as a quick-add list when building a location rule (not an exhaustive or legal list)
+const WATCHLIST = ["afghanistan", "libya", "belarus", "mali", "burkina faso", "myanmar", "central african republic", "north korea", "china", "russia",
+  "somalia", "cuba", "south sudan", "democratic republic of the congo", "syria", "ukraine", "haiti", "venezuela", "iran", "yemen", "iraq", "lebanon"];
+const watchlistCountries = () => WATCHLIST.map(titleCountry).sort((a, b) => a.localeCompare(b));
 
 /* What a rule can watch. All are about the Okta sign-in itself (a session starting, or an MFA check), not about signing in to an app. */
 const FAILED = r => r === "FAILURE" || r === "DENY" || r === "ERROR";
@@ -190,4 +198,4 @@ function createGeo({ dir, log, maxAgeMinutes = 30 }) {
   const status = () => ({ lastEvaluated: lastEval, alerts: alerts.length, persistent, maxAgeMinutes });
   return { evaluate, simulate, places, recent, setSlack, status, flush };
 }
-module.exports = { createGeo, normalizeRule, matches, KINDS, LIMITS, cc, shown, placeText };
+module.exports = { createGeo, normalizeRule, matches, KINDS, LIMITS, cc, shown, placeText, allCountries, watchlistCountries };

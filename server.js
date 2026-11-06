@@ -10,7 +10,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { normalizeRule: normalizeGeoRule, cc: geoCountry, placeText: geoPlaceText } = require("./geo");
+const { normalizeRule: normalizeGeoRule, cc: geoCountry, placeText: geoPlaceText, allCountries: geoAllCountries, watchlistCountries: geoWatchlist } = require("./geo");
 const zlib = require("zlib");
 const crypto = require("crypto");
 
@@ -879,7 +879,7 @@ const server = http.createServer(async (req, res) => {
       const since = url.searchParams.get("since"), list = geo.recent(since).concat(alertsEngine.recent(since)).sort((x, y) => Date.parse(y.createdAt) - Date.parse(x.createdAt)).slice(0, 200);
       return send(req, res, 200, { serverTime: Date.now(), alerts: list });
     }
-    if (url.pathname === "/api/geo/places" && req.method === "GET") return send(req, res, 200, geo.places(state.events));
+    if (url.pathname === "/api/geo/places" && req.method === "GET") return send(req, res, 200, { ...geo.places(state.events), all: geoAllCountries(), watchlist: geoWatchlist() });
     if (url.pathname === "/api/geo/preview" && req.method === "POST") {
       if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
       if (!lookupRateOk()) return send(req, res, 429, { error: "Too many tries in a minute. Wait a moment." });

@@ -1,6 +1,6 @@
 // Logic tests for location alerts and Slack, no servers needed.   node test/geo-unit.js
 const fs = require("fs"), os = require("os"), path = require("path"), assert = require("assert");
-const { createGeo, normalizeRule, matches, cc } = require("../geo"), { createSlack, MANIFEST } = require("../slack");
+const { createGeo, normalizeRule, matches, cc, allCountries, watchlistCountries } = require("../geo"), { createSlack, MANIFEST } = require("../slack");
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { if (cond) { pass++; console.log("PASS  " + name); } else { fail++; console.log("FAIL  " + name + (extra ? "  (" + extra + ")" : "")); } };
 const throws = (fn) => { try { fn(); return null; } catch (e) { return e.message; } };
@@ -20,6 +20,11 @@ ok("the newer watch-list countries have their codes recognized: Mali, Burkina Fa
   cc("ML") === cc("Mali") && cc("BF") === cc("Burkina Faso") && cc("CAR") === cc("Central African Republic") && cc("SS") === cc("South Sudan") &&
   cc("SS") !== cc("Sudan") && cc("DRC") === cc("Democratic Republic of the Congo") && cc("HT") === cc("Haiti") && cc("LB") === cc("Lebanon"));
 ok("accents and case do not matter for cities ('São Paulo' = 'sao paulo')", matches(rule({ places: ["Brazil / São Paulo"] }), ev({ country: "Brazil", region: "Sao Paulo" })) === false || true);
+{ const all = allCountries(), wl = watchlistCountries();
+  ok("the full country list has no duplicates and is sorted for a picker", new Set(all).size === all.length && JSON.stringify(all) === JSON.stringify([...all].sort((a, b) => a.localeCompare(b))));
+  ok("the high-risk quick-add list is a sorted, duplicate-free subset of the full list, and the Congo entry reads naturally", new Set(wl).size === wl.length && wl.every(c => all.includes(c)) &&
+    JSON.stringify(wl) === JSON.stringify([...wl].sort((a, b) => a.localeCompare(b))) && wl.includes("Democratic Republic of the Congo") && !/Of The/.test(wl.join(" ")));
+  ok("Crimea and Donetsk are not on the watch-list (they are regions of Ukraine, which is)", !wl.includes("Crimea") && !wl.includes("Donetsk") && wl.includes("Ukraine")); }
 { const r = rule({ places: ["Brazil / sao paulo"] }); ok("... region match ignores case and accents", matches(r, ev({ country: "Brazil", region: "São Paulo" }))); }
 ok("a rule needs a name", /name/.test(throws(() => rule({ name: "" }))));
 ok("a rule needs a known kind", /Choose what to watch/.test(throws(() => rule({ kind: "everything" }))));

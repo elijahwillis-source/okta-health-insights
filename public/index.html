@@ -2000,12 +2000,16 @@ async function openGeoEditor(init){
   if(!S.geo.places){ try{ const x=await fetch("api/geo/places"); if(x.ok) S.geo.places=await x.json(); }catch(_){ /* the list of places is a convenience */ } }
   const root=document.createElement("div"); root.className="modal"; root.id="geoModal";
   const opt=(v,l,cur)=>'<option value="'+v+'"'+(String(cur)===String(v)?" selected":"")+'>'+l+'</option>', seen=((S.geo.places&&S.geo.places.countries)||[]).slice(0,14);
+  const allC=(S.geo.places&&S.geo.places.all)||[], seenNames=new Set(seen.map(c=>c.country.toLowerCase()));
+  const watch=((S.geo.places&&S.geo.places.watchlist)||[]).filter(c=>!seenNames.has(c.toLowerCase()));   // don't show the same country twice if it's already in "your data"
   root.innerHTML='<div class="mcard" role="dialog" aria-modal="true" aria-label="'+(editing?"Edit location rule":"New location rule")+'"><h3>'+(editing?"Edit location rule":"New location rule")+'</h3>'+
     '<label class="fl">Name<input type="text" id="gName" value="'+esc(r.name)+'" placeholder="For example: Invalid passwords from high-risk regions"></label>'+
     '<label class="fl">Watch for<select id="gKind">'+Object.keys(GEO_KIND).map(k=>opt(k,GEO_KIND[k].toLowerCase(),r.kind)).join("")+'</select></label>'+
     '<div class="fl">Where<div class="chkrow"><label class="chk"><input type="radio" name="gMode" value="in"'+(r.mode==="in"?" checked":"")+'> From these places</label><label class="chk"><input type="radio" name="gMode" value="outside"'+(r.mode==="outside"?" checked":"")+'> From anywhere except these places</label></div></div>'+
     '<label class="fl">Places, one per line<textarea id="gPlaces" rows="4" class="gplaces" placeholder="Russia&#10;China&#10;United States / Texas">'+esc(r.places.map(gPlace).join("\n"))+'</textarea></label>'+
     '<p class="hint">A country, or add a state or city after a slash. Short names such as RU or USA work. Events with no known location are ignored.</p>'+
+    (allC.length? '<label class="fl">Add a country<select id="gCountryPick"><option value="">Choose a country\u2026</option>'+allC.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join("")+'</select></label>' : "")+
+    (watch.length? '<div class="fl">High-risk countries, click to add<div class="gchips">'+watch.map(c=>'<button type="button" class="ghost" data-gadd="'+esc(c)+'">'+esc(c)+'</button>').join("")+'</div></div>' : "")+
     (seen.length? '<div class="fl">Countries in your data, click to add<div class="gchips">'+seen.map(c=>'<button type="button" class="ghost" data-gadd="'+esc(c.country)+'">'+esc(c.country)+' ('+fmtN(c.signins+c.failed+c.mfaFailures)+')</button>').join("")+'</div></div>' : "")+
     '<div class="frow"><label class="fl">Alert when there are at least<input type="number" id="gCount" min="1" max="1000" value="'+r.count+'"></label><label class="fl">within<select id="gWin">'+[5,15,30,60,360,1440].map(m=>opt(m,gWin(m),r.windowMinutes)).join("")+'</select></label><label class="fl">counted<select id="gPer">'+opt("person","per person",r.per)+opt("all","in total",r.per)+'</select></label></div>'+
     '<div class="frow"><label class="fl">How serious<select id="gSev">'+opt("info","Low",r.severity)+opt("warn","Medium",r.severity)+opt("bad","High",r.severity)+'</select></label><label class="fl">Do not repeat the same alert for<select id="gCool">'+[0,15,30,60,360,1440].map(m=>opt(m,m? gWin(m) : "no wait",r.cooldownMinutes)).join("")+'</select></label></div>'+
@@ -2018,8 +2022,10 @@ async function openGeoEditor(init){
   const close=()=>{ root.remove(); document.removeEventListener("keydown",esc2); }, esc2=e=>{ if(e.key==="Escape") close(); };
   const form=()=>({id:r.id||undefined,name:q("#gName").value.trim(),kind:q("#gKind").value,mode:(root.querySelector('input[name="gMode"]:checked')||{}).value||"in",places:q("#gPlaces").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),count:+q("#gCount").value||1,windowMinutes:+q("#gWin").value,per:q("#gPer").value,severity:q("#gSev").value,cooldownMinutes:+q("#gCool").value,slack:r.slack===true,channel:r.channel||"",enabled:r.enabled!==false});          // Slack choices are made under Integrations, and kept as they were
   document.addEventListener("keydown",esc2); q("#gName").focus(); q("#gCancel").onclick=close; root.addEventListener("mousedown",e=>{ if(e.target===root) close(); });
-  root.addEventListener("click",e=>{ const b=e.target.closest("[data-gadd]"); if(!b) return; const ta=q("#gPlaces"), have=ta.value.split(/\r?\n/).map(x=>x.trim().toLowerCase());
-    if(!have.includes(b.dataset.gadd.toLowerCase())) ta.value=(ta.value.trim()? ta.value.replace(/\s+$/,"")+"\n" : "")+b.dataset.gadd; });
+  const addPlace=v=>{ const ta=q("#gPlaces"), have=ta.value.split(/\r?\n/).map(x=>x.trim().toLowerCase());
+    if(!have.includes(v.toLowerCase())) ta.value=(ta.value.trim()? ta.value.replace(/\s+$/,"")+"\n" : "")+v; };
+  root.addEventListener("click",e=>{ const b=e.target.closest("[data-gadd]"); if(b) addPlace(b.dataset.gadd); });
+  if(q("#gCountryPick")) q("#gCountryPick").addEventListener("change",e=>{ if(e.target.value) addPlace(e.target.value); e.target.value=""; });
   q("#gTry").onclick=async ()=>{ err(""); const box=q("#gPrev"); box.hidden=false; box.textContent="Checking\u2026";
     try{ const resp=await fetch("api/geo/preview",{method:"POST",headers:polHeaders(),body:JSON.stringify({rule:form()})}), j=await resp.json().catch(()=>({})); if(!resp.ok) throw new Error(j.error||("HTTP "+resp.status)); box.innerHTML=geoPreviewHtml(j); }
     catch(e){ box.hidden=true; err(e.message); } };
