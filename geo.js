@@ -29,6 +29,8 @@ const COUNTRY_GROUPS = [
   ["north korea", "kp", "democratic people's republic of korea", "korea, democratic people's republic of"], ["south korea", "kr", "republic of korea", "korea, republic of"],
   ["syria", "sy", "syrian arab republic"], ["belarus", "by"], ["venezuela", "ve"], ["cuba", "cu"], ["myanmar", "mm", "burma"], ["afghanistan", "af"], ["iraq", "iq"],
   ["libya", "ly"], ["sudan", "sd"], ["somalia", "so"], ["yemen", "ye"], ["ukraine", "ua"], ["vietnam", "vn", "viet nam"], ["czechia", "cz", "czech republic"],
+  ["mali", "ml"], ["burkina faso", "bf"], ["central african republic", "cf", "car"], ["south sudan", "ss"], ["haiti", "ht"], ["lebanon", "lb"],
+  ["democratic republic of the congo", "cd", "dr congo", "drc", "congo-kinshasa", "congo, the democratic republic of the"],
   ["turkey", "tr", "turkiye"], ["united arab emirates", "ae", "uae"], ["germany", "de"], ["france", "fr"], ["canada", "ca"], ["australia", "au"], ["india", "in"],
   ["japan", "jp"], ["brazil", "br"], ["mexico", "mx"], ["netherlands", "nl", "the netherlands", "holland"], ["ireland", "ie", "republic of ireland"], ["singapore", "sg"],
   ["hong kong", "hk"], ["taiwan", "tw"], ["israel", "il"], ["pakistan", "pk"], ["nigeria", "ng"], ["bangladesh", "bd"], ["saudi arabia", "sa"], ["egypt", "eg"],

@@ -16,6 +16,9 @@ const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "geo-"));
 console.log("--- country names and rule checks ---");
 ok("'RU', 'Russian Federation' and 'Russia' are one place", cc("RU") === cc("Russian Federation") && cc("Russia") === cc("russia "));
 ok("'USA', 'U.S.' and 'United States of America' are one place; 'Türkiye' is Turkey", cc("USA") === cc("United States") && cc("U.S.") === cc("United States of America") && cc("Türkiye") === cc("Turkey"));
+ok("the newer watch-list countries have their codes recognized: Mali, Burkina Faso, CAR, South Sudan, DRC, Haiti, Lebanon",
+  cc("ML") === cc("Mali") && cc("BF") === cc("Burkina Faso") && cc("CAR") === cc("Central African Republic") && cc("SS") === cc("South Sudan") &&
+  cc("SS") !== cc("Sudan") && cc("DRC") === cc("Democratic Republic of the Congo") && cc("HT") === cc("Haiti") && cc("LB") === cc("Lebanon"));
 ok("accents and case do not matter for cities ('São Paulo' = 'sao paulo')", matches(rule({ places: ["Brazil / São Paulo"] }), ev({ country: "Brazil", region: "Sao Paulo" })) === false || true);
 { const r = rule({ places: ["Brazil / sao paulo"] }); ok("... region match ignores case and accents", matches(r, ev({ country: "Brazil", region: "São Paulo" }))); }
 ok("a rule needs a name", /name/.test(throws(() => rule({ name: "" }))));
