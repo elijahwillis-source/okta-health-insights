@@ -2050,8 +2050,9 @@ document.addEventListener("click",ev=>{
   const ni=ev.target.closest(".nitem[data-nid]"); if(ni&&!ev.target.closest("button")){ openNotif(ni.dataset.nid); }
 });
 document.addEventListener("change",ev=>{
-  { const gt=ev.target.closest("[data-gtoggle]"); if(gt){ const id=gt.dataset.gtoggle, on=gt.checked, all=S.policy.geoRules||[], nm=all.find(r=>r.id===id); gt.checked=!on;       // changes only once saved, and a change needs a reason
-      geoAskWhy((on? "Turn on " : "Turn off ")+"“"+(nm? nm.name : "")+"”",all.map(r=>r.id===id? Object.assign({},r,{enabled:on}) : r)); return; } }
+  { const gt=ev.target.closest("[data-gtoggle]"); if(gt){ const id=gt.dataset.gtoggle, on=gt.checked, all=S.policy.geoRules||[];
+      geoPut(all.map(r=>r.id===id? Object.assign({},r,{enabled:on}) : r), "Turned "+(on? "on" : "off")+" from the toggle switch")   // just a toggle: logged automatically, no reason to type
+        .catch(async e=>{ gt.checked=!on; alert(e.status===409? "Someone else changed the rules while you were editing. They have been reloaded: please try again." : e.message); await loadPolicy(); renderAlertsView(); }); return; } }
   const t=ev.target.closest("[data-rtoggle]"); if(t){ const r=S.rules.find(x=>x.id===t.dataset.rtoggle); if(r){ r.enabled=t.checked; saveRules(); renderAlertsView(); if(r.enabled) evaluateAlerts(S.C||compute()); } return; }
   if(ev.target.id==="nSel"){ S.nfilter=ev.target.value; renderAlertsView(); }
 });
