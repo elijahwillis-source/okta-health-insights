@@ -1521,7 +1521,8 @@ function showView(v){
   if(S.C&&typeof renderViewExtras==="function") renderViewExtras(v);
 }
 function go(v){ try{ if(currentView()!==v) location.hash="#/"+v; }catch(_){} showView(v); }
-try{ window.addEventListener("hashchange",()=>showView(currentView())); }catch(_){}
+function hashGoogleApp(){ try{ const m=String(location.hash||"").match(/^#\/google\/([^?]+)/); return m? decodeURIComponent(m[1]) : ""; }catch(_){ return ""; } }
+try{ window.addEventListener("hashchange",()=>{ const ga=hashGoogleApp(); if(ga) S.gfocus=ga; showView(currentView()); }); }catch(_){}
 // The assistant is a docked column: opening it narrows the app, closing it gives the width back. Its width is yours to set (drag the edge).
 // Iris is always the same width: a third of the window, never under 340px or over 640px, and never so wide that the app has less than 420px.
 const AW_MIN=340, AW_MAX=640, viewW=()=>document.documentElement.clientWidth, navW=()=>viewW()<=900? 68 : ($("#shell").classList.contains("collapsed")? 68 : 236);
@@ -2686,7 +2687,7 @@ $("#btnLive").onclick=goLive;
 $("#view-alerts").addEventListener("click",ev=>{ if(ev.target.closest("#rulesPublish")) publishRules("Published from the Alerts page"); });
 
 (async function init(){
-  await loadMe(); applyPrefs(); renderBrowserNotif(); renderBell(); renderLatestAlerts(); showView(currentView()); intro(); let st=null;
+  await loadMe(); applyPrefs(); renderBrowserNotif(); renderBell(); renderLatestAlerts(); { const ga=hashGoogleApp(); if(ga) S.gfocus=ga; } showView(currentView()); intro(); let st=null;
   try{ const r=await fetch("api/status"); if(r.ok) st=await r.json(); }catch(_){}
   if(st&&st.org) $("#orgName").textContent=st.org;
   if(st&&st.live){ $("#btnLive").hidden=false; setAssistantUI(!!st.assistant); await goLive(); }

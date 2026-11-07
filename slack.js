@@ -102,7 +102,8 @@ function createSlack({ env, log, fetchFn }) {
     return { text: "Sightline: " + mx(a.ruleName, 100) + " (" + mx(a.person || "unknown", 80) + " from " + mx(place, 80) + ")", blocks };      // the notification text is parsed too, so it is escaped like the rest
   }
   function genericMessage(a) {
-    const sev = { bad: "High", warn: "Medium", info: "Low" }[a.severity] || "Medium", link = publicUrl ? publicUrl + "/#/" + clip((a.link && a.link.view) || "alerts", 20) : "";
+    const sev = { bad: "High", warn: "Medium", info: "Low" }[a.severity] || "Medium",
+      link = publicUrl ? publicUrl + "/#/" + clip((a.link && a.link.view) || "alerts", 20) + (a.link && a.link.app ? "/" + encodeURIComponent(clip(a.link.app, 80)) : "") : "";
     return { text: "Sightline: " + mx(a.title || a.ruleName, 100) + " (" + mx(a.body, 160) + ")", blocks: [
       { type: "header", text: { type: "plain_text", text: clip(a.title || a.ruleName, 140).replace(/[<>]/g, "") || "Alert" } },
       { type: "section", text: { type: "mrkdwn", text: mx(a.body, 600) || "(no details)" } },
