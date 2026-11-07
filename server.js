@@ -739,12 +739,16 @@ function send(req, res, status, body, type = "application/json; charset=utf-8") 
 }
 
 
-const lookupHits = [];
-function lookupRateOk() { const now = Date.now(); while (lookupHits.length && now - lookupHits[0] > 60000) lookupHits.shift(); if (lookupHits.length >= 30) return false; lookupHits.push(now); return true; }
-const hits = []; // crude global rate limit for the assistant
-function rateOk() { const now = Date.now(); while (hits.length && now - hits[0] > 60000) hits.shift(); if (hits.length >= 20) return false; hits.push(now); return true; }
-
-const policyHits = []; function policyRateOk() { const now = Date.now(); while (policyHits.length && now - policyHits[0] > 60000) policyHits.shift(); if (policyHits.length >= 60) return false; policyHits.push(now); return true; }
+// Per-actor rate limits (one signed-in person or IP cannot use up another's share), each its own bucket of timestamps per key.
+function makeLimiter(max) {
+  const hits = new Map();
+  return key => { const now = Date.now(), a = (hits.get(key) || []).filter(t => now - t < 60000); if (a.length >= max) { hits.set(key, a); return false; } a.push(now); hits.set(key, a); if (hits.size > 5000) hits.clear(); return true; };
+}
+const lookupRateOk = makeLimiter(30);
+const rateOk = makeLimiter(20);    // the assistant
+const policyRateOk = makeLimiter(60);
+// the key for these limiters: the session (one person, even if several share an office IP), otherwise the IP
+const rateKeyOf = req => (req.user && req.user.sid) || auth.clientIp(req);
 // who is making this request: the trusted proxy header if one is configured; otherwise the name the person typed (unverified)
 function actorOf(req) {
   const u = req.user, base = { ip: auth.clientIp(req), ua: String(req.headers["user-agent"] || "").slice(0, 160) };
@@ -841,7 +845,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && url.pathname === "/api/diagnostics") return send(req, res, 200, diagnostics());
 
     if (req.method === "GET" && url.pathname === "/api/user-events") {
-      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
+      if (!lookupRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
       const qs = [...new Set(url.searchParams.getAll("q").map(cleanQ).filter(q => q.length >= 2))].slice(0, 3);
       if (!qs.length) return send(req, res, 400, { error: "Provide ?q=<email, username or name> (at least 2 characters)." });
       const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
@@ -849,7 +853,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/api/app-events") {
-      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
+      if (!lookupRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many lookups — try again in a minute." });
       const ids = [...new Set(url.searchParams.getAll("id").filter(validAppId))].slice(0, 3);
       if (!ids.length) return send(req, res, 400, { error: "Provide ?id=<app id> (one to three)." });
       const days = Math.min(90, Math.max(1, Math.floor(+url.searchParams.get("days")) || 7));
@@ -858,12 +862,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "POST" && (url.pathname === "/api/explain-error" || url.pathname === "/api/chat") && !auth.roleAtLeast(who, cfg.assistantRole)) return forbid(cfg.assistantRole);
     if (req.method === "POST" && url.pathname === "/api/explain-error") {
-      if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
+      if (!rateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
       return send(req, res, 200, await explainError(await readBody(req)));
     }
 
     if (req.method === "POST" && url.pathname === "/api/chat") {
-      if (!rateOk()) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
+      if (!rateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many assistant requests — try again in a minute." });
       const body = await readBody(req);
       return send(req, res, 200, { text: await chat(body) });
     }
@@ -882,7 +886,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/geo/places" && req.method === "GET") return send(req, res, 200, { ...geo.places(state.events), all: geoAllCountries(), watchlist: geoWatchlist() });
     if (url.pathname === "/api/geo/preview" && req.method === "POST") {
       if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
-      if (!lookupRateOk()) return send(req, res, 429, { error: "Too many tries in a minute. Wait a moment." });
+      if (!lookupRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many tries in a minute. Wait a moment." });
       const b = await readBody(req), rule = normalizeGeoRule(Object.assign({ name: "Preview" }, b.rule));
       const seenIn = new Set(geo.places(state.events).countries.map(c => geoCountry(c.country)));       // which of these places have ever appeared in the data held
       return send(req, res, 200, { ...geo.simulate(rule, state.events), held: state.events.length, heldFrom: state.events.length ? state.events[0].published : null, rule,
@@ -895,13 +899,13 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === "/api/slack/test" && req.method === "POST") {
       if (!auth.roleAtLeast(who, "admin")) return forbid("admin");
-      if (!policyRateOk()) return send(req, res, 429, { error: "Too many tests in a minute. Wait a moment." });
+      if (!policyRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many tests in a minute. Wait a moment." });
       const a = actorOf(req), r = await slack.sendTest(a.name);
       audit.write({ cat: "alerts", action: "slack.test", ok: !!r.ok, actor: a, ip: a.ip, ua: a.ua, target: slack.info().channel, detail: r.ok ? "Test message posted" : "Test message failed: " + r.error });
       return send(req, res, 200, { ok: !!r.ok, error: r.error || null, hint: r.ok ? null : (r.error === "not_configured" ? "Set SLACK_BOT_TOKEN and SLACK_CHANNEL first." : slack.hint(r.error)) });
     }
     if (url.pathname.startsWith("/api/policy/") && ["POST", "PUT", "DELETE"].includes(req.method)) {
-      if (!policyRateOk()) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
+      if (!policyRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many changes in a minute. Slow down." });
       const actor = actorOf(req), v = url.searchParams.get("v");
       let m;
       if (req.method === "PUT" && url.pathname === "/api/policy/geo-rules") { const b = await readBody(req); return send(req, res, 200, policy.setGeoRules(actor, b.baseVersion, b.rules, b.why)); }
