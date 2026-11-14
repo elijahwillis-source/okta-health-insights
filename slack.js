@@ -1,23 +1,33 @@
 "use strict";
 /*
- * Slack: post Sightline's alerts to a channel.
+ * Slack: post Sightline's alerts to a channel, and optionally act on an emoji reaction to one.
  *
  * Setup is one pasted JSON file (see MANIFEST below, also served by the app and kept in integrations/slack/app-manifest.json):
  * create a Slack app "from a manifest", install it, then set two settings: SLACK_BOT_TOKEN (the Bot User OAuth Token) and
  * SLACK_CHANNEL (where alerts go by default). The manifest already asks for exactly the permissions needed, and nothing else:
  *   chat:write         post messages as Sightline
  *   chat:write.public  post to public channels without having to be invited first (private channels still need an invite)
- * Sightline only ever POSTS: it cannot read channels, messages or people. Nothing comes back from Slack to Sightline.
+ *   reactions:read     see which emoji was added to a message Sightline posted (needed only for the reaction actions below)
+ * Sightline only ever reads a reaction on its own messages: it cannot read channel contents, other messages, or people.
+ *
+ * Reaction actions (optional): for a Google OAuth app alert, reacting with :no_entry_sign: (configurable, SLACK_REACT_BLOCK)
+ * flags the app as not allowed, and :white_check_mark: (SLACK_REACT_APPROVE) approves it ("known", so it stops alerting unless
+ * its access changes or the approval expires) — the same two decisions as the app's "App decisions" page. This needs
+ * SLACK_SIGNING_SECRET (from the Slack app's "Basic Information" page) so a request claiming to be Slack can be verified, and the
+ * manifest's event_subscriptions request_url (added automatically once PUBLIC_URL/SLACK_LINK_URL is set) pointed at Slack.
+ * Whoever can add that reaction in that channel can approve or flag an app, the same as anyone with access to the app's policy
+ * page — keep the alerts channel restricted to people you would trust with that.
  *
  * Safety: everything that came from outside (people's names, app names, cities, reasons) is escaped, so a name like "<!channel>"
  * cannot ping a channel or build a link. Sending is paced (Slack allows about one message a second per channel), a burst is summed up in
  * one message once SLACK_MAX_PER_MINUTE is reached, and a failure never affects the alert itself: it is still raised in the app.
  */
+const crypto = require("crypto");
 const MANIFEST = {
-  _metadata: { major_version: 1, minor_version: 1 },
+  _metadata: { major_version: 1, minor_version: 2 },
   display_information: { name: "Sightline", description: "Location and security alerts from Sightline, posted to the channel you choose.", background_color: "#0f172a" },
   features: { bot_user: { display_name: "Sightline", always_online: true } },
-  oauth_config: { scopes: { bot: ["chat:write", "chat:write.public"] } },
+  oauth_config: { scopes: { bot: ["chat:write", "chat:write.public", "reactions:read"] } },
   settings: { org_deploy_enabled: false, socket_mode_enabled: false, token_rotation_enabled: false }
 };
 
@@ -37,11 +47,36 @@ function createSlack({ env, log, fetchFn }) {
   const publicUrl = String(env.SLACK_LINK_URL || env.PUBLIC_URL || "").replace(/\/+$/, ""),      // SLACK_LINK_URL so a site without sign-in can have links without PUBLIC_URL (which switches sign-in on)
      showIp = !/^(0|false|no|off)$/i.test(env.SLACK_SHOW_IP || "");
   const configured = !!(token && channel);
+  const signingSecret = String(env.SLACK_SIGNING_SECRET || "").trim();
+  const reactApprove = String(env.SLACK_REACT_APPROVE || "white_check_mark").trim().toLowerCase().replace(/^:|:$/g, "");
+  const reactBlock = String(env.SLACK_REACT_BLOCK || "no_entry_sign").trim().toLowerCase().replace(/^:|:$/g, "");
+  const reactionsOn = configured && !!signingSecret;
   const stats = { sent: 0, failed: 0, summarized: 0, lastOkAt: null, lastError: null, lastErrorAt: null };
   if (token && !channel) log("NOTE: SLACK_BOT_TOKEN is set but SLACK_CHANNEL is not: Slack alerts are off until a default channel is set.");
   if (!token && channel) log("NOTE: SLACK_CHANNEL is set but SLACK_BOT_TOKEN is not: Slack alerts are off until the token is set.");
   if (token && !/^xoxb-/.test(token)) log("NOTE: SLACK_BOT_TOKEN should start with xoxb- (the Bot User OAuth Token). A token starting differently will not work.");
   if (configured) log("Slack alerts are on (default channel " + channel + ")");
+  if (configured && !signingSecret) log("NOTE: SLACK_SIGNING_SECRET is not set: reacting to a Google app alert in Slack will not do anything until it is set.");
+
+  // which Google app alert a Slack message was about, so a later reaction to it can act on the right app. In memory only
+  // (a restart forgets it; reacting to a very old alert after a restart will just do nothing), pruned by age and by size.
+  const reactable = new Map();
+  const REACTABLE_TTL_MS = 30 * 864e5, REACTABLE_MAX = 5000;
+  function pruneReactable() {
+    const cut = Date.now() - REACTABLE_TTL_MS; for (const [k, v] of reactable) if (v.at < cut) reactable.delete(k);
+    if (reactable.size > REACTABLE_MAX) { let drop = reactable.size - REACTABLE_MAX; for (const k of reactable.keys()) { if (drop-- <= 0) break; reactable.delete(k); } }
+  }
+  function trackReactable(ch, ts, info) { if (!reactionsOn || !ch || !ts) return; pruneReactable(); reactable.set(ch + ":" + ts, { ...info, at: Date.now() }); }
+  function resolveReactable(ch, ts) { return (ch && ts && reactable.get(ch + ":" + ts)) || null; }
+  // is this really Slack? Slack signs every request with the signing secret (see api.slack.com/authentication/verifying-requests-from-slack)
+  function verifySignature(headers, rawBody) {
+    if (!signingSecret) return false;
+    const ts = headers["x-slack-request-timestamp"], sig = String(headers["x-slack-signature"] || "");
+    if (!ts || !/^v0=[0-9a-f]{64}$/.test(sig)) return false;
+    if (Math.abs(Date.now() / 1000 - +ts) > 300) return false;           // more than 5 minutes old: could be a replay
+    const mine = "v0=" + crypto.createHmac("sha256", signingSecret).update("v0:" + ts + ":" + rawBody).digest("hex");
+    try { return crypto.timingSafeEqual(Buffer.from(mine), Buffer.from(sig)); } catch { return false; }
+  }
 
   async function call(method, body) {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 8000);
@@ -102,19 +137,28 @@ function createSlack({ env, log, fetchFn }) {
     return { text: "Sightline: " + mx(a.ruleName, 100) + " (" + mx(a.person || "unknown", 80) + " from " + mx(place, 80) + ")", blocks };      // the notification text is parsed too, so it is escaped like the rest
   }
   function genericMessage(a) {
-    const sev = { bad: "High", warn: "Medium", info: "Low" }[a.severity] || "Medium",
+    const sev = { bad: "High", warn: "Medium", info: "Low" }[a.severity] || "Medium", isGoogleApp = a.link && a.link.view === "google" && a.link.app,
       link = publicUrl ? publicUrl + "/#/" + clip((a.link && a.link.view) || "alerts", 20) + (a.link && a.link.app ? "/" + encodeURIComponent(clip(a.link.app, 80)) : "") : "";
+    const elements = [{ type: "mrkdwn", text: "Severity: *" + sev + "*" + (link ? "  \u00b7  <" + link + "|Open in Sightline>" : "") }];
+    if (reactionsOn && isGoogleApp) elements.push({ type: "mrkdwn", text: "React :" + reactBlock + ": to mark it *not allowed*, or :" + reactApprove + ": to mark it *known* (stop alerting on it)." });
     return { text: "Sightline: " + mx(a.title || a.ruleName, 100) + " (" + mx(a.body, 160) + ")", blocks: [
       { type: "header", text: { type: "plain_text", text: clip(a.title || a.ruleName, 140).replace(/[<>]/g, "") || "Alert" } },
       { type: "section", text: { type: "mrkdwn", text: mx(a.body, 600) || "(no details)" } },
-      { type: "context", elements: [{ type: "mrkdwn", text: "Severity: *" + sev + "*" + (link ? "  \u00b7  <" + link + "|Open in Sightline>" : "") }] }] };
+      { type: "context", elements }] };
   }
   const info = () => ({ configured, channel: configured ? channel : "", tokenSet: !!token, channelSet: !!channel, maxPerMinute: cap, showIp,
+    reactionsOn, signingSecretSet: !!signingSecret, reactApprove, reactBlock,
     sent: stats.sent, failed: stats.failed, summarized: stats.summarized, lastOkAt: stats.lastOkAt, lastError: stats.lastError, lastErrorAt: stats.lastErrorAt,
     lastErrorHint: stats.lastError ? (HINTS[stats.lastError] || "Slack answered: " + stats.lastError) : null });
   return {
-    configured, info, manifest: () => JSON.parse(JSON.stringify(MANIFEST)), hint: code => HINTS[code] || (code ? "Slack answered: " + code : ""),
+    configured, info, hint: code => HINTS[code] || (code ? "Slack answered: " + code : ""),
+    manifest: () => {
+      const m = JSON.parse(JSON.stringify(MANIFEST));
+      if (publicUrl) m.settings.event_subscriptions = { request_url: publicUrl + "/api/slack/events", bot_events: ["reaction_added"] };
+      return m;
+    },
     alertMessage, enqueue,
+    reactionsOn, reactions: { approve: reactApprove, block: reactBlock }, verifySignature, trackReactable, resolveReactable,
     // an alert from the rules; done({ok,error,ts,summarized}) says what happened to it
     sendAlert(a, done) { const m = a.where ? alertMessage(a) : genericMessage(a); enqueue({ channel: a.slack && a.slack.channel || "", text: m.text, blocks: m.blocks, done }); },
     // a message so an admin can check the setup end to end: it waits for the answer

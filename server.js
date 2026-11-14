@@ -226,11 +226,32 @@ function deliverAlert(a, store) {
   if (a.slack.state !== "queued") return;
   if (!slack.configured) { store.setSlack(a.id, { state: "not_configured" }); return; }
   slack.sendAlert(a, r => {
-    if (r.ok) return store.setSlack(a.id, { state: "sent" });
+    if (r.ok) {
+      if (a.link && a.link.view === "google" && a.link.app) {                 // so a later emoji reaction can know which app this was about
+        const live = gApps.find(x => x.clientId === a.link.app);
+        slack.trackReactable(r.channel, r.ts, { clientId: a.link.app, appName: (live && live.name) || a.link.app, scopes: live ? [...live.scopes] : [] });
+      }
+      return store.setSlack(a.id, { state: "sent" });
+    }
     if (r.summarized) return store.setSlack(a.id, { state: "summarized" });
     store.setSlack(a.id, { state: "failed", error: r.error, hint: slack.hint(r.error) });
     if (Date.now() - lastSlackAudit > 60000) { lastSlackAudit = Date.now(); audit.write({ cat: "alerts", action: "alert.slack.failed", ok: false, actor: SYSTEM_ACTOR, target: a.ruleName, detail: "Slack did not accept the message: " + r.error }); }
   });
+}
+// A reaction on one of Sightline's own Slack messages about a Google app: approve it (known, stop alerting) or flag it (not allowed).
+// The caller has already checked the request's Slack signature; whoever can react in that channel gets the same say as the app's policy
+// page, so there is no further identity check here — restrict the alerts channel to people you trust with that.
+async function handleSlackReaction(e) {
+  const reaction = String(e.reaction || "").toLowerCase(), isApprove = reaction === slack.reactions.approve, isBlock = reaction === slack.reactions.block;
+  if (!isApprove && !isBlock) return;
+  const tracked = slack.resolveReactable(e.item.channel, e.item.ts); if (!tracked) return;
+  const live = gApps.find(x => x.clientId === tracked.clientId), appName = (live && live.name) || tracked.appName || tracked.clientId, scopes = live ? [...live.scopes] : (tracked.scopes || []);
+  const actor = { name: "slack:" + (e.user || "unknown"), ip: "slack", ua: "Slack reaction", verified: true, role: "admin", via: "slack-reaction" };
+  try {
+    policy.upsertApproval(actor, undefined, { clientId: tracked.clientId, appName, scopes, status: isApprove ? "approved" : "flagged",
+      expiresAt: isApprove && cfg.policyRequireExpiry ? new Date(Date.now() + 90 * 864e5).toISOString() : undefined,
+      ticket: "slack-msg:" + e.item.ts, why: "Marked " + (isApprove ? "known" : "not allowed") + " by a :" + reaction + ": reaction on the Slack alert." });
+  } catch (err) { log("Slack: could not apply the " + reaction + " reaction to " + appName + ": " + err.message); }
 }
 // Location alerts are worked out here, as events arrive, so they fire with nobody looking at the page. A failure here must never stop the poll.
 function onFresh(fresh) {
@@ -766,6 +787,18 @@ function readBody(req, limit = 200000) {
     req.on("error", reject);
   });
 }
+// the raw bytes, not parsed: Slack's request signature is computed over the exact body, before any JSON.parse
+function readRawBody(req, limit = 100000) {
+  return new Promise((resolve, reject) => {
+    let n = 0; const chunks = [];
+    req.on("data", c => { n += c.length; if (n > limit) { reject(Object.assign(new Error("Body too large"), { status: 413 })); req.destroy(); } else chunks.push(c); });
+    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("error", reject);
+  });
+}
+// Slack retries a webhook it did not get a quick 200 for; event_id lets a retry (or the same event delivered twice) be ignored
+const seenSlackEvents = new Set();
+function seenSlackEvent(id) { if (!id) return false; if (seenSlackEvents.has(id)) return true; seenSlackEvents.add(id); if (seenSlackEvents.size > 2000) seenSlackEvents.delete(seenSlackEvents.values().next().value); return false; }
 
 // the logo files: public (no password), a fixed list so nothing else in public/ can be reached
 const BRAND = {
@@ -779,6 +812,17 @@ const server = http.createServer(async (req, res) => {
     if ((req.method === "GET" || req.method === "HEAD") && BRAND[url.pathname]) {
       try { const [f, type] = BRAND[url.pathname]; const buf = fs.readFileSync(path.join(__dirname, "public", "brand", f)); res.writeHead(200, { ...SEC_HEADERS, "content-type": type, "content-length": buf.length, "cache-control": "public, max-age=86400" }); return res.end(req.method === "HEAD" ? undefined : buf); }
       catch { res.writeHead(404, SEC_HEADERS); return res.end(); }
+    }
+    if (req.method === "POST" && url.pathname === "/api/slack/events") {                              // Slack's webhook: verified by its own signature, not a session
+      let raw; try { raw = await readRawBody(req); } catch (e) { return send(req, res, e.status || 400, { error: "Body too large" }); }
+      if (!slack.verifySignature(req.headers, raw)) return send(req, res, 401, { error: "Bad signature" });
+      let body; try { body = JSON.parse(raw || "{}"); } catch { return send(req, res, 400, { error: "Bad JSON" }); }
+      if (body.type === "url_verification") return send(req, res, 200, { challenge: body.challenge });
+      if (body.type === "event_callback" && !seenSlackEvent(body.event_id)) {
+        const e = body.event || {};
+        if (e.type === "reaction_added" && e.item && e.item.type === "message") handleSlackReaction(e).catch(err => log("Slack: reaction handling failed: " + err.message));
+      }
+      return send(req, res, 200, { ok: true });                                                      // ack fast; Slack retries if it does not get 200 within ~3s
     }
     if (await auth.handle(req, res, url)) return;                                                    // /login /callback /logout /logged-out
     const who = auth.identify(req);

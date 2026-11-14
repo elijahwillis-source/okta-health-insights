@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "major_version": 1,
-    "minor_version": 1
+    "minor_version": 2
   },
   "display_information": {
     "name": "Sightline",
@@ -18,7 +18,8 @@
     "scopes": {
       "bot": [
         "chat:write",
-        "chat:write.public"
+        "chat:write.public",
+        "reactions:read"
       ]
     }
   },
