@@ -1,5 +1,5 @@
 // Logic tests for location alerts and Slack, no servers needed.   node test/geo-unit.js
-const fs = require("fs"), os = require("os"), path = require("path"), assert = require("assert"), crypto = require("crypto");
+const fs = require("fs"), os = require("os"), path = require("path"), assert = require("assert");
 const { createGeo, normalizeRule, matches, cc, allCountries, watchlistCountries } = require("../geo"), { createSlack, MANIFEST } = require("../slack");
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { if (cond) { pass++; console.log("PASS  " + name); } else { fail++; console.log("FAIL  " + name + (extra ? "  (" + extra + ")" : "")); } };
@@ -123,22 +123,8 @@ console.log("--- the Slack message ---");
   ok("SLACK_SHOW_IP=false keeps the IP address out of Slack", !JSON.stringify(hide.alertMessage(a)).includes("198.51.100.7"));
   ok("the fallback text (shown in notifications) has the rule, person and place", /Sightline: /.test(m.text) && m.text.includes("Moscow") === false || m.text.includes("from"));
 }
-
-console.log("--- reacting to a Google app alert in Slack ---");
-{
-  const secret = "s3cr3t", env = { SLACK_BOT_TOKEN: "xoxb-1", SLACK_CHANNEL: "#a", PUBLIC_URL: "https://sl.example.com", SLACK_SIGNING_SECRET: secret };
-  const r = createSlack({ env, log }), off = createSlack({ env: { SLACK_BOT_TOKEN: "xoxb-1", SLACK_CHANNEL: "#a" }, log });
-  const sign = (ts, body) => "v0=" + crypto.createHmac("sha256", secret).update("v0:" + ts + ":" + body).digest("hex"), now = () => Math.floor(Date.now() / 1000);
-  ok("reactions are only on once a signing secret is set", r.reactionsOn && !off.reactionsOn);
-  const ts = now(), body = '{"a":1}';
-  ok("a request signed with the right secret and a fresh timestamp verifies", r.verifySignature({ "x-slack-request-timestamp": String(ts), "x-slack-signature": sign(ts, body) }, body));
-  ok("a wrong secret, a wrong body, or a stale timestamp does not verify", !r.verifySignature({ "x-slack-request-timestamp": String(ts), "x-slack-signature": sign(ts, '{"a":2}') }, body) && !r.verifySignature({ "x-slack-request-timestamp": String(ts - 600), "x-slack-signature": sign(ts - 600, body) }, body) && !off.verifySignature({ "x-slack-request-timestamp": String(ts), "x-slack-signature": sign(ts, body) }, body));
-  r.trackReactable("C1", "123.45", { clientId: "c9", appName: "Notes", scopes: ["openid"] });
-  ok("a tracked Slack message can be looked back up by channel and ts", r.resolveReactable("C1", "123.45").clientId === "c9" && !r.resolveReactable("C1", "999") && !off.resolveReactable("C1", "123.45"));
-  ok("the manifest's event_subscriptions points at /api/slack/events once a public URL is set, and asks only for reaction_added", r.manifest().settings.event_subscriptions.request_url === "https://sl.example.com/api/slack/events" && JSON.stringify(r.manifest().settings.event_subscriptions.bot_events) === '["reaction_added"]' && !off.manifest().settings.event_subscriptions);
-}
-ok("the manifest asks for exactly the three permissions it needs, and no more", JSON.stringify(MANIFEST.oauth_config.scopes.bot) === '["chat:write","chat:write.public","reactions:read"]' && !MANIFEST.oauth_config.scopes.user);
-ok("... no commands or interactivity, and event subscriptions are only added (for reactions) once a public URL is set", !MANIFEST.settings.interactivity && !MANIFEST.settings.event_subscriptions && !MANIFEST.features.slash_commands && MANIFEST.settings.socket_mode_enabled === false);
+ok("the manifest asks for exactly the two permissions it needs, and no more", JSON.stringify(MANIFEST.oauth_config.scopes.bot) === '["chat:write","chat:write.public"]' && !MANIFEST.oauth_config.scopes.user);
+ok("... and needs no events, no commands, no interactivity (so nothing for Slack to call back)", !MANIFEST.settings.interactivity && !MANIFEST.settings.event_subscriptions && !MANIFEST.features.slash_commands && MANIFEST.settings.socket_mode_enabled === false);
 ok("the manifest file in the repo is the same as the one the app serves", JSON.stringify(JSON.parse(fs.readFileSync(path.join(__dirname, "..", "integrations", "slack", "app-manifest.json"), "utf8"))) === JSON.stringify(MANIFEST));
 ok("the manifest description fits Slack's 140-character limit", MANIFEST.display_information.description.length <= 140);
 
