@@ -156,7 +156,7 @@ function evalGoogleRule(r,ctx,now){
     const grants=a.events.filter(e=>e.type==="authorize"&&e.time>=cut&&e.time<=now+60000), who=[...new Set(grants.map(e=>e.actor))], ap=approvalFrom(G.approvals,a);
     if(r.type==="gdrift"){ if(ap.state==="drift") out.push({group:a.key+"|"+ap.extra.slice().sort().join(","),app:a.name,clientId:a.clientId,rank:Math.max(...ap.extra.map(x=>RISK_RANK[scopeInfo(x).risk])),people:a.people.length,extra:ap.extra}); continue; }
     if(r.type==="gflag"){ if(ap.state==="flagged"&&grants.length) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length}); continue; }
-    if(ap.state==="approved") continue;                        // reviewed and approved for this access: no alert (a change in access is caught by the 'approved app asked for new access' rule)
+    if(ap.state!=="none") continue;                            // any decision already made (approved, drifted, expired or flagged): no 'new app' alert. A change in access on an approved app is caught by the 'approved app asked for new access' rule instead, and that rule alone decides whether it goes to Slack
     if(r.type==="gnew"){ if(haveOlder&&a.first>=cut&&a.first<=now+60000&&a.rank>=need) out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:who.length||1}); }
     else if(r.type==="grisk"){ const hit=grants.filter(e=>e.scopes.some(x=>RISK_RANK[scopeInfo(x).risk]>=need)), ppl=[...new Set(hit.map(e=>e.actor))];
       if(ppl.length){ const sc=[...new Set(hit.flatMap(e=>e.scopes).filter(x=>RISK_RANK[scopeInfo(x).risk]>=need))]; out.push({group:a.key,app:a.name,clientId:a.clientId,rank:a.rank,people:ppl.length,scopes:sc}); } }

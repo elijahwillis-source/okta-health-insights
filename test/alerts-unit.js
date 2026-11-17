@@ -82,6 +82,8 @@ console.log("--- Google apps ---");
   ok("... and it knows where to send you (the Google page, for that app)", gnew[0].link.view === "google" && gnew[0].link.app === "c1");
   ok("an app that is old is not new", !gnew.some(n => /Old app/.test(n.body)));
   ok("an app approved for the access it has raises no alert", run([rule({ type: "gnew", windowMin: 1440, id: "g1" })], gctx([{ clientId: "c1", status: "approved", scopes: ["openid", "https://www.googleapis.com/auth/drive"] }])).length === 0);
+  ok("an approved app that now drifted does not raise a 'new app' alert either (that is the drift rule's job, routed to Slack on its own)", run([rule({ type: "gnew", windowMin: 1440, id: "g1" })], gctx([{ clientId: "c1", status: "approved", scopes: ["openid"] }])).length === 0);
+  ok("a flagged app does not raise a 'new app' alert (that is the flag rule's job)", run([rule({ type: "gnew", windowMin: 1440, id: "g1" })], gctx([{ clientId: "c1", status: "flagged", scopes: [] }])).length === 0);
   const drift = run([rule({ type: "gdrift", id: "g2", windowMin: 1440 })], gctx([{ clientId: "c1", status: "approved", scopes: ["openid"] }]));
   ok("an approved app that now has MORE access raises a 'drift' alert naming the extra access", drift.length === 1 && /approved, but it now also asks for: .*drive/.test(drift[0].body));
   const flag = run([rule({ type: "gflag", id: "g3", windowMin: 1440 })], gctx([{ clientId: "c1", status: "flagged", scopes: [] }]));
