@@ -493,13 +493,41 @@ async function assistantUserLookup(i) {
     events: ev.slice(0, 15).map(e => ({ time: e.published, result: e.outcome && e.outcome.result, eventType: e.eventType, app: appOf(e), reason: (e.outcome && e.outcome.reason) || null, ip: e.ip })) };
 }
 
+// find one Google OAuth app by name or client ID, using the same live events the dashboard's Google section is built from
+function resolveGoogleApps(name) {
+  const q = String(name || "").trim().toLowerCase(); if (q.length < 2) return [];
+  const apps = alertCore.googleAppsFrom(google.events({}));
+  const exact = apps.filter(a => (a.name || "").toLowerCase() === q || (a.clientId || "").toLowerCase() === q);
+  return exact.length ? exact : apps.filter(a => (a.name || "").toLowerCase().includes(q));
+}
+
+// the assistant's version: one Google OAuth app, in full, including everyone who has it and the approval decision
+async function assistantGoogleLookup(i) {
+  i = i || {};
+  const m = resolveGoogleApps(i.app);
+  if (!m.length) return { error: `No Google OAuth app with a name like "${i.app}" was found.` };
+  const names = [...new Set(m.map(a => a.name))];
+  if (names.length > 1) return { error: "Several Google apps match that name. Ask which one is meant.", matches: names.slice(0, 10) };
+  const a = m[0], now = Date.now();
+  const approval = alertCore.approvalFrom(policy.approvals(), a);
+  return {
+    app: a.name, clientId: a.clientId, risk: a.riskName,
+    approvalState: approval.state, decidedBy: approval.ap ? approval.ap.decidedBy : null, decidedAt: approval.ap ? approval.ap.decidedAt : null,
+    scopesNotYetCovered: approval.extra ? approval.extra.map(alertCore.shortScope) : [],
+    firstAuthorized: new Date(a.first).toISOString(), lastActivity: new Date(a.last).toISOString(), daysSinceLastActivity: Math.floor((now - a.last) / 864e5),
+    peopleCount: a.people.length,
+    people: a.people.slice(0, 30).map(p => ({ who: p.who, since: new Date(p.time).toISOString(), scopes: [...p.scopes].map(alertCore.shortScope) })),
+    allScopes: [...a.scopes].map(alertCore.shortScope)
+  };
+}
+
 /* --------------------------------------------------------------- assistant */
 const SYSTEM = `You are Iris, the friendly guide built into Sightline, an IT health dashboard that reads Okta (and optionally Google Workspace) activity. You are also an expert Okta administrator and identity engineer, and you help people troubleshoot using live Okta System Log data.
 YOUR VOICE: warm, calm and plain-spoken, like a capable colleague who is happy to help. Speak as "I" ("I checked the last 7 days and..."). Lead with the answer in the first sentence, then the reason, then what to do next. Keep it short and use plain words before jargon. Do NOT start every answer the same way and never open with "Looking at your data": vary your openings, or just start with the answer. No emoji. Light warmth is good ("Good news:", "That one is quick to fix."); jokes and wordplay are not. If you are asked who you are, say you are Iris, an AI guide built into Sightline. Being friendly never means being vague: stay accurate, specific and honest about what the data does and does not show. SCOPE: answer the question that was asked. If it is about one event or one person, stay on that event and that person, and do not widen to other incidents or other people unless asked.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
 Apply common knowledge: expired/revoked API tokens or OAuth grants in provisioning; license exhaustion in the target app; duplicate or mismatched attributes (email/username) in the target; group rules failing on missing profile attributes; attribute mapping and Okta Expression Language errors; rate limiting (429); sign-on policy denials; lockouts; import schedules; SCIM errors.
 Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.
-The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. You have no tool for the Google data beyond the summary.`;
+The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. The google summary may include "idleApps": Google apps with no activity in the last 30 days. For who has access to one app, that app's full scope and people list, or anything about a Google app beyond what the summary shows, use the lookup_google_app tool instead of guessing.`;
 
 // Used when someone asks Iris to explain ONE event for ONE person (the Explain buttons). She gets the facts in the question, no dashboard
 // summary, and no broad search tools, so she cannot wander off into every incident of the same error.
@@ -546,6 +574,16 @@ const TOOLS = [{
       errors_only: { type: "boolean", description: "Only failures, denies and errors" }
     },
     required: ["user"]
+  }
+}, {
+  name: "lookup_google_app",
+  description: "Look up ONE Google OAuth app by name or client ID. Use this for anything about a specific app beyond the dashboard summary's top 15: who has it (every person, with the scopes they personally granted), its full scope list, its approval/review state, and when it was first authorized and last active. Prefer this over the summary whenever the question names a specific app.",
+  input_schema: {
+    type: "object",
+    properties: {
+      app: { type: "string", description: "App name or client ID, e.g. Granola" }
+    },
+    required: ["app"]
   }
 }];
 
@@ -675,6 +713,7 @@ async function chat(body) {
               : b.name === "query_events" ? queryEvents(b.input, windowMs)
               : b.name === "lookup_user_events" ? await assistantUserLookup(b.input)
               : b.name === "lookup_app_errors" ? await assistantAppLookup(b.input)
+              : b.name === "lookup_google_app" ? await assistantGoogleLookup(b.input)
               : { error: "unknown tool" };
         } catch (err) { out = { error: String(err.message || err).slice(0, 200) }; }
         results.push({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify(out) });

@@ -529,7 +529,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
   <aside class="drawer" id="assistant" aria-label="Ask Iris" aria-hidden="true">
     <button class="iconbtn dclose" id="dclose" type="button" aria-label="Close Iris"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div class="card chat" id="chatCard">
-      <div class="iris-head"><svg class="iris-avatar lg" id="irisHead" aria-hidden="true"><use href="#iris-hi"/></svg><div><h2>Ask Iris</h2><p class="hint">Iris knows your live data and can search it. Ask her why something is failing.</p></div></div>
+      <div class="iris-head"><svg class="iris-avatar lg" id="irisHead" aria-hidden="true"><use href="#iris-hi"/></svg><div><h2>Ask Iris</h2><p class="hint"></p></div></div>
       <div class="msgs" id="msgs"></div>
       <div class="sugg" id="sugg"></div>
       <div class="inp"><input type="text" id="q" placeholder="Ask Iris about errors, apps, users…" autocomplete="off"><button class="primary" id="send">Send</button></div>
@@ -2276,7 +2276,8 @@ function googlePersonHTML(p){
 function googleSummary(){
   if(!S.g.configured) return {connected:false};
   const apps=googleApps().filter(a=>a.people.length);
-  return {connected:true,sampleData:S.g.demo,note:"Google OAuth consent log: who connected which app and which scopes it asked for. Not a log of every sign-in.",appCount:apps.length,highRiskApps:apps.filter(a=>a.rank===3).length,newThisWeek:apps.filter(gIsNew).map(a=>a.name),
+  return {connected:true,sampleData:S.g.demo,note:"Google OAuth consent log: who connected which app and which scopes it asked for. Not a log of every sign-in. Use the lookup_google_app tool for who-has-access or full detail on any one app.",appCount:apps.length,highRiskApps:apps.filter(a=>a.rank===3).length,newThisWeek:apps.filter(gIsNew).map(a=>a.name),
+    idleApps:apps.filter(a=>S.ref-a.last>30*864e5).map(a=>({name:a.name,clientId:a.clientId,lastActivity:new Date(a.last).toISOString(),daysIdle:Math.floor((S.ref-a.last)/864e5),people:a.people.length})),
     apps:apps.slice(0,15).map(a=>({name:a.name,clientId:a.clientId,risk:a.riskName,people:a.people.length,firstSeen:new Date(a.first).toISOString(),scopes:[...a.scopes].map(shortScope)}))};
 }
 /* Google alert rules */
@@ -2621,9 +2622,24 @@ function addMsg(cls,html,face){
 const setFace=(bubble,face)=>{ const u=bubble&&bubble.parentElement&&bubble.parentElement.querySelector("use"); if(u) u.setAttribute("href","#"+face); const h=$("#irisHead use"); if(h) h.setAttribute("href","#"+(face==="iris-think"?"iris-think":"iris-hi")); };
 // while Iris works, the line changes, so it never reads like the same canned message
 const THINKING=["Let me take a look…","Checking the logs…","Digging through the events…","Cross-checking a few things…","Putting it together…","Almost there…"];
-function thinkingBubble(){
+// pick phrases that match what was actually asked, instead of always the generic rotation above
+function thinkingPhrasesFor(text){
+  const t=(text||"").toLowerCase();
+  const emailM=t.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+  if(emailM) return ["Looking at "+emailM[0]+"'s recent activity…","Checking "+emailM[0]+"'s events…","Cross-checking their recent sign-ins…"];
+  const appNames=[...new Set((S.C&&S.C.tiles||[]).map(x=>x.name).concat(S.g&&S.g.configured? googleApps().map(a=>a.name):[]))];
+  const app=appNames.find(n=>n&&t.includes(n.toLowerCase()));
+  if(app) return ["Checking "+app+"'s recent events…","Looking at "+app+"'s activity…","Pulling together what I see for "+app+"…"];
+  if(/\b(google|oauth|scope|scopes)\b/.test(t)) return ["Checking Google OAuth consent data…","Looking at app authorizations…","Reviewing scopes and approvals…"];
+  if(/\b(silent|idle|quiet|stopped|gone dark)\b/.test(t)) return ["Checking which apps have gone quiet…","Looking for apps with no recent activity…"];
+  if(/\b(fail|failing|error|errors|denied|deny)\b/.test(t)) return ["Digging through the failures…","Checking recent errors…","Looking at what's failing…"];
+  if(/\b(health|summary|overview)\b/.test(t)) return ["Pulling together a health summary…","Rounding up this week's numbers…"];
+  return THINKING;
+}
+function thinkingBubble(text){
   const b=addMsg("a",'<span class="tool"><span class="ph"></span><span class="dots" aria-hidden="true"><span></span><span></span><span></span></span></span>',"iris-think");
-  let i=Math.floor(Math.random()*3); const ph=b.querySelector(".ph"), tick=()=>{ ph.textContent=THINKING[i%THINKING.length]; i++; }; tick();
+  const phrases=thinkingPhrasesFor(text);
+  let i=Math.floor(Math.random()*3); const ph=b.querySelector(".ph"), tick=()=>{ ph.textContent=phrases[i%phrases.length]; i++; }; tick();
   b.setAttribute("aria-live","polite"); b._timer=setInterval(tick,2600); setFace(b,"iris-think"); return b;
 }
 async function ask(text,opts){
@@ -2632,7 +2648,7 @@ async function ask(text,opts){
   if(!S.assistant){ addMsg("a","I can only answer when the dashboard is connected to its backend and has an Anthropic API key set up.","iris-oops"); return; }
   S.busy=true; $("#send").disabled=true; $("#sugg").style.display="none";
   addMsg("u",esc(opts.show||text)); S.history.push({role:"user",content:text});          // the chat shows a short line; Iris gets the whole question
-  const out=thinkingBubble();
+  const out=thinkingBubble(text);
   try{
     const r=await fetch("api/chat",{method:"POST",headers:{"content-type":"application/json"},
       body:JSON.stringify({messages:S.history.slice(-12),summary:opts.focus? undefined : summary(),windowMs:S.win,focus:!!opts.focus})});
@@ -2658,7 +2674,7 @@ function intro(){
 const seen=new Set();
 function setAssistantUI(on){
   S.assistant=on; $("#q").disabled=!on; $("#send").disabled=!on;
-  $("#chatCard").querySelector(".hint").textContent = on? "Iris knows your live data and can search it. Ask her why something is failing." : "Iris is unavailable (needs the backend and an Anthropic API key).";
+  $("#chatCard").querySelector(".hint").textContent = on? "" : "Iris is unavailable (needs the backend and an Anthropic API key).";
 }
 async function refreshLive(){
   try{
