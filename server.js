@@ -765,7 +765,12 @@ const INDEX = path.join(__dirname, "public", "index.html");
 const SEC_HEADERS = {
   "x-content-type-options": "nosniff", "referrer-policy": "no-referrer", "x-frame-options": "DENY",
   "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
-  "cache-control": "no-store"
+  "cache-control": "no-store",
+  // ignored by browsers over plain http, so safe to always send; a proxy in front of the app usually terminates the real https anyway
+  "strict-transport-security": "max-age=63072000; includeSubDomains",
+  // clipboard-write stays on for this page's own "copy" buttons; everything else this app never asks for is off
+  "permissions-policy": "geolocation=(), camera=(), microphone=(), payment=(), usb=(), clipboard-write=(self)",
+  "cross-origin-opener-policy": "same-origin", "cross-origin-resource-policy": "same-origin"
 };
 
 function send(req, res, status, body, type = "application/json; charset=utf-8", extraHeaders) {
