@@ -768,9 +768,9 @@ const SEC_HEADERS = {
   "cache-control": "no-store"
 };
 
-function send(req, res, status, body, type = "application/json; charset=utf-8") {
+function send(req, res, status, body, type = "application/json; charset=utf-8", extraHeaders) {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
-  const headers = { ...SEC_HEADERS, "content-type": type };
+  const headers = { ...SEC_HEADERS, "content-type": type, ...extraHeaders };
   if (/gzip/.test(req.headers["accept-encoding"] || "") && buf.length > 1024) {
     headers["content-encoding"] = "gzip"; res.writeHead(status, headers); return res.end(zlib.gzipSync(buf));
   }
@@ -851,8 +851,13 @@ const server = http.createServer(async (req, res) => {
         const a = actorOf(req); audit.write({ cat: "auth", action: "auth.session.revoked", actor: a, ip: a.ip, ua: a.ua, target: s.email, detail: "ended the session of " + s.email + " (" + s.role + ")" }); return send(req, res, 200, { ended: s.email });
       } }
     if (req.method === "GET" && url.pathname === "/alerts-core.js") return send(req, res, 200, fs.readFileSync(path.join(__dirname, "public", "alerts-core.js")), "application/javascript; charset=utf-8");   // the alert logic the page shares with the server
-    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html"))
-      return send(req, res, 200, fs.readFileSync(INDEX), "text/html; charset=utf-8");
+    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
+      // a fresh nonce per request lets the one inline script run while 'unsafe-inline' is dropped from the CSP, so an injected <script> tag is blocked
+      const nonce = crypto.randomBytes(16).toString("base64");
+      const html = fs.readFileSync(INDEX, "utf8").replace("<script>", `<script nonce="${nonce}">`);
+      const csp = SEC_HEADERS["content-security-policy"].replace("script-src 'self' 'unsafe-inline'", `script-src 'self' 'nonce-${nonce}'`);
+      return send(req, res, 200, html, "text/html; charset=utf-8", { "content-security-policy": csp });
+    }
 
     if (req.method === "GET" && url.pathname === "/api/status")
       return send(req, res, 200, {
