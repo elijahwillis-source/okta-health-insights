@@ -39,9 +39,12 @@ const LOGS = {
       { created_at: "2024-06-01T00:00:00Z", action: "added", name: "macos_uptime", columns: col({ days: "40", total_seconds: "3456000" }) },
       { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_uptime", columns: col({ days: "2", total_seconds: "190000" }) }
     ],
+    // osquery 5.24.1's `apps` table has no `version`/`last_opened_at` columns -- the real ones are
+    // bundle_short_version/last_opened_time. Slack and Chrome use the real names; OldApp keeps the old
+    // names on purpose, to prove the fallback still works if an older osquery ever reports them instead.
     macos_apps: [
-      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Slack", version: "4.39.0", last_opened_at: "1700000000" }) },
-      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Chrome", version: "131.0", last_opened_at: "1700001000" }) },
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Slack", bundle_short_version: "4.39.0", last_opened_time: "1700000000" }) },
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Chrome", bundle_short_version: "131.0", last_opened_time: "1700001000" }) },
       { created_at: "2024-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "OldApp", version: "1.0", last_opened_at: "1600000000" }) }   // an older run: must not leak into the current list
     ],
     // a snapshot-mode item whose decoded columns is itself an ARRAY of rows, not one object -- must expand into separate rows

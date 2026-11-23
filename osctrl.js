@@ -49,7 +49,7 @@ const RECIPES = {
   battery: { label: "Battery problems?", sql: "SELECT * FROM battery" },
   network: { label: "Network issues?", sql: "SELECT * FROM interface_addresses; SELECT * FROM routes; SELECT * FROM dns_resolvers" },
   crashing: { label: "Is it crashing?", sql: "SELECT * FROM crashes WHERE datetime > strftime('%s','now','-7 days')" },
-  installed_apps: { label: "What's installed?", sql: "SELECT name, version, last_opened_at FROM apps" }
+  installed_apps: { label: "What's installed?", sql: "SELECT name, bundle_short_version AS version, last_opened_time FROM apps" }
 };
 
 const firstOf = (o, ...keys) => { for (const k of keys) { const v = k.split(".").reduce((x, p) => (x && typeof x === "object" ? x[p] : undefined), o); if (v !== undefined && v !== null && v !== "") return v; } return null; };
@@ -316,7 +316,7 @@ function createOsctrl(env, log) {
       battery: mine.battery.length ? colsOf(mine.battery[0]) : null,
       storage: mine.disk.length ? colsOf(mine.disk[0]) : null,
       uptime: mine.uptime.length ? colsOf(mine.uptime[0]) : null,
-      apps: { count: appRows.length, items: appRows.slice(0, 200).map(c => ({ name: firstOf(c, "name"), version: firstOf(c, "version"), lastOpened: (() => { const t = toMs(firstOf(c, "last_opened_at")); return t ? new Date(t).toISOString() : null; })() })) },
+      apps: { count: appRows.length, items: appRows.slice(0, 200).map(c => ({ name: firstOf(c, "name"), version: firstOf(c, "bundle_short_version", "version"), lastOpened: (() => { const t = toMs(firstOf(c, "last_opened_time", "last_opened_at")); return t ? new Date(t).toISOString() : null; })() })) },
       health: score
     };
   }
