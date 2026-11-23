@@ -6,10 +6,11 @@
  * It never writes, carves or remediates anything — the account itself has no permission to.
  *
  * How it signs in: POST /api/v1/login with {username, password, exp_hours} returns a token. The token goes on
- * every later request in the Authorization header. osctrl's OpenAPI describes a plain API-key-style header, but
- * a "Bearer " prefix is also common for JWTs, so this client tries one, and if the API answers 401 it tries the
- * other before giving up — then remembers whichever worked so later calls do not have to probe again. A 401
- * after both have been tried is treated as an expired token: it signs in again once and retries.
+ * every later request in the Authorization header. osctrl v0.7.0 requires the "Bearer " prefix (verified against
+ * the live API: Bearer gets 200, the raw no-prefix form gets a 302), so that is the default, but this client
+ * still falls back to the other form on a 401 or 403 before giving up — then remembers whichever worked so later
+ * calls do not have to probe again. A 401/403 after both have been tried is treated as an expired token: it
+ * signs in again once and retries.
  *
  * Settings (environment):
  *   OSCTRL_API_URL        e.g. https://osctrl-api.coolify.thoughtspot.com
@@ -60,7 +61,7 @@ function createOsctrl(env, log) {
     queryPollMs: Math.max(500, +env.OSCTRL_QUERY_POLL_MS || 3000), resultsCacheMs: Math.max(1000, +env.OSCTRL_RESULTS_CACHE_MS || 60000)
   };
   const configured = !!(cfg.apiUrl && cfg.user && cfg.password);
-  const st = { token: "", tokenExp: 0, authScheme: "raw", lastOk: null, lastError: "", loginFailures: 0 };
+  const st = { token: "", tokenExp: 0, authScheme: "bearer", lastOk: null, lastError: "", loginFailures: 0 };
   const resultsCache = new Map();   // scheduled query name -> {at, rows}
 
   async function login() {
@@ -79,12 +80,12 @@ function createOsctrl(env, log) {
     const token = await ensureToken();
     const headerVal = st.authScheme === "bearer" ? "Bearer " + token : token;
     const r = await fetch(cfg.apiUrl + path, { ...opts, headers: { ...(opts && opts.headers), authorization: headerVal, "content-type": "application/json" } });
-    if (r.status !== 401) { st.lastOk = Date.now(); st.lastError = ""; return r; }
+    if (r.status !== 401 && r.status !== 403) { st.lastOk = Date.now(); st.lastError = ""; return r; }
     tried.schemes.add(st.authScheme);
     const other = st.authScheme === "bearer" ? "raw" : "bearer";
     if (!tried.schemes.has(other)) { st.authScheme = other; return authedFetch(path, opts, tried); }
-    if (tried.relogins < 1) { st.token = ""; st.authScheme = "raw"; tried.relogins++; tried.schemes = new Set(); await login(); return authedFetch(path, opts, tried); }
-    return r;   // still 401 after trying both header styles and a fresh sign-in: let the caller report it
+    if (tried.relogins < 1) { st.token = ""; st.authScheme = "bearer"; tried.relogins++; tried.schemes = new Set(); await login(); return authedFetch(path, opts, tried); }
+    return r;   // still rejected after trying both header styles and a fresh sign-in: let the caller report it
   }
 
   async function okJson(path, opts) {
