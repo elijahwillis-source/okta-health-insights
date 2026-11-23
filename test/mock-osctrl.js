@@ -3,13 +3,19 @@
 // MOCK_O_AUTH controls which Authorization header style it accepts: "raw" (default), "bearer", or "flip" (accepts
 // raw the first call then switches to requiring bearer, to prove the client's one-time fallback keeps working).
 // MOCK_O_EXPIRE_AFTER=N makes the Nth authenticated call answer 401 once (any header), to exercise re-login.
+// MOCK_O_EVICT_AFTER=N simulates osctrl's one-token-per-user rule: on the Nth authenticated call, that call's
+// token is marked evicted (as if someone else just logged in as the same account) and every further request
+// bearing it gets osctrl's real eviction response -- a 302 to /forbidden, not a 401/403 -- until a fresh login
+// happens. module.exports.loginCount lets a test assert how many times POST /login actually ran.
 const http = require("http");
 const PORT = +process.env.MOCK_O_PORT || 4040;
 const USER = process.env.MOCK_O_USER || "ai-readonly", PASS = process.env.MOCK_O_PASS || "s3cret";
 const AUTH_MODE = process.env.MOCK_O_AUTH || "raw";
 const EXPIRE_AFTER = +process.env.MOCK_O_EXPIRE_AFTER || 0;
+const EVICT_AFTER = +process.env.MOCK_O_EVICT_AFTER || 0;
 
-let tokens = new Set(), calls = 0, flipped = false, lastQuery = null;
+let tokens = new Set(), calls = 0, flipped = false, lastQuery = null, evictedToken = null;
+const counts = { logins: 0 };
 const NODES = [
   { uuid: "u-1", hostname: "jdoe-mbp.corp.local", hardware_serial: "C02ABCDEFG", platform: "darwin", platform_version: "14.5", memory: "17179869184", cpu: "Apple M3", system_info: { system: { hardware_model: "MacBook Pro" } }, osquery_version: "5.12.1", last_seen: Math.floor(Date.now() / 1000) - 120 },
   { uuid: "u-2", hostname: "asmith-air.corp.local", hardware_serial: "C02HIJKLMN", platform: "darwin", platform_version: "13.2", memory: "8589934592", cpu: "Apple M2", system_info: { system: { hardware_model: "MacBook Air" } }, osquery_version: "5.12.1", last_seen: Math.floor(Date.now() / 1000) - 7200 }
@@ -43,15 +49,21 @@ function authOk(req) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
+  if (url.pathname === "/forbidden") { const b = Buffer.from("<html><body>Forbidden</body></html>"); res.writeHead(200, { "content-type": "text/html", "content-length": b.length }); return res.end(b); }   // osctrl's real eviction landing page: 200, not JSON
   if (req.method === "POST" && url.pathname === "/api/v1/login") {
+    counts.logins++;
     const b = await readBody(req);
     if (b.username !== USER || b.password !== PASS) return json(res, 401, { error: "invalid credentials" });
     const t = "tok-" + Math.random().toString(36).slice(2); tokens.add(t);
+    evictedToken = null;   // one live token per user: a fresh login always un-evicts (the new token is the only live one)
     if (AUTH_MODE === "flip") flipped = true;   // after the first login, start requiring the other header style
     return json(res, 200, { token: t, csrf_token: "csrf-" + t });
   }
   calls++;
   if (EXPIRE_AFTER && calls === EXPIRE_AFTER) return json(res, 401, { error: "token expired" });
+  const presented = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  if (EVICT_AFTER && calls === EVICT_AFTER) evictedToken = presented;   // as if another login just happened elsewhere, right now
+  if (evictedToken && presented === evictedToken) { res.writeHead(302, { location: "/forbidden" }); return res.end(); }
   if (!authOk(req)) return json(res, 401, { error: "unauthorized" });
 
   const envM = /^\/api\/v1\/nodes\/([^/]+)$/.exec(url.pathname);
@@ -81,4 +93,4 @@ const server = http.createServer(async (req, res) => {
   json(res, 404, { error: "not found" });
 });
 server.listen(PORT, () => console.log("mock osctrl on :" + PORT));
-module.exports = { server };
+module.exports = { server, counts };

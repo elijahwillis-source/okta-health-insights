@@ -12,6 +12,14 @@
  * calls do not have to probe again. A 401/403 after both have been tried is treated as an expired token: it
  * signs in again once and retries.
  *
+ * osctrl allows only ONE live token per user (verified in osctrl v0.7.x's cmd/api/handlers/login.go
+ * issueSession: a new login overwrites the stored token, so anyone else signing in as this same service
+ * account instantly evicts ours). An evicted token does not even get a 401/403: the API answers with a
+ * redirect to /forbidden, which fetch follows into a 200 HTML page, so it looks like an empty success unless
+ * okJson also treats "200 but not real JSON" (or landing on /forbidden) as an auth failure. login() is
+ * single-flight (one in-flight promise, shared) so that several calls racing into an evicted token do not each
+ * mint a fresh login and evict each other in turn.
+ *
  * Settings (environment):
  *   OSCTRL_API_URL        e.g. https://osctrl-api.coolify.thoughtspot.com
  *   OSCTRL_API_USER       the read-only service account, e.g. ai-readonly
@@ -64,20 +72,26 @@ function createOsctrl(env, log) {
   const st = { token: "", tokenExp: 0, authScheme: "bearer", lastOk: null, lastError: "", loginFailures: 0 };
   const resultsCache = new Map();   // "queryName|uuid" -> {at, rows}
 
+  let loginInFlight = null;   // shared by every caller racing into a missing/evicted token, so only one POST /login ever happens at a time
   async function login() {
-    const r = await fetch(cfg.apiUrl + "/api/v1/login", {
-      method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ username: cfg.user, password: cfg.password, exp_hours: 24 })
-    });
-    const text = await r.text(); let j = {}; try { j = JSON.parse(text); } catch { /* not json */ }
-    if (!r.ok || !j.token) { st.loginFailures++; throw new Error("osctrl sign-in failed (" + r.status + "): " + (j.error || j.message || text.slice(0, 200))); }
-    st.token = j.token; st.tokenExp = Date.now() + 23 * 3600 * 1000; st.loginFailures = 0; return st.token;
+    if (loginInFlight) return loginInFlight;
+    loginInFlight = (async () => {
+      const r = await fetch(cfg.apiUrl + "/api/v1/login", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ username: cfg.user, password: cfg.password, exp_hours: 24 })
+      });
+      const text = await r.text(); let j = {}; try { j = JSON.parse(text); } catch { /* not json */ }
+      if (!r.ok || !j.token) { st.loginFailures++; throw new Error("osctrl sign-in failed (" + r.status + "): " + (j.error || j.message || text.slice(0, 200))); }
+      st.token = j.token; st.tokenExp = Date.now() + 23 * 3600 * 1000; st.loginFailures = 0; return st.token;
+    })();
+    try { return await loginInFlight; } finally { loginInFlight = null; }
   }
   async function ensureToken() { if (st.token && Date.now() < st.tokenExp) return st.token; return login(); }
 
   async function authedFetch(path, opts, tried) {
-    tried = tried || { schemes: new Set(), relogins: 0 };
+    tried = tried || {}; tried.schemes = tried.schemes || new Set(); tried.relogins = tried.relogins || 0;
     const token = await ensureToken();
+    tried.usedToken = token;   // so a caller that sees this response can tell whether someone else has already refreshed the token by the time it looks
     const headerVal = st.authScheme === "bearer" ? "Bearer " + token : token;
     const r = await fetch(cfg.apiUrl + path, { ...opts, headers: { ...(opts && opts.headers), authorization: headerVal, "content-type": "application/json" } });
     if (r.status !== 401 && r.status !== 403) { st.lastOk = Date.now(); st.lastError = ""; return r; }
@@ -88,9 +102,23 @@ function createOsctrl(env, log) {
     return r;   // still rejected after trying both header styles and a fresh sign-in: let the caller report it
   }
 
-  async function okJson(path, opts) {
-    const r = await authedFetch(path, opts);
-    const text = await r.text(); let j; try { j = text ? JSON.parse(text) : {}; } catch { j = {}; }
+  async function okJson(path, opts, retriedEviction) {
+    const tried = {};
+    const r = await authedFetch(path, opts, tried);
+    const text = await r.text(); let j, parseFailed = false; try { j = text ? JSON.parse(text) : {}; } catch { j = {}; parseFailed = true; }
+    // one live token per user: a login elsewhere evicts ours, and osctrl answers with a redirect to /forbidden
+    // rather than a 401/403 — fetch follows it into a 200 HTML page, which looks like an empty success unless
+    // we also treat "200 but not real JSON" (or landing on /forbidden) as the auth failure it actually is.
+    const evicted = r.ok && (parseFailed || /\/forbidden$/.test(r.url.split(/[?#]/)[0]));
+    if (evicted) {
+      if (retriedEviction) { const e = new Error("osctrl session for " + path + " was replaced by another login (one active token per user) and signing in again did not fix it"); e.status = 401; st.lastError = e.message; throw e; }
+      // Only clear the token if it is still the one that got evicted: another call racing in may already have
+      // refreshed it, and blindly logging in again here would evict THAT fresh token and start a thrash. Either
+      // way the retry below goes through ensureToken()/login(), which already caches a fresh token and shares
+      // one in-flight sign-in, so it does the right thing whether or not we clear it ourselves.
+      if (st.token === tried.usedToken) st.token = "";
+      return okJson(path, opts, true);
+    }
     if (!r.ok) { const e = new Error("osctrl " + r.status + " for " + path + ": " + (j && (j.error || j.message) || text.slice(0, 200))); e.status = r.status; st.lastError = e.message; throw e; }
     return j;
   }

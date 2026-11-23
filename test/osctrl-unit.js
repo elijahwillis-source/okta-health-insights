@@ -68,6 +68,27 @@ console.log("\n--- against the mock server ---");
     ok("a token that the server stops accepting mid-session triggers a fresh sign-in, not a failure", list.length === 2);
   } finally { mock3.server.close(); delete process.env.MOCK_O_EXPIRE_AFTER; }
 
+  process.env.MOCK_O_AUTH = "bearer"; process.env.MOCK_O_PORT = "4451"; process.env.MOCK_O_EVICT_AFTER = "2";
+  delete require.cache[require.resolve("./mock-osctrl")];
+  const mock4 = require("./mock-osctrl");
+  try {
+    const o = createOsctrl({ OSCTRL_API_URL: "http://localhost:4451", OSCTRL_API_USER: "ai-readonly", OSCTRL_API_PASSWORD: "s3cret" }, log);
+    await o.nodes();                      // call #1: normal, logs in once
+    const list = await o.nodes();         // call #2: another login elsewhere evicts this token -- osctrl answers with a 302 to /forbidden, not a 401/403
+    ok("a token evicted by another login (redirect to /forbidden, not 401/403) is detected and recovered with one extra sign-in", list.length === 2);
+    ok("recovering from eviction signed in exactly twice (the original sign-in, plus the one recovery)", mock4.counts.logins === 2, "logins=" + mock4.counts.logins);
+  } finally { mock4.server.close(); delete process.env.MOCK_O_EVICT_AFTER; }
+
+  process.env.MOCK_O_AUTH = "bearer"; process.env.MOCK_O_PORT = "4452"; process.env.MOCK_O_EVICT_AFTER = "1";
+  delete require.cache[require.resolve("./mock-osctrl")];
+  const mock5 = require("./mock-osctrl");
+  try {
+    const o = createOsctrl({ OSCTRL_API_URL: "http://localhost:4452", OSCTRL_API_USER: "ai-readonly", OSCTRL_API_PASSWORD: "s3cret" }, log);
+    const [a, b, c] = await Promise.all([o.nodes(), o.nodes(), o.nodes()]);   // all three race into the very first call, which gets evicted immediately
+    ok("several calls racing into an evicted token all still get the right data", a.length === 2 && b.length === 2 && c.length === 2);
+    ok("recovering is single-flight: one shared sign-in for everyone racing in, not one per caller", mock5.counts.logins === 2, "logins=" + mock5.counts.logins);
+  } finally { mock5.server.close(); delete process.env.MOCK_O_EVICT_AFTER; }
+
   process.env.MOCK_O_AUTH = "raw"; process.env.MOCK_O_PORT = "4450";
   delete require.cache[require.resolve("./mock-osctrl")];
   const mock2 = require("./mock-osctrl");
