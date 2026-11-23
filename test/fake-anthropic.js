@@ -31,6 +31,10 @@ http.createServer((q, r) => {
       r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t3", name: "lookup_app_errors", input: { app: "ServiceNow", days: 7 } }] }));
     else if (JSON.stringify(j.messages[0]).includes("lookup-user"))   // ask for the live per-user search tool
       r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t2", name: "lookup_user_events", input: { user: "user07@example.com", days: 7 } }] }));
+    else if (JSON.stringify(j.messages[0]).includes("lookup-device"))   // ask for the device health lookup tool
+      r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t4", name: "lookup_device_health", input: { device: "jdoe-mbp" } }] }));
+    else if (JSON.stringify(j.messages[0]).includes("run-device-check"))   // ask for a live, read-only device recipe
+      r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t5", name: "run_device_check", input: { device: "jdoe-mbp", check: "disk_full" } }] }));
     else
       r.end(JSON.stringify({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "query_events", input: { app: "ServiceNow", result: "ANY_FAILURE", limit: 2 } }] }));
   });

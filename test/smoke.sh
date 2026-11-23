@@ -9,8 +9,10 @@ trap cleanup EXIT
 
 node test/mock-okta.js >/tmp/smoke-okta.log 2>&1 & PIDS+=($!)
 node test/fake-anthropic.js >/tmp/smoke-anthropic.log 2>&1 & PIDS+=($!)
+MOCK_O_PORT=4041 node test/mock-osctrl.js >/tmp/smoke-osctrl.log 2>&1 & PIDS+=($!)
 OKTA_ORG_URL=http://localhost:4010 OKTA_API_TOKEN=test PORT=8099 POLL_INTERVAL_SECONDS=15 BACKFILL_CHUNK_HOURS=72 \
 ANTHROPIC_API_KEY=x ANTHROPIC_BASE_URL=http://localhost:4020 DASHBOARD_PASSWORD=secret \
+OSCTRL_API_URL=http://localhost:4041 OSCTRL_API_USER=ai-readonly OSCTRL_API_PASSWORD=s3cret \
 node server.js >/tmp/smoke-server.log 2>&1 & PIDS+=($!)
 sleep 3
 
@@ -55,6 +57,17 @@ check "assistant tool found data"  "totalMatches" "$R"
 R2=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' \
   -d '{"messages":[{"role":"user","content":"lookup-user please"}],"summary":{},"windowMs":604800000}')
 check "assistant can search a user live"   "totalAboutThisPerson" "$R2"
+check "osctrl is reported in /api/status"  true "$(curl -s $A localhost:8099/api/status | jq_ 'j.osctrl&&j.osctrl.configured===true')"
+check "device list"                        "jdoe-mbp.corp.local" "$(curl -s $A localhost:8099/api/osctrl/devices)"
+check "device detail: identity and a health score" true "$(curl -s $A localhost:8099/api/osctrl/devices/jdoe-mbp | jq_ 'j.identity.hostname==="jdoe-mbp.corp.local"&&typeof j.health.score==="number"')"
+check "unknown device -> 404"              404 "$(code $A localhost:8099/api/osctrl/devices/does-not-exist)"
+R4=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"lookup-device please"}],"summary":{},"windowMs":604800000}')
+check "assistant can look up a device's health live" "TOOL RESULT SEEN" "$R4"
+check "assistant's device lookup found the device's identity" "identity" "$R4"
+R5=$(curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' \
+  -d '{"messages":[{"role":"user","content":"run-device-check please"}],"summary":{},"windowMs":604800000}')
+check "assistant can run a live read-only device recipe" "queryRun" "$R5"
 chat() { curl -s $A -XPOST localhost:8099/api/chat -H 'content-type: application/json' -d "{\"messages\":[{\"role\":\"user\",\"content\":\"$1\"}],\"summary\":{},\"windowMs\":604800000}"; }
 check "assistant recovers from an empty reply"   "RECOVERED" "$(chat empty-reply)"
 check "assistant flags a cut-off answer"         "cut off" "$(chat cutoff)"

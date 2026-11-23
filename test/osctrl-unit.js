@@ -1,0 +1,84 @@
+// Logic tests for osctrl.js: the health score formula, defensive field parsing, auth-header fallback and
+// re-login, nodes/results lookups, and one recipe round trip against the mock server.   node test/osctrl-unit.js
+const { createOsctrl } = require("../osctrl");
+let pass = 0, fail = 0;
+const ok = (name, cond, extra) => { if (cond) { pass++; console.log("PASS  " + name); } else { fail++; console.log("FAIL  " + name + (extra ? "  (" + extra + ")" : "")); } };
+const log = () => {};
+
+console.log("--- health score: pure logic, no network ---");
+{
+  const o = createOsctrl({}, log);
+  const node = n => Object.assign({ uuid: "u1", hostname: "h1", serial: "s1", lastSeenMs: Date.now() - 60000, platformVersion: "14.5" }, n);
+  const col = c => ({ columns: c });
+
+  {
+    const s = o._scoreDevice(node({}), { os: [col({ version: "14.5" })], disk: [col({ blocks: "100", blocks_available: "50" })], battery: [col({ health: "Good" })], uptime: [col({ total_seconds: 86400 })], fleetNewestVersion: "14.5" });
+    ok("a fully healthy, up-to-date device scores 100", s.score === 100 && s.band === "healthy", JSON.stringify(s.parts));
+  }
+  {
+    const s = o._scoreDevice(node({}), { os: [col({ version: "12.0" })], disk: [], battery: [], uptime: [], fleetNewestVersion: "14.9" });
+    ok("far behind on OS version loses OS-currency points but nothing else it has no data for", s.parts.osCurrency.points < 20 && s.parts.diskFree.points === 20 && s.parts.battery.points === 15);
+  }
+  {
+    const s = o._scoreDevice(node({}), { os: [], disk: [col({ blocks: "100", blocks_available: "5" })], battery: [col({ health: "Poor" })], uptime: [col({ total_seconds: 40 * 86400 })], fleetNewestVersion: null });
+    ok("low disk, poor battery and a stale reboot all cost points", s.parts.diskFree.points < 10 && s.parts.battery.points === 0 && s.parts.rebootFreshness.points < 10);
+    ok("the band for a low score is 'action'", s.score < 70 && s.band === "action");
+  }
+  {
+    const s = o._scoreDevice(node({ lastSeenMs: Date.now() - 5 * 3600000 }), { os: [], disk: [], battery: [], uptime: [], fleetNewestVersion: null });
+    ok("an agent not seen in hours loses the agent-health points", s.parts.agentHealth.points === 0);
+  }
+  {
+    const s = o._scoreDevice(node({}), { os: [], disk: [], battery: [], uptime: [], fleetNewestVersion: null });
+    ok("components with no data at all (no scheduled query yet) are marked partial, not penalized", s.parts.memoryHeadroom.partial && s.parts.crashIndicators.partial && s.parts.battery.points === 15);
+  }
+  {
+    const n = o._normalizeNode({ uuid: "x", hostname: "mac1", hardware_serial: "ABC", platform: "darwin", platform_version: "14.5", system_info: { hardware_model: "MacBook Pro" }, osquery_version: "5.1", last_seen: Math.floor(Date.now() / 1000) });
+    ok("normalizeNode reads the plausible real-world field names", n.hostname === "mac1" && n.serial === "ABC" && n.model === "MacBook Pro" && n.lastSeenMs !== null);
+  }
+}
+
+console.log("\n--- against the mock server ---");
+(async () => {
+  for (const mode of ["raw", "bearer", "flip"]) {
+    const PORT = 4440 + ["raw", "bearer", "flip"].indexOf(mode);
+    process.env.MOCK_O_AUTH = mode;
+    delete require.cache[require.resolve("./mock-osctrl")];
+    process.env.MOCK_O_PORT = String(PORT);
+    const mock = require("./mock-osctrl");
+    try {
+      const o = createOsctrl({ OSCTRL_API_URL: "http://localhost:" + PORT, OSCTRL_API_USER: "ai-readonly", OSCTRL_API_PASSWORD: "s3cret", OSCTRL_QUERY_POLL_MS: "30", OSCTRL_RESULTS_CACHE_MS: "1" }, log);
+      const list = await o.nodes();
+      ok("auth mode '" + mode + "': nodes() returns the fleet through whichever header style the server needs", list.length === 2 && list.some(n => n.hostname === "jdoe-mbp.corp.local"));
+      const detail = await o.deviceDetail("jdoe-mbp");
+      ok("auth mode '" + mode + "': deviceDetail resolves by a partial hostname and fills in OS/disk/battery/uptime", !detail.error && detail.os.version === "14.5" && detail.battery.health === "Good" && detail.health.score > 0);
+      const bad = await o.resolveDevice("nope-does-not-exist");
+      ok("auth mode '" + mode + "': an unknown device is a plain error, not a throw", !!bad.error);
+    } finally { mock.server.close(); }
+  }
+
+  process.env.MOCK_O_AUTH = "raw"; process.env.MOCK_O_PORT = "4445"; process.env.MOCK_O_EXPIRE_AFTER = "2";
+  delete require.cache[require.resolve("./mock-osctrl")];
+  const mock3 = require("./mock-osctrl");
+  try {
+    const o = createOsctrl({ OSCTRL_API_URL: "http://localhost:4445", OSCTRL_API_USER: "ai-readonly", OSCTRL_API_PASSWORD: "s3cret" }, log);
+    await o.nodes(); const list = await o.nodes(); await o.nodes();   // the 2nd authenticated call gets a one-time 401
+    ok("a token that the server stops accepting mid-session triggers a fresh sign-in, not a failure", list.length === 2);
+  } finally { mock3.server.close(); delete process.env.MOCK_O_EXPIRE_AFTER; }
+
+  process.env.MOCK_O_AUTH = "raw"; process.env.MOCK_O_PORT = "4450";
+  delete require.cache[require.resolve("./mock-osctrl")];
+  const mock2 = require("./mock-osctrl");
+  try {
+    const o = createOsctrl({ OSCTRL_API_URL: "http://localhost:4450", OSCTRL_API_USER: "ai-readonly", OSCTRL_API_PASSWORD: "s3cret", OSCTRL_QUERY_POLL_MS: "20", OSCTRL_QUERY_TIMEOUT_MS: "2000" }, log);
+    const r = await o.runRecipe("jdoe-mbp", "disk_full");
+    ok("a recipe cites the exact query it ran and comes back with rows", !r.error && r.queryRun === o.RECIPES.disk_full.sql && r.rowCount > 0);
+    const bad = await o.runRecipe("jdoe-mbp", "not_a_real_recipe");
+    ok("an unknown recipe name is a plain error", !!bad.error);
+    const missing = await createOsctrl({ OSCTRL_API_URL: "http://localhost:4450", OSCTRL_API_USER: "wrong", OSCTRL_API_PASSWORD: "wrong" }, log).nodes().catch(e => e);
+    ok("bad credentials surface as a rejected promise, not a silent empty list", missing instanceof Error);
+  } finally { mock2.server.close(); }
+
+  console.log("\n" + pass + " passed, " + fail + " failed");
+  process.exit(fail ? 1 : 0);
+})();

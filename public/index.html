@@ -122,11 +122,6 @@ a.sglinkplain{display:inline-block;text-decoration:none;color:var(--text);border
 .gchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}.gchips button{font-size:12px;padding:2px 9px}
 .gprev{margin-top:8px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);font-size:13px;line-height:1.5}.gprev ul{margin:6px 0 0 18px;padding:0}
 .geolist{margin-top:14px}.geolist h3{font-size:14px;margin:0 0 6px}
-.construction{border:1px solid var(--border);border-radius:16px;background:var(--surface);overflow:hidden;margin-top:6px}
-.tape{height:26px;background:repeating-linear-gradient(-45deg,#F5B700 0 18px,#14161f 18px 36px)}
-.cbody{display:flex;align-items:center;justify-content:center;gap:40px;flex-wrap:wrap;padding:52px 28px}
-.irishat{width:min(280px,70vw);height:auto;flex:none}.irishat .io{stroke:var(--text);stroke-width:7;stroke-linejoin:round}.irishat .body{fill:#fff}.irishat .hand{fill:#fff;stroke-width:6}.irishat .arm{fill:none;stroke-linecap:round;stroke-width:8}.irishat .fillout{fill:var(--text);stroke:none}
-.ctext{max-width:430px}.ctext h2{font-size:30px;margin:10px 0 4px}.clead{font-size:18px;font-weight:600;margin:0 0 8px}.cwarn{display:inline-block;background:#F5B700;color:#14161f;font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;border-radius:6px;padding:4px 12px}
 .userwrap{position:relative}#userChip{font-weight:700;font-size:12.5px;letter-spacing:.02em}.usermenu{position:absolute;right:0;top:46px;width:min(300px,86vw);background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;z-index:60;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;gap:6px}.usermenu[hidden]{display:none}
 .umname{font-weight:700}.umrole{display:flex;gap:8px;align-items:center}.umout{align-self:flex-start;margin-top:6px;text-decoration:none;padding:6px 14px}.fin{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px}
 .pol td{vertical-align:top}.pol .sw{display:inline-block;margin-top:0}span.lnk{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;margin-left:4px}.pol .gsub{margin-top:3px}.pol code{font-size:11.5px}.who{color:var(--muted);font-size:12px}
@@ -326,7 +321,7 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       <a class="navi" href="#/apps" data-view="apps"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="nl">Apps</span></a>
       <a class="navi" href="#/people" data-view="people"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nl">People</span></a>
       <a class="navi" href="#/google" data-view="google"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg><span class="nl">Google OAuth</span></a>
-      <a class="navi" href="#/devices" data-view="devices" title="Device health (coming soon)"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="nl">Device health</span><span class="navsoon">Soon</span></a>
+      <a class="navi" href="#/devices" data-view="devices" title="Device health"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="nl">Device health</span></a>
       <a class="navi" href="#/alerts" data-view="alerts"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="nl">Alerts</span><span class="navbadge" id="navAlerts" hidden>0</span></a>
       <a class="navi" href="#/policy" data-view="policy"><svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="nl">Policy</span><span class="navbadge" id="navPolicy" hidden>0</span></a>
     </div>
@@ -455,34 +450,8 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
       </section>
 
       <section class="view" id="view-devices" data-view="devices" hidden>
-        <div class="vhead"><div><p class="vs">Device health is on its way.</p></div></div>
-        <div class="construction">
-          <div class="tape" aria-hidden="true"></div>
-          <div class="cbody">
-            <svg class="irishat" viewBox="0 0 300 300" role="img" aria-label="Iris, the Sightline guide, wearing a hard hat">
-              <ellipse cx="150" cy="296" rx="78" ry="6" fill="#000" opacity=".12"/>
-              <ellipse cx="118" cy="286" rx="22" ry="10" class="io fillout"/><ellipse cx="182" cy="286" rx="22" ry="10" class="io fillout"/>
-              <path d="M46 196 Q22 226 36 254" class="io arm"/><circle cx="36" cy="260" r="13" class="io hand"/>
-              <path d="M254 196 Q278 226 264 254" class="io arm"/><circle cx="264" cy="260" r="13" class="io hand"/>
-              <ellipse cx="150" cy="182" rx="106" ry="100" class="io body"/>
-              <circle cx="150" cy="196" r="48" fill="#2DD4BF"/><circle cx="150" cy="196" r="23" fill="#121629"/><circle cx="165" cy="182" r="10" fill="#fff"/><circle cx="137" cy="212" r="5" fill="#fff"/>
-              <path d="M96 150 Q120 132 144 142" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/><path d="M156 142 Q182 132 204 150" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/>
-              <circle cx="82" cy="224" r="12" fill="#7B8CFF" opacity=".38"/><circle cx="218" cy="224" r="12" fill="#7B8CFF" opacity=".38"/>
-              <path d="M126 252 Q150 270 174 252" fill="none" stroke="#121629" stroke-width="7" stroke-linecap="round"/>
-              <path d="M70 118 Q70 16 150 16 Q230 16 230 118 Z" fill="#F5B700" class="io"/>
-              <path d="M132 18 L132 112 M168 18 L168 112" fill="none" stroke="#C98F00" stroke-width="7"/>
-              <rect x="48" y="106" width="204" height="20" rx="10" fill="#F5B700" class="io"/>
-              <circle cx="150" cy="62" r="11" fill="#fff" class="io"/>
-            </svg>
-            <div class="ctext">
-              <span class="cwarn">Under construction</span>
-              <h2>Device health</h2>
-              <p class="clead">Coming at the end of the year.</p>
-              <p class="hint">A view of how your devices are doing, right next to your Okta and Google data. Check back soon.</p>
-            </div>
-          </div>
-          <div class="tape" aria-hidden="true"></div>
-        </div>
+        <div class="vhead"><div><p class="vs">How your enrolled Macs are doing: OS, battery, disk, uptime and apps, read-only from osctrl.</p></div><div id="dStatus" class="ctl"></div></div>
+        <div id="devicesView"></div>
       </section>
 
       <section class="view" id="view-alerts" data-view="alerts" hidden>
@@ -853,7 +822,7 @@ function render(){
 
   renderAppsPanel(C);
   renderGlance(C); renderDataSrc(); renderFilterBars(); renderErrorsView(C);
-  evaluateAlerts(C); renderBell(); renderLatestAlerts(); renderPolicyBadge(); if(S.view==="policy") renderPolicy(); if(S.view==="google") renderGoogleView(true); if(S.view==="integrations"){ const a=document.activeElement; if(!(a&&a.closest&&a.closest("#view-integrations input"))) renderIntegrations(); }          // keep the status chips current, but never while someone is typing
+  evaluateAlerts(C); renderBell(); renderLatestAlerts(); renderPolicyBadge(); if(S.view==="policy") renderPolicy(); if(S.view==="google") renderGoogleView(true); if(S.view==="devices") renderDevicesView(true); if(S.view==="integrations"){ const a=document.activeElement; if(!(a&&a.closest&&a.closest("#view-integrations input"))) renderIntegrations(); }          // keep the status chips current, but never while someone is typing
   updateFilterPill();
 
   renderTimeline(C);
@@ -1149,7 +1118,7 @@ $("#errView").addEventListener("click",ev=>{
   if(ev.target.closest("[data-emore]")){ S.errShown=(S.errShown||50)+50; renderErrorsView(S.C); return; }
   if(ev.target.closest("[data-eless]")){ S.errShown=50; renderErrorsView(S.C); }
 });
-function renderViewExtras(v){ if(v==="integrations") renderIntegrations(); if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); if(v==="policy") renderPolicy(); }
+function renderViewExtras(v){ if(v==="integrations") renderIntegrations(); if(v==="errors"&&S.C) renderErrorsView(S.C); if(v==="alerts") renderAlertsView(); if(v==="google") renderGoogleView(); if(v==="devices") renderDevicesView(); if(v==="policy") renderPolicy(); }
 // Why is a list of errors empty? Say so plainly, and offer to clear the filters when they are the cause.
 function emptyErrors(C,what){
   const on=filterActive(S.fil), clr=on? ' <button type="button" class="ghost" data-fa="clear">Clear filters</button>' : "";
@@ -2292,6 +2261,87 @@ function ensureGoogleRules(){
   if(!LS.get("okta.grules.v2",false)){ const add=gStarterRules().filter(r=>["gdrift","gflag"].includes(r.type)&&!have(r.type)); if(add.length){ S.rules=S.rules.concat(add.map(copy)); saveRules(); } LS.set("okta.grules.v2",true); }      // approval alerts arrive once, even for people who already had the first three
 }
 
+/* ---------- Device health (osctrl) ---------- */
+S.d={configured:null,list:null,q:"",open:new Set(),detail:{},loading:false,error:null,loadedAt:0};
+const D_BAND_RK={healthy:"low",monitor:"medium",action:"high"}, D_BAND_TEXT={healthy:"Healthy",monitor:"Monitor",action:"Action recommended"};
+// osctrl's configured/not state comes from the status poll everyone already fetches every tick (cheap); only the
+// device list itself is fetched on demand. A change here (set up, or taken down) always starts a fresh load.
+function setDeviceConfigured(on){
+  on=!!on; if(S.d.configured===on) return;
+  S.d.configured=on; S.d.list=null; S.d.detail={}; S.d.open.clear(); S.d.error=null;
+  if(S.view==="devices") renderDevicesView();
+}
+async function loadDevices(){
+  if(!S.d.configured) return;
+  S.d.loading=true; renderDevicesView();
+  try{
+    const r=await fetch("api/osctrl/devices"+(S.d.q?"?q="+encodeURIComponent(S.d.q):""));
+    if(!r.ok){ const j=await r.json().catch(()=>({})); S.d.error=j.error||("HTTP "+r.status); }
+    else { const j=await r.json(); S.d.list=j.devices||[]; S.d.error=null; }
+  }catch(err){ S.d.error=err.message; }
+  S.d.loading=false; S.d.loadedAt=Date.now(); renderDevicesView();
+}
+async function loadDeviceDetail(key){
+  S.d.detail[key]={loading:true}; renderDevicesView();
+  try{
+    const r=await fetch("api/osctrl/devices/"+encodeURIComponent(key)), j=await r.json().catch(()=>({}));
+    S.d.detail[key]= r.ok? {data:j} : {error:j.error||("HTTP "+r.status)};
+  }catch(err){ S.d.detail[key]={error:err.message}; }
+  renderDevicesView();
+}
+function deviceSetupHTML(){
+  return '<div class="card"><h2>Device health</h2><p class="hint">Connect osctrl to see OS, battery, disk, uptime and installed apps for every enrolled Mac, with a 0-100 health score, and give Iris six live troubleshooting checks. Set <code>OSCTRL_API_URL</code>, <code>OSCTRL_API_USER</code> and <code>OSCTRL_API_PASSWORD</code> and redeploy. This dashboard only ever reads: the account it signs in as cannot write, carve or remediate anything.</p></div>';
+}
+function renderDevicesView(auto){
+  const el=$("#devicesView"), stEl=$("#dStatus"); if(!el) return;
+  if(auto&&document.activeElement&&document.activeElement.id==="dsearch") return;    // never yank the cursor out of the search box on a periodic refresh
+  if(S.d.configured===null){ stEl.innerHTML=""; el.innerHTML=""; return; }           // the status poll has not answered yet
+  if(S.d.configured===false){ stEl.innerHTML=""; el.innerHTML=deviceSetupHTML(); return; }
+  if(S.d.list===null&&!S.d.loading&&!S.d.error){ loadDevices(); return; }
+  stEl.innerHTML= S.d.loading&&!S.d.list? "" : '<span>'+(S.d.list?fmtN(S.d.list.length):0)+' enrolled device'+(S.d.list&&S.d.list.length===1?"":"s")+' · read-only</span>'+(S.d.loadedAt?' · updated '+esc(new Date(S.d.loadedAt).toLocaleTimeString()):"")+' <button type="button" class="ghost" id="dRefresh">Refresh</button>';
+  const list=S.d.list||[], q=esc(S.d.q||"");
+  const rows=list.map(d=>{
+    const key=d.hostname||d.serial||d.uuid, open=S.d.open.has(key), band=d.healthBand||"monitor";
+    const det=S.d.detail[key];
+    let body="";
+    if(open){
+      if(!det) loadDeviceDetail(key);
+      body = !det||det.loading? '<div class="empty">Loading…</div>' : det.error? '<div class="gwarn"><b>Could not load this device:</b> '+esc(det.error)+'</div>' : deviceDetailHTML(det.data);
+    }
+    return '<tr class="urow'+(open?" open":"")+'" data-dk="'+esc(key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(d.hostname||"(no hostname)")+'</td><td class="mono">'+esc(d.serial||"—")+'</td><td>'+esc(d.platformVersion||"—")+'</td><td>'+(d.lastSeen?esc(ago(S.ref-Date.parse(d.lastSeen))):"—")+'</td><td><span class="rk '+D_BAND_RK[band]+'">'+(d.healthScore==null?"—":d.healthScore)+' · '+D_BAND_TEXT[band]+'</span></td></tr>'+
+      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad">'+body+'</div></div></div></td></tr>';
+  }).join("");
+  el.innerHTML = (S.d.error? '<div class="gwarn"><b>Device health problem:</b> '+esc(S.d.error)+'</div>':"")+
+    '<div class="card"><h2>Devices</h2><p class="hint">Click a device for the full picture: OS, agent, battery, storage, uptime and installed apps.</p>'+
+    '<div class="ulrow"><input type="text" id="dsearch" placeholder="Search a hostname, serial or device name…" autocomplete="off" value="'+q+'"></div>'+
+    (S.d.loading&&!list.length? '<div class="empty">Loading devices…</div>' : !list.length? '<div class="empty">No enrolled devices'+(S.d.q?' match “'+q+'”':"")+'.</div>' :
+      '<div class="scroll"><table><tr><th>Hostname</th><th>Serial</th><th>OS version</th><th>Last check-in</th><th>Health</th></tr>'+rows+'</table></div>')+
+    '</div>';
+}
+function deviceDetailHTML(d){
+  if(!d) return '<div class="empty">No data.</div>';
+  const id=d.identity||{}, os=d.os||{}, agent=d.agent||{}, batt=d.battery, store=d.storage, up=d.uptime, apps=d.apps||{items:[]}, h=d.health||{parts:{}};
+  const gb=(v,n)=>v==null?"—":n(v);
+  const mem=gb(id.memoryBytes,v=>Math.round(v/1073741824)+" GB");
+  const diskFreePct=h.parts.diskFree&&h.parts.diskFree.freePct!=null? h.parts.diskFree.freePct+"%" : "—";
+  const rows=(label,val)=>val==null||val===""?"":'<div class="gscope"><span>'+esc(label)+'</span><span>'+esc(val)+'</span></div>';
+  return '<div class="gsec"><b>Identity</b>'+rows("Hostname",id.hostname)+rows("Serial",id.serial)+rows("Model",id.model)+rows("CPU",id.cpuBrand)+rows("Memory",mem)+'</div>'+
+    '<div class="gsec"><b>OS &amp; agent</b>'+rows("OS version",os.version)+rows("osquery version",agent.osqueryVersion)+rows("Last check-in",agent.lastSeen?new Date(agent.lastSeen).toLocaleString():null)+rows("Enrolled",agent.enrolled?new Date(agent.enrolled).toLocaleString():null)+'</div>'+
+    '<div class="gsec"><b>Battery</b>'+(batt? rows("Health",batt.health)+rows("Cycle count",batt.cycle_count)+rows("Max capacity",batt.max_capacity!=null?batt.max_capacity+"%":null) : '<span class="gsub">No battery (likely a desktop), or not reported yet.</span>')+'</div>'+
+    '<div class="gsec"><b>Storage</b>'+(store? rows("Root volume free",diskFreePct) : '<span class="gsub">Not reported yet.</span>')+'</div>'+
+    '<div class="gsec"><b>Uptime</b>'+(up? rows("Since last reboot",(h.parts.rebootFreshness&&h.parts.rebootFreshness.uptimeDays!=null?h.parts.rebootFreshness.uptimeDays+" days":null)) : '<span class="gsub">Not reported yet.</span>')+'</div>'+
+    '<div class="gsec"><b>Apps ('+fmtN(apps.count||0)+')</b>'+(apps.items&&apps.items.length? '<div class="gppl">'+apps.items.slice(0,40).map(a=>'<span class="chip" title="'+esc(a.version||"")+'">'+esc(a.name)+'</span>').join("")+(apps.count>40?'<span class="gsub">and '+(apps.count-40)+' more</span>':"")+'</div>' : '<span class="gsub">Not reported yet.</span>')+'</div>'+
+    '<div class="gsec"><b>Health score: '+h.score+' · '+D_BAND_TEXT[h.band]+'</b>'+Object.entries(h.parts).map(([k,p])=>'<div class="gscope"><span class="rk '+(p.points>=p.weight*0.85?"low":p.points>=p.weight*0.5?"medium":"high")+'">'+p.points+'/'+p.weight+'</span><span>'+esc(k.replace(/([A-Z])/g," $1").toLowerCase())+(p.partial?' <span class="gsub">(no scheduled query configured yet; not held against it)</span>':"")+'</span></div>').join("")+'</div>'+
+    '<p class="gsub">Read-only: this dashboard and the account it signs in as cannot change, carve or remediate anything on this device.</p>';
+}
+$("#dStatus").addEventListener("click",ev=>{ if(ev.target.closest("#dRefresh")){ S.d.detail={}; S.d.open.clear(); loadDevices(); } });
+$("#devicesView").addEventListener("click",ev=>{
+  if(ev.target.closest("tr.udet")) return;
+  const row=ev.target.closest("tr.urow[data-dk]"); if(row){ const k=row.dataset.dk, open=!S.d.open.has(k); if(open) S.d.open.add(k); else S.d.open.delete(k); renderDevicesView(); }
+});
+$("#devicesView").addEventListener("input",ev=>{ if(ev.target.id==="dsearch"){ S.d.q=ev.target.value; clearTimeout(S.d.qT); S.d.qT=setTimeout(()=>{ S.d.list=null; S.d.detail={}; renderDevicesView(); },250); } });
+$("#devicesView").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow[data-dk]")){ ev.preventDefault(); ev.target.click(); } });
+
 /* ---------- who is signed in, and what they may do ---------- */
 S.me=null; S.rulesShared=false;
 // if the session has ended the server answers 401 with where to sign in: go there instead of showing a broken page
@@ -2693,7 +2743,7 @@ async function refreshLive(){
            : S.catchingUp ? (cu&&!cu.headCaughtUp ? "Catching up with the latest Okta events… " : "Loading history from Okta: "+(cu?cu.pct+"% of "+st.lookbackDays+" days (back to "+new Date(cu.loadedBack).toLocaleString()+"). ":""))+(st&&st.rateLimit&&st.rateLimit.budgetRpm<=120? "Paced to about "+st.rateLimit.budgetRpm+" requests a minute so Okta’s rate limit is not exceeded, so this takes a while. ":"")+"Apps not seen yet show as “waiting” instead of silent until this finishes."
            : "";
     if(wasCatching&&!S.catchingUp){ clearTimeout(S.liveTimer); await goLive(); return; }   // history finished: reload everything once
-    await refreshGoogle(st); await loadPolicy(); S.slackOn=!!(st&&st.slack&&st.slack.configured); await loadServerAlerts();
+    await refreshGoogle(st); setDeviceConfigured(st&&st.osctrl&&st.osctrl.configured); await loadPolicy(); S.slackOn=!!(st&&st.slack&&st.slack.configured); await loadServerAlerts();
     render(); $("#asof").textContent=`Live · ${fmtN(S.events.length)} events · updated ${new Date().toLocaleTimeString()}`;
   }catch(err){ $("#asof").textContent="Live feed error: "+err.message+" — retrying"; }
   clearTimeout(S.liveTimer); if(S.live!==false) S.liveTimer=setTimeout(refreshLive,S.catchingUp?15000:60000);
@@ -2707,7 +2757,7 @@ $("#view-alerts").addEventListener("click",ev=>{ if(ev.target.closest("#rulesPub
   try{ const r=await fetch("api/status"); if(r.ok) st=await r.json(); }catch(_){}
   if(st&&st.org) $("#orgName").textContent=st.org;
   if(st&&st.live){ $("#btnLive").hidden=false; setAssistantUI(!!st.assistant); await goLive(); }
-  else { const d=makeDemo(); setData(d.events,d.inventory,true); setAssistantUI(false); }
+  else { const d=makeDemo(); setData(d.events,d.inventory,true); setAssistantUI(false); setDeviceConfigured(false); }
 })();
 })();
 </script>

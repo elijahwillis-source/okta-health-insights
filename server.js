@@ -58,6 +58,7 @@ const cfg = {
 
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 const google = require("./google").createGoogle(env, log);
+const osctrl = require("./osctrl").createOsctrl(env, log);
 const audit = require("./audit").createAudit({ dir: cfg.dataDir, log, stdout: !/^(0|false|no|off)$/i.test(env.AUDIT_STDOUT || "") });
 const auth = require("./auth").createAuth({ env, dir: cfg.dataDir, log, audit });
 const policy = require("./policy").createPolicy({ dir: cfg.dataDir, log, admins: cfg.policyAdmins, requireExpiry: cfg.policyRequireExpiry, verifiedIdentity: !!cfg.userHeader, roleBased: auth.enabled || auth.misconfigured,
@@ -521,13 +522,32 @@ async function assistantGoogleLookup(i) {
   };
 }
 
+// the assistant's version: one device's identity, OS, agent, battery, storage, uptime, apps and health score
+async function assistantDeviceLookup(i) {
+  i = i || {};
+  if (!osctrl.configured) return { error: "Device health (osctrl) is not connected (OSCTRL_API_URL, OSCTRL_API_USER and OSCTRL_API_PASSWORD are not set)." };
+  if (!i.device || String(i.device).trim().length < 2) return { error: "Provide a hostname, serial number or device name (at least 2 characters)." };
+  try { return await osctrl.deviceDetail(i.device); }
+  catch (err) { return { error: "osctrl lookup failed: " + String(err.message || err).slice(0, 200) }; }
+}
+// the assistant's version: run one read-only troubleshooting recipe against one device, live, and say which query produced the answer
+async function assistantDeviceRecipe(i) {
+  i = i || {};
+  if (!osctrl.configured) return { error: "Device health (osctrl) is not connected (OSCTRL_API_URL, OSCTRL_API_USER and OSCTRL_API_PASSWORD are not set)." };
+  if (!i.device || String(i.device).trim().length < 2) return { error: "Provide a hostname, serial number or device name (at least 2 characters)." };
+  if (!osctrl.RECIPES[i.check]) return { error: "Unknown check: " + i.check + ". Use one of: " + Object.keys(osctrl.RECIPES).join(", ") };
+  try { return await osctrl.runRecipe(i.device, i.check); }
+  catch (err) { return { error: "osctrl query failed: " + String(err.message || err).slice(0, 200) }; }
+}
+
 /* --------------------------------------------------------------- assistant */
 const SYSTEM = `You are Iris, the friendly guide built into Sightline, an IT health dashboard that reads Okta (and optionally Google Workspace) activity. You are also an expert Okta administrator and identity engineer, and you help people troubleshoot using live Okta System Log data.
 YOUR VOICE: warm, calm and plain-spoken, like a capable colleague who is happy to help. Speak as "I" ("I checked the last 7 days and..."). Lead with the answer in the first sentence, then the reason, then what to do next. Keep it short and use plain words before jargon. Do NOT start every answer the same way and never open with "Looking at your data": vary your openings, or just start with the answer. No emoji. Light warmth is good ("Good news:", "That one is quick to fix."); jokes and wordplay are not. If you are asked who you are, say you are Iris, an AI guide built into Sightline. Being friendly never means being vague: stay accurate, specific and honest about what the data does and does not show. SCOPE: answer the question that was asked. If it is about one event or one person, stay on that event and that person, and do not widen to other incidents or other people unless asked.
 Be practical and specific: explain the likely root cause, then give ordered steps with exact Admin Console paths (e.g. Applications > Applications > [app] > Provisioning / Assignments; Directory > People; Reports > System Log; Security > Authentication Policies) and relevant System Log eventTypes or filter expressions.
 Apply common knowledge: expired/revoked API tokens or OAuth grants in provisioning; license exhaustion in the target app; duplicate or mismatched attributes (email/username) in the target; group rules failing on missing profile attributes; attribute mapping and Okta Expression Language errors; rate limiting (429); sign-on policy denials; lockouts; import schedules; SCIM errors.
 Use the query_events tool to look at real events before drawing conclusions about specific apps or users. Be honest when the data is insufficient and say what extra data would help. Never invent events. Keep answers concise; use short lists for steps.
-The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. The google summary may include "idleApps": Google apps with no activity in the last 30 days. For who has access to one app, that app's full scope and people list, or anything about a Google app beyond what the summary shows, use the lookup_google_app tool instead of guessing.`;
+The dashboard summary may include a "google" section: Google Workspace OAuth consent data (which apps people connected to their Google accounts, each app's client ID, the scopes it was granted, how many people, and when). It is a consent log, not a record of every sign-in. When asked whether such an app is safe, explain in plain words what each scope allows, which scopes are the most powerful (full Gmail, full Drive, admin or Cloud scopes), what the number of people and the first-seen date suggest, and the concrete next steps in the Google Admin console (Security > Access and data control > API controls > Manage third-party app access: check the app's verification status, then allow, limit or block it). Say plainly that the dashboard is read-only and cannot judge whether the vendor is trustworthy. The google summary may include "idleApps": Google apps with no activity in the last 30 days. For who has access to one app, that app's full scope and people list, or anything about a Google app beyond what the summary shows, use the lookup_google_app tool instead of guessing.
+If device health (osctrl) is connected, you can also answer questions about one person's Mac: identity, OS version, battery, free disk space, uptime, installed apps and a 0-100 health score. Use lookup_device_health for a device's current state, and run_device_check for a live, read-only troubleshooting question (disk full, running slow, battery, network, crashing, what's installed) — always say which query the answer came from, and never suggest a remediation action (this account cannot make changes; it can only read).`;
 
 // Used when someone asks Iris to explain ONE event for ONE person (the Explain buttons). She gets the facts in the question, no dashboard
 // summary, and no broad search tools, so she cannot wander off into every incident of the same error.
@@ -584,6 +604,25 @@ const TOOLS = [{
       app: { type: "string", description: "App name or client ID, e.g. Granola" }
     },
     required: ["app"]
+  }
+}, {
+  name: "lookup_device_health",
+  description: "Look up ONE enrolled Mac by hostname, serial number or device name. Returns identity, OS version, agent (osquery) status, battery, free disk space, uptime, installed apps and a 0-100 health score with its breakdown. Use this for 'how is [person]'s laptop doing' type questions.",
+  input_schema: {
+    type: "object",
+    properties: { device: { type: "string", description: "Hostname, serial number, or a name/person that identifies the device" } },
+    required: ["device"]
+  }
+}, {
+  name: "run_device_check",
+  description: "Run ONE live, read-only troubleshooting query against ONE enrolled Mac and wait for it to answer (can take up to two minutes; the device must be online). Use this instead of lookup_device_health when the question is about a live symptom right now. Always tell the person which query produced the answer.",
+  input_schema: {
+    type: "object",
+    properties: {
+      device: { type: "string", description: "Hostname, serial number, or a name/person that identifies the device" },
+      check: { type: "string", enum: ["disk_full", "slow", "battery", "network", "crashing", "installed_apps"], description: "disk_full: is the disk full. slow: why is it slow (uptime + top processes by memory). battery: battery health. network: interfaces, routes and DNS. crashing: crashes in the last 7 days. installed_apps: what's installed." }
+    },
+    required: ["device", "check"]
   }
 }];
 
@@ -714,6 +753,8 @@ async function chat(body) {
               : b.name === "lookup_user_events" ? await assistantUserLookup(b.input)
               : b.name === "lookup_app_errors" ? await assistantAppLookup(b.input)
               : b.name === "lookup_google_app" ? await assistantGoogleLookup(b.input)
+              : b.name === "lookup_device_health" ? await assistantDeviceLookup(b.input)
+              : b.name === "run_device_check" ? await assistantDeviceRecipe(b.input)
               : { error: "unknown tool" };
         } catch (err) { out = { error: String(err.message || err).slice(0, 200) }; }
         results.push({ type: "tool_result", tool_use_id: b.id, content: JSON.stringify(out) });
@@ -789,6 +830,7 @@ function makeLimiter(max) {
   return key => { const now = Date.now(), a = (hits.get(key) || []).filter(t => now - t < 60000); if (a.length >= max) { hits.set(key, a); return false; } a.push(now); hits.set(key, a); if (hits.size > 5000) hits.clear(); return true; };
 }
 const lookupRateOk = makeLimiter(30);
+const osctrlRateOk = makeLimiter(20);   // device lookups can themselves be slow (a live recipe waits up to 2 minutes), so a shared cap is the backstop against piling up calls to osctrl
 const rateOk = makeLimiter(20);    // the assistant
 const policyRateOk = makeLimiter(60);
 // the key for these limiters: the session (one person, even if several share an office IP), otherwise the IP
@@ -868,7 +910,7 @@ const server = http.createServer(async (req, res) => {
       return send(req, res, 200, {
         live: true, org: (() => { try { return new URL(cfg.orgUrl).host; } catch { return ""; } })(), assistant: !!cfg.anthropicKey, serverTime: Date.now(), eventCount: state.events.length, appCount: state.apps.length,
         cursor: state.cursor, lastPollOk: state.lastPollOk, lastError: state.lastError, catchingUp: state.catchingUp, lookbackDays: cfg.lookbackDays,
-        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), rateLimit: rateStatus(), geo: geo.status(), alerts: alertsEngine.status(), slack: { configured: slack.configured }
+        catchUp: catchUpInfo(), lookup: true, appLookup: true, google: google.status(), osctrl: osctrl.status(), rateLimit: rateStatus(), geo: geo.status(), alerts: alertsEngine.status(), slack: { configured: slack.configured }
       });
 
     if (req.method === "GET" && url.pathname === "/api/google/events") {
@@ -877,6 +919,22 @@ const server = http.createServer(async (req, res) => {
       const status = google.status();
       return send(req, res, 200, { events: ev, total: status.events, seq: status.seq, epoch: status.epoch, serverTime: Date.now(), status });
     }
+
+    if (req.method === "GET" && url.pathname === "/api/osctrl/devices") {
+      if (!osctrl.configured) return send(req, res, 404, { error: "Device health (osctrl) is not connected (OSCTRL_API_URL, OSCTRL_API_USER and OSCTRL_API_PASSWORD are not set)." });
+      if (!osctrlRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many device lookups — try again in a minute." });
+      try { return send(req, res, 200, { devices: await osctrl.deviceSummaries(url.searchParams.get("q") || "") }); }
+      catch (err) { return send(req, res, 502, { error: "osctrl lookup failed: " + String(err.message || err).slice(0, 200) }); }
+    }
+    { const m = req.method === "GET" && /^\/api\/osctrl\/devices\/(.+)$/.exec(url.pathname);
+      if (m) {
+        if (!osctrl.configured) return send(req, res, 404, { error: "Device health (osctrl) is not connected (OSCTRL_API_URL, OSCTRL_API_USER and OSCTRL_API_PASSWORD are not set)." });
+        if (!osctrlRateOk(rateKeyOf(req))) return send(req, res, 429, { error: "Too many device lookups — try again in a minute." });
+        try {
+          const d = await osctrl.deviceDetail(decodeURIComponent(m[1]));
+          return send(req, res, d.error ? 404 : 200, d);
+        } catch (err) { return send(req, res, 502, { error: "osctrl lookup failed: " + String(err.message || err).slice(0, 200) }); }
+      } }
 
     if (req.method === "GET" && url.pathname === "/api/events") {
       const since = +url.searchParams.get("since") || 0;

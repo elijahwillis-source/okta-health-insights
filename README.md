@@ -66,6 +66,8 @@ Everything is configured with **environment variables**. Nothing secret lives in
 | `LOOKUP_MAX_EVENTS` | no | Per-user search: most events returned to the page (default 5000) |
 | `HEAD_HOURS` | no | Newest window loaded first (default 6). The dashboard is current as soon as this is done |
 | `BACKFILL_CHUNK_HOURS` | no | Older history is then loaded newest chunk first, in chunks of this size (default 12) |
+| `OSCTRL_API_URL`, `OSCTRL_API_USER`, `OSCTRL_API_PASSWORD` | for Device health | A dedicated read-only osctrl service account. See "Device health (osctrl)" below |
+| `OSCTRL_ENV` | no | The osctrl environment name (default `corp`) |
 | `PORT` | no | Default 8080 |
 
 ### Okta permissions: use least privilege
@@ -265,6 +267,16 @@ Settings (all optional): `GOOGLE_POLL_SECONDS` (default 300), `GOOGLE_ACTIVITY_D
 
 Sample data (Data & settings > Use sample data) includes sample Google apps so you can see the page before connecting.
 
+## Device health (osctrl)
+
+The **Device health** page shows every enrolled Mac from [osctrl](https://osctrl.net/): identity (hostname, serial, model, CPU, memory), OS version, agent (osquery) status, battery, free disk space, uptime and installed apps, plus a 0-100 health score. It is read-only: Sightline signs in to osctrl as a dedicated service-account user that cannot write, carve or remediate anything.
+
+**Setup.** Create a read-only service account in osctrl, then set `OSCTRL_API_URL`, `OSCTRL_API_USER` and `OSCTRL_API_PASSWORD` and redeploy. If osctrl sits behind your own internal CA, trust it with `NODE_EXTRA_CA_CERTS` (the Dockerfile already does this for the certificate in this repo) — never disable certificate verification instead. In the osctrl UI, add the scheduled queries listed in `sightline-osctrl-integration.md` (system info, battery, root disk, OS version, uptime, apps) so the health score stays fresh without Sightline polling devices on demand.
+
+**The health score is honest about what it cannot see.** Two of its components — memory headroom and recent crashes — need osquery data this integration does not schedule a query for yet. Rather than guess, those components show as "partial" and score full marks, so a query nobody configured can never unfairly drag a device's score down; add the matching scheduled query in osctrl to make them live.
+
+**Iris can use it too.** With osctrl connected, the assistant can look up one device's full health (`lookup_device_health`) or run one of six live, read-only troubleshooting checks on a specific device — is the disk full, why is it slow, battery problems, network issues, is it crashing, what's installed (`run_device_check`) — and always says which query produced the answer. A live check waits up to two minutes for the device to answer; it may be offline or asleep.
+
 ## How the error explanations work
 
 Clicking a row sends only the error text, the app name, the event type and two counts to `/api/explain-error`. Ids inside the text (member ids, user ids) are replaced by `<id>` first and repeated segments are collapsed, so the same error for ten people is one cache entry and one question to the model. The model is asked for a fixed shape (what it means, likely causes, how to fix, how to confirm), is told to say what to check instead of guessing, and has no access to your data beyond that text. Treat the answer as guidance from an Okta expert who has not seen your tenant: verify before changing a production integration.
@@ -291,6 +303,8 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 | `POST /api/geo/preview` | `{rule}`: what a location rule would have caught in the data held (admin and owner) |
 | `PUT /api/policy/geo-rules` | `{baseVersion, rules, why}`: save the location rules; needs a reason, audited (admin and owner) |
 | `GET /api/slack`, `GET /api/slack/manifest`, `POST /api/slack/test` | Slack status (never the token), the app manifest, and a test message (admin and owner) |
+| `GET /api/osctrl/devices?q=…` | Device health summaries (hostname, serial, OS version, last check-in, health score) from osctrl |
+| `GET /api/osctrl/devices/<hostname-or-serial-or-uuid>` | One device's full detail: identity, OS, agent, battery, storage, uptime, apps and the health score breakdown |
 
 ## Tests
 
@@ -298,6 +312,7 @@ Events are kept in memory only, and are not written to disk. When someone uses t
 bash test/smoke.sh          # Okta side: server, endpoints, lookups, assistant (fake Okta, fake Anthropic)
 bash test/smoke-google.sh   # Google side: a strict fake Google that verifies the signed sign-in
 node test/geo-unit.js       # location rules and the Slack sender: logic, no servers
+node test/osctrl-unit.js    # device health score logic, plus the osctrl client against a mock server
 bash test/smoke-geo.sh      # location alerts and Slack end to end (two servers, fake Okta, fake Slack; about 4 minutes)
 bash test/browser/run-geo-ui.sh   # the Location alerts section in a real browser (needs: cd test/browser && npm install && npx playwright install chromium)
 ```

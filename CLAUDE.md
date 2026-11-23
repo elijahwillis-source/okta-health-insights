@@ -19,6 +19,7 @@ one HTML file for the whole UI. Deployed on Coolify at https://sightline.coolify
 | `slack.js` | Slack sender (post only), the app manifest, message formatting and escaping, pacing, the per-minute cap |
 | `integrations/slack/app-manifest.json` | The Slack app manifest. Generated from `MANIFEST` in `slack.js`; a test checks they match, so change `slack.js` and regenerate the file |
 | `google.js` | Google loader: service account with domain-wide delegation, Reports API token audit, newest first |
+| `osctrl.js` | osctrl client (read-only service account): node/device lookup, scheduled-query results for the Device Health score, the six on-demand troubleshooting recipes |
 | `public/index.html` | The entire UI: one inline `<script>`, all CSS, inline SVG (Iris faces, logo) |
 | `test/` | Mock services and seven server test suites (below) |
 
@@ -31,13 +32,14 @@ Runtime data lives in `DATA_DIR` (`/app/data`, a persistent volume): `policy.jso
 for t in smoke smoke-auth smoke-policy smoke-google smoke-ratelimit smoke-google-first smoke-google-load; do bash test/$t.sh | tail -1; done
 node test/geo-unit.js | tail -1                    # location rules and Slack: logic, no servers
 node test/alerts-unit.js | tail -1                 # the shared alert checks and the server engine: logic, no servers
+node test/osctrl-unit.js | tail -1                 # device health score logic, plus the client against a mock osctrl server
 bash test/smoke-alerts.sh | tail -1                # shared alerts on the server with sign-in on, routed to Slack; about 6 minutes, run it detached
 bash test/smoke-geo.sh | tail -1                   # location alerts and Slack end to end; takes 2 to 5 minutes, so run it detached if your tool has a time limit
-# baseline on the current main: 77, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (34, no FAIL); geo-unit 69; smoke-geo 73; alerts-unit 43; smoke-alerts 36
+# baseline on the current main: 84, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (34, no FAIL); geo-unit 69; smoke-geo 73; alerts-unit 43; smoke-alerts 36; osctrl-unit 20
 # the suites share fixed ports (4010 and others), so run them one after another, never at the same time
 
 # syntax check, including the page's inline script
-for f in server.js auth.js audit.js policy.js google.js; do node --check $f; done
+for f in server.js auth.js audit.js policy.js google.js osctrl.js; do node --check $f; done
 node -e "const s=require('fs').readFileSync('public/index.html','utf8');new Function(s.match(/<script>([\s\S]*)<\/script>/)[1]);console.log('page parses')"
 
 # run it locally with fakes (no real Okta or Anthropic needed)
@@ -61,6 +63,7 @@ The older UI tests lived outside the repo and were lost: see "Rebuild the browse
 - **Known errors hide, never delete.** Everything hidden stays counted and visible behind a toggle. Every policy change needs a named actor and a reason.
 - **Okta rate limits:** one gate paces all calls (`OKTA_MAX_RPM`, default 30, minimum 6, a reserve for the head poll, `x-rate-limit` header waits, halve on 429).
   Never add an Okta call that skips the gate. Sightline must use its own read-only API token, not one shared with other tools.
+- **Device health (osctrl) is read-only, on purpose.** Sightline signs in to osctrl as a dedicated service account (`ai-readonly`) that cannot write, carve or remediate — nothing in this app should ever suggest it can take an action on a device. The Device Health score reads osctrl's *scheduled* query results (`osctrl.js`'s `SCHEDULED` names); the six assistant recipes (`osctrl.RECIPES`) run their own on-demand, read-only query and wait up to `OSCTRL_QUERY_TIMEOUT_MS` (default 2 minutes) for the device to answer. Exact osctrl field names were unconfirmed when this was written (see `sightline-osctrl-integration.md`): `osctrl.js` reads several plausible names per field and degrades to "unknown"/"partial" instead of throwing — fix the field list there once the live API has been seen, don't paper over a mismatch elsewhere.
 - **Memory:** events are held in memory up to `MAX_EVENTS` (default 100000, about 31 hours at our volume), `LOOKBACK_DAYS` = 7.
   Every restart or redeploy empties it and the history reloads (about 20 to 30 minutes). Google loads by hour, newest first, without keeping per-event data.
 - **Iris** (the assistant): her voice is `SYSTEM` in `server.js`. The Explain buttons use `focus: true`: the server swaps in `FOCUS_RULES`, drops the dashboard
