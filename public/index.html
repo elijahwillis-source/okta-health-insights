@@ -167,7 +167,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .chkrow{display:flex;gap:6px 14px;flex-wrap:wrap;margin-top:4px}.chk{display:inline-flex;gap:6px;align-items:center;font-size:13px;color:var(--text)}
 .mact{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}.merr{color:var(--bad);font-size:12.5px}
 #gTbl tr.urow{cursor:pointer}#gTbl tr.urow:hover td{background:var(--surface2)}#gTbl tr.urow td:first-child{white-space:nowrap}
-#gTbl tr.udet>td{padding:0;border-bottom:1px solid var(--border)}
 .rk{display:inline-block;padding:1px 9px;border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap}
 .rk.high{background:rgba(255,107,107,.16);color:var(--bad)}.rk.medium{background:rgba(255,184,77,.16);color:var(--warn)}.rk.low{background:rgba(63,185,119,.16);color:var(--ok)}
 .sc{display:inline-block;margin:2px 4px 2px 0;padding:1px 8px;border-radius:6px;font-size:11.5px;background:var(--surface2);border:1px solid var(--border);white-space:nowrap}
@@ -194,6 +193,19 @@ html.assist .drawer{visibility:visible;transition-delay:0s}
   .drawer{position:fixed;top:0;right:0;bottom:0;height:auto;width:min(440px,100vw);transform:translateX(104%);box-shadow:-12px 0 32px rgba(0,0,0,.18);transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
   html.assist .drawer{transform:none;transition-delay:0s}.drawer>.chat{min-width:0}}
 @media (prefers-reduced-motion:reduce){.shell,.drawer{transition:none}}
+/* ---- item detail drawer: one device, person or app at a time, so switching never means scrolling ----
+   No backdrop on purpose: the whole point is that the list underneath stays live and clickable, so picking a
+   different row swaps the drawer instead of needing a close-then-reopen round trip. Esc, the X, or clicking the
+   same row again close it. */
+.idrawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,94vw);background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:39;display:flex;flex-direction:column;transform:translateX(104%);visibility:hidden;transition:transform .32s cubic-bezier(.2,.8,.2,1),visibility 0s linear .32s}
+.idrawer.open{transform:none;visibility:visible;transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.idrawer .iclose{position:absolute;top:10px;right:12px;z-index:2;background:transparent;border:none}
+.idhead{padding:18px 48px 12px 22px;border-bottom:1px solid var(--border);flex:none}
+.idhead h2{margin:0;font-size:16px;overflow-wrap:anywhere}
+.idsub{margin:4px 0 0;font-size:12.5px;color:var(--muted)}
+.idbody{padding:14px 22px 36px;overflow-y:auto;flex:1;min-height:0}
+@media (max-width:600px){.idrawer{width:100vw}}
+@media (prefers-reduced-motion:reduce){.idrawer{transition:none}}
 .ctl{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted)}
 select,button,input[type=text]{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:6px 10px;transition:border-color .15s,box-shadow .15s}
 button{cursor:pointer;font-weight:600}
@@ -282,14 +294,11 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
 .inp input{flex:1}
 #userTbl tr.urow{cursor:pointer}#userTbl tr.urow td:first-child{white-space:nowrap}#userTbl tr.urow:hover td{background:var(--surface2)}
 .uchev{display:inline-block;width:14px;color:var(--muted);transition:transform .35s cubic-bezier(.2,.8,.2,1)}tr.urow.open .uchev{transform:rotate(90deg);color:var(--accent)}
-#userTbl tr.udet>td{padding:0;border-bottom:1px solid var(--border)}
-.xbody{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s cubic-bezier(.2,.8,.2,1)}tr.urow.open+tr.udet .xbody{grid-template-rows:1fr}
-.xinner{min-height:0;overflow:hidden}.xpad{padding:6px 14px 14px}
 .xhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;margin:4px 0 6px}
 .xerr{border:1px solid var(--border);border-radius:10px;background:var(--surface2);margin:8px 0;padding:10px 12px}
 .xerr .rs{font-size:13px;overflow-wrap:anywhere}.xbtn{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.xbtn button{font-size:12.5px;padding:4px 10px}
 .xexp{margin-top:8px;padding:10px 12px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;white-space:pre-wrap;font-size:13px;overflow-wrap:anywhere}.xexp[hidden]{display:none}
-@media (prefers-reduced-motion:reduce){.xbody,.uchev{transition:none}}
+@media (prefers-reduced-motion:reduce){.uchev{transition:none}}
 .ulrow{display:flex;gap:8px;margin-bottom:10px}.ulrow input{flex:1;min-width:0}
 .ukpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
 .ukpi{background:var(--surface2);border-radius:10px;padding:8px 10px}.ukpi .l{font-size:11.5px;color:var(--muted)}.ukpi .v{font-size:20px;font-weight:650}
@@ -505,6 +514,11 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface2)}
     </div>
   </aside>
 </div>
+<aside class="idrawer" id="itemDrawer" aria-label="Details" aria-hidden="true">
+  <button class="iconbtn iclose" id="idClose" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  <div class="idhead"><h2 id="idTitle"></h2><p class="idsub" id="idSub"></p></div>
+  <div class="idbody" id="idBody"></div>
+</aside>
 <datalist id="fbApps"></datalist>
 <div id="toasts" aria-live="polite"></div>
   <input type="file" id="fileLog" accept=".json,.ndjson,.jsonl,.csv,.tsv,.txt" hidden>
@@ -915,6 +929,34 @@ $("#appsCard").addEventListener("click",ev=>{
   const le=ev.target.closest("[data-less]"); if(le){ appsAct("less",le.dataset.less); }
 });
 
+/* ---------- shared item-detail drawer: one device, person or app at a time ---------- */
+// Device, person and app detail used to expand in place in each list, which meant collapsing one and scrolling
+// to find the next. One drawer, shared by all three, means clicking anywhere else in the list just swaps what
+// it shows — nothing to scroll back to. S.idKind/S.idKey say what is currently open ("device"/"user"/"app" + its
+// key); a section's render function checks them to refresh the open item's content and to highlight its row.
+S.idKind=null; S.idKey=null;
+function openItemDrawer(kind,key,title,sub,bodyHTML){
+  S.idKind=kind; S.idKey=key;
+  $("#idTitle").textContent=title||""; $("#idSub").innerHTML=sub||"";
+  $("#idBody").innerHTML=bodyHTML||'<div class="empty">Loading…</div>'; $("#idBody").scrollTop=0;
+  $("#itemDrawer").classList.add("open"); $("#itemDrawer").setAttribute("aria-hidden","false");
+}
+function updateItemDrawer(kind,key,title,sub,bodyHTML){
+  if(S.idKind!==kind||S.idKey!==key) return;         // the drawer has already moved on to something else
+  if(title!=null) $("#idTitle").textContent=title;
+  if(sub!=null) $("#idSub").innerHTML=sub;
+  $("#idBody").innerHTML=bodyHTML;
+}
+function closeItemDrawer(){
+  if(!S.idKind) return;
+  const wasKind=S.idKind; S.idKind=null; S.idKey=null;
+  $("#itemDrawer").classList.remove("open"); $("#itemDrawer").setAttribute("aria-hidden","true");
+  if(wasKind==="user"&&S.C) renderUsersTable(S.C);          // clears the "open" highlight left on that row
+  else if(wasKind==="app") renderGoogleView();
+  else if(wasKind==="device") renderDevicesView();
+}
+$("#idClose").onclick=closeItemDrawer;
+
 /* ---------- users with assignment / provisioning errors: expandable, each error explained ---------- */
 // Clicking a row slides open that person's errors. Each error can be explained by the assistant (what it
 // means, likely causes, how to fix, how to confirm). Explanations are fetched on demand, cached on the server
@@ -940,28 +982,50 @@ function setUserSort(key){
   S.ushown=15; if(S.C) renderUsersTable(S.C);
 }
 function renderUsersTable(C){
-  const el=$("#userTbl"); S.xerr=new Map(); if(!S.uopen) S.uopen=new Set(); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
+  const el=$("#userTbl"); if(!S.xshown) S.xshown=new Set(); if(!S.explain) S.explain=new Map();
   // two modes: BROWSING (nothing typed: the list of people with assignment or provisioning errors) and SEARCHING
   // (something typed or looked up: only the search is shown, so two things never answer at once)
-  const searching=!!((S.pq||"").trim()||S.lq); $("#usersCard").hidden=searching; $("#peopleBar").hidden=searching; if(searching) return;
+  const searching=!!((S.pq||"").trim()||S.lq); $("#usersCard").hidden=searching; $("#peopleBar").hidden=searching;
+  if(searching){ if(S.idKind==="user") closeItemDrawer(); return; }
   const us=userSort(), dir=us.dir==="asc"? 1 : -1, ukey={user:u=>u.user.toLowerCase(),errors:u=>u.n,apps:u=>((top(u.apps,1)[0]||[""])[0]).toLowerCase(),reason:u=>normErr((top(u.reasons,1)[0]||[""])[0]).toLowerCase(),last:u=>u.last}[us.key]||(u=>u.last);
   const users=C.users.slice().sort((a,b)=>{ const x=ukey(a), y=ukey(b), c=x<y?-1:x>y?1:0; return c? c*dir : (b.last-a.last)||(b.n-a.n); });     // sorted BEFORE the cut-off, so the newest are never the ones left out
   const cap=S.ushown||15;
   if(!users.length){ el.innerHTML='<tr><td>'+emptyErrors(C,"users")+'</td></tr>'; return; }
   const th=(k,label)=>'<th class="sortable" data-usort="'+k+'" tabindex="0" role="button" aria-sort="'+(us.key===k? (us.dir==="asc"?"ascending":"descending") : "none")+'" title="Sort by '+label.toLowerCase()+'">'+label+(us.key===k? '<span class="sarrow" aria-hidden="true">'+(us.dir==="asc"?"▲":"▼")+'</span>' : "")+'</th>';
-  el.innerHTML='<tr>'+th("user","User")+th("errors","Errors")+th("apps","Apps")+th("reason","Most common reason")+th("last","Last")+'</tr>'+users.slice(0,cap).map((u,ui)=>{
-    const open=S.uopen.has(u.user), apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0], errs=userErrors(u,C);
-    const blocks=errs.map((x,ei)=>{ const key=ui+"_"+ei; S.xerr.set(key,{...x,u:u.user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
-      return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
-        '<div class="gsub">'+esc(x.apps.join(", ")||"—")+(x.types.length?' · '+esc(x.types.join(", ")):"")+'</div></div>'+
-        '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask Iris</button>'+(S.live&&S.policy.meta.canEdit? '<button class="ghost" data-knownerr="'+key+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>' : "")+'</div>'+
-        '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
-    return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" data-first="'+ui+'_0" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'+
-      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad"><div class="xhead"><span>'+fmtN(errs.length)+' kind'+(errs.length===1?"":"s")+' of error for <b>'+esc(u.user)+'</b></span><button class="ghost" data-lookup="'+esc(u.user)+'">Open in User lookup</button></div>'+blocks+'</div></div></div></td></tr>'; }).join("")+(users.length>15? '<tr class="umore"><td colspan="5">Showing '+Math.min(cap,users.length)+' of '+users.length+' · '+(cap<users.length? '<button type="button" class="ghost" data-umore="1">Show '+Math.min(25,users.length-cap)+' more</button> ' : "")+(cap>15? '<button type="button" class="ghost" data-uless="1">Show fewer</button>' : "")+'</td></tr>' : "");
+  el.innerHTML='<tr>'+th("user","User")+th("errors","Errors")+th("apps","Apps")+th("reason","Most common reason")+th("last","Last")+'</tr>'+users.slice(0,cap).map(u=>{
+    const open=S.idKind==="user"&&S.idKey===u.user, apps=top(u.apps,3).map(x=>esc(x[0])).join(", ")||"—", r=top(u.reasons,1)[0];
+    return '<tr class="urow'+(open?" open":"")+'" data-u="'+esc(u.user)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(u.user)+'</td><td><span class="pill f">'+u.n+'</span></td><td>'+apps+'</td><td>'+esc(r?normErr(r[0]).slice(0,160)+(normErr(r[0]).length>160?"…":""):"")+'</td><td>'+ago(S.ref-u.last)+'</td></tr>'; }).join("")+(users.length>15? '<tr class="umore"><td colspan="5">Showing '+Math.min(cap,users.length)+' of '+users.length+' · '+(cap<users.length? '<button type="button" class="ghost" data-umore="1">Show '+Math.min(25,users.length-cap)+' more</button> ' : "")+(cap>15? '<button type="button" class="ghost" data-uless="1">Show fewer</button>' : "")+'</td></tr>' : "");
+  if(S.idKind==="user"&&S.idKey) renderUserDrawerBody(S.idKey);        // keep the open drawer's content fresh, same data this table just used
+}
+// Builds the drawer body for one person's errors, and (re)populates S.xerr (key = error index, since only one
+// person's errors are ever in the drawer at a time) so the explain/full-text/known-error/ask-Iris buttons can find them.
+function userDrawerBody(user,C){
+  const u=C.users.find(x=>x.user===user); if(!u) return null;
+  const errs=userErrors(u,C); S.xerr=new Map();
+  const blocks=errs.map((x,ei)=>{ const key=String(ei); S.xerr.set(key,{...x,u:user}); const ek=errKey(x), shown=S.xshown.has(ek), long=x.norm.length>200;
+    return '<div class="xerr"><div class="rs"><b>'+fmtN(x.count)+'×</b> <span id="xr-'+key+'">'+esc(long? x.norm.slice(0,200)+"…" : x.norm)+'</span>'+(long?' <span class="lnk" data-full="'+key+'">Show full error</span>':"")+
+      '<div class="gsub">'+esc(x.apps.join(", ")||"—")+(x.types.length?' · '+esc(x.types.join(", ")):"")+'</div></div>'+
+      '<div class="xbtn"><button class="ghost" data-explain="'+key+'">'+(shown?"Hide explanation":"What does this mean?")+'</button><button class="ghost" data-askerr="'+key+'">Ask Iris</button>'+(S.live&&S.policy.meta.canEdit? '<button class="ghost" data-knownerr="'+key+'" title="Mark errors like this as known and expected, for everyone">Mark as known</button>' : "")+'</div>'+
+      '<div class="xexp" id="xe-'+key+'"'+(shown?"":" hidden")+'>'+explHTML(S.explain.get(ek))+'</div></div>'; }).join("");
+  return {errs,html:'<div class="xhead"><button class="ghost" data-lookup="'+esc(user)+'">Open in User lookup</button></div>'+(blocks||'<div class="empty">No current assignment or provisioning errors for this person.</div>')};
+}
+function renderUserDrawerBody(user){
+  if(S.idKind!=="user"||S.idKey!==user) return null;
+  const built=userDrawerBody(user,S.C);
+  if(!built){ updateItemDrawer("user",user,null,null,'<div class="empty">This person no longer has any errors in the loaded window.</div>'); return null; }
+  updateItemDrawer("user",user,user,fmtN(built.errs.length)+' kind'+(built.errs.length===1?"":"s")+' of error',built.html);
+  return built.errs;
+}
+function openUserDrawer(user){
+  if(S.idKind==="user"&&S.idKey===user){ closeItemDrawer(); return; }
+  openItemDrawer("user",user,user,"",'<div class="empty">Loading…</div>');
+  renderUsersTable(S.C);                                      // highlights this row and fills the drawer (see renderUsersTable's last line)
+  const x=S.xerr&&S.xerr.get("0");                            // first time open: explain the most common error straight away
+  if(x){ const ek=errKey(x); if(!S.xshown.has(ek)){ S.xshown.add(ek); const el=$("#idBody").querySelector("#xe-0"), btn=$("#idBody").querySelector('[data-explain="0"]'); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation"; loadExplanation("0"); } }
 }
 async function loadExplanation(key){
-  const x=S.xerr&&S.xerr.get(key); if(!x) return; const ek=errKey(x);
-  const paint=()=>{ const el=$("#userTbl").querySelector("#xe-"+key); if(el) el.innerHTML=explHTML(S.explain.get(ek)); };
+  const x=S.xerr&&S.xerr.get(key); if(!x) return; const ek=errKey(x), owner=x.u;
+  const paint=()=>{ if(S.idKind!=="user"||S.idKey!==owner) return; const el=$("#idBody").querySelector("#xe-"+key); if(el) el.innerHTML=explHTML(S.explain.get(ek)); };    // guarded: the drawer may have moved on to someone else by the time this resolves
   const st=S.explain.get(ek); if(st&&(st.state==="done"||st.state==="loading")){ paint(); return; }
   if(!S.assistant){ S.explain.set(ek,{state:"error",text:"The explanation needs the assistant, which is only available when the dashboard is connected to its backend with an Anthropic API key."}); paint(); return; }
   S.explain.set(ek,{state:"loading"}); paint();
@@ -973,36 +1037,31 @@ async function loadExplanation(key){
   paint();
 }
 async function explainToggle(key){
-  const x=S.xerr.get(key); if(!x) return; const ek=errKey(x), root=$("#userTbl");
+  const x=S.xerr.get(key); if(!x) return; const ek=errKey(x), root=$("#idBody");
   const el=root.querySelector("#xe-"+key), btn=root.querySelector('[data-explain="'+key+'"]'), st=S.explain.get(ek);
   if(S.xshown.has(ek)&&(!st||st.state!=="error")){ S.xshown.delete(ek); if(el) el.hidden=true; if(btn) btn.textContent="What does this mean?"; return; }
   if(st&&st.state==="error") S.explain.delete(ek);     // retry after a failure
   S.xshown.add(ek); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation";
   await loadExplanation(key);
 }
-function toggleUserRow(user){
-  const root=$("#userTbl"); const open=!S.uopen.has(user); if(open) S.uopen.add(user); else S.uopen.delete(user);
-  const row=[...root.querySelectorAll("tr.urow")].find(r=>r.dataset.u===user); if(!row) return;
-  row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open));
-  if(open&&S.xerr){ const key=row.dataset.first, x=S.xerr.get(key);      // first time open: explain the most common error straight away
-    if(x){ const ek=errKey(x); if(!S.xshown.has(ek)){ S.xshown.add(ek); const el=root.querySelector("#xe-"+key), btn=root.querySelector('[data-explain="'+key+'"]'); if(el) el.hidden=false; if(btn) btn.textContent="Hide explanation"; } loadExplanation(key); } }
-}
 $("#userTbl").addEventListener("click",ev=>{
   const sh=ev.target.closest("th[data-usort]"); if(sh){ setUserSort(sh.dataset.usort); return; }
   if(ev.target.closest("[data-umore]")){ S.ushown=(S.ushown||15)+25; renderUsersTable(S.C); return; }
   if(ev.target.closest("[data-uless]")){ S.ushown=15; renderUsersTable(S.C); return; }
+  const row=ev.target.closest("tr.urow"); if(row) openUserDrawer(row.dataset.u);
+});
+$("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("th[data-usort]")){ ev.preventDefault(); setUserSort(ev.target.dataset.usort); return; }
+  if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); openUserDrawer(ev.target.dataset.u); } });
+$("#itemDrawer").addEventListener("click",ev=>{
+  if(S.idKind!=="user") return;
   const ex=ev.target.closest("[data-explain]"); if(ex){ explainToggle(ex.dataset.explain); return; }
-  const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#userTbl").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
+  const fu=ev.target.closest("[data-full]"); if(fu){ const x=S.xerr.get(fu.dataset.full), sp=$("#idBody").querySelector("#xr-"+fu.dataset.full); if(x&&sp){ sp.textContent=x.norm; fu.remove(); } return; }
   const kn=ev.target.closest("[data-knownerr]"); if(kn){ const x=S.xerr.get(kn.dataset.knownerr); if(x) openSuppressEditor({match:{include:phraseFromNorm(x.norm),apps:x.apps.slice(0,1),eventType:(x.types||[])[0]||""}}); return; }
   const ak=ev.target.closest("[data-askerr]"); if(ak){ const x=S.xerr.get(ak.dataset.askerr); if(x){ const ev=S.events.filter(e=>isFail(e)&&userOf(e)===x.u&&normErr(reasonOf(e))===x.norm).sort((a,b)=>ts(b)-ts(a))[0];
     if(ev){ const b=eventBrief(ev); ask(b.text,{focus:true,show:b.show}); }
     else ask("Explain this ONE Okta error for this ONE person.\nPerson: "+x.u+"\nReason: “"+x.norm+"”"+(x.apps.length? "\nApp: "+x.apps.join(", ") : "")+(x.types.length? "\nEvent type: "+x.types.join(", ") : "")+"\nThey have had it "+x.count+" time"+(x.count===1?"":"s")+". Stay on this person and this error.",{focus:true,show:"Explain this error for "+x.u}); } return; }
-  const lk=ev.target.closest("[data-lookup]"); if(lk){ openUser(lk.dataset.lookup); return; }
-  if(ev.target.closest("tr.udet")) return;          // clicks inside the opened details never collapse them
-  const row=ev.target.closest("tr.urow"); if(row) toggleUserRow(row.dataset.u);
+  const lk=ev.target.closest("[data-lookup]"); if(lk){ closeItemDrawer(); openUser(lk.dataset.lookup); return; }
 });
-$("#userTbl").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("th[data-usort]")){ ev.preventDefault(); setUserSort(ev.target.dataset.usort); return; }
-  if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow")){ ev.preventDefault(); toggleUserRow(ev.target.dataset.u); } });
 
 /* ---------- error filters ---------- */
 S.fil=Object.assign(emptyFilter(),LS.get("okta.filters.v1",{}));      // the dashboard (Overview and People)
@@ -1482,7 +1541,7 @@ const prefs=Object.assign({theme:"auto",collapsed:false,desktopNotif:false},LS.g
 const savePrefs=()=>LS.set("okta.prefs.v1",prefs);
 function currentView(){ try{ const h=String(location.hash||"").replace(/^#\/?/,"").split(/[?\/]/)[0]; return VIEWS[h]? h : "overview"; }catch(_){ return S.view||"overview"; } }
 function showView(v){
-  if(!VIEWS[v]) v="overview"; S.view=v;
+  if(!VIEWS[v]) v="overview"; if(S.view!==v) closeItemDrawer(); S.view=v;
   document.querySelectorAll(".view").forEach(el=>{ el.hidden= el.dataset.view!==v; });
   document.querySelectorAll(".navi[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
   updateFilterPill(); $("#pageTitle").textContent=VIEWS[v]; try{ document.title=VIEWS[v]+" · Sightline"; }catch(_){}
@@ -1526,7 +1585,7 @@ $("#themeSel").onchange=e=>{ prefs.theme=e.target.value; savePrefs(); applyPrefs
 document.addEventListener("keydown",e=>{
   const tag=(e.target&&e.target.tagName)||"";
   if(e.key==="/"&&!/INPUT|TEXTAREA|SELECT/.test(tag)){ e.preventDefault(); $("#hsearch").focus(); }
-  if(e.key==="Escape") openAssistant(false);
+  if(e.key==="Escape"){ if(S.idKind) closeItemDrawer(); else openAssistant(false); }
 });
 function renderGlance(C){
   const cnt={silent:0,slow:0,pending:0,ok:0}; C.tiles.forEach(t=>{ cnt[t.status]++; }); const total=C.tiles.length;
@@ -2155,7 +2214,7 @@ function googleKpis(apps){
 function gApplyKpi(k){ S.gcap=25; S.gf=gDefault(); S.gf.access="has"; if(k==="high") S.gf.risk="high"; if(k==="new") S.gf.isNew=true; if(k==="review") S.gf.review="needs"; renderGoogleView(); try{ $("#gTbl").scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(_){} }
 // everything the page shows depends on these; if none changed, the automatic refresh leaves the page alone
 function gSig(){ const G=S.g, st=G.status||{}, last=G.events.length? G.events[G.events.length-1].time : 0;
-  return JSON.stringify([G.configured,G.demo,G.events.length,last,S.gf,gSortState(),S.gcap||25,G.lastSeq||0,S.policy.meta.version,!!S.gmore,[...(S.gopen||[])],!!S.gonlyhi,S.win,st.lastError||"",st.hint||"",!!st.catchingUp,st.admin||"",Math.floor((S.ref||0)/300000)]); }
+  return JSON.stringify([G.configured,G.demo,G.events.length,last,S.gf,gSortState(),S.gcap||25,G.lastSeq||0,S.policy.meta.version,!!S.gmore,!!S.gonlyhi,S.win,st.lastError||"",st.hint||"",!!st.catchingUp,st.admin||"",Math.floor((S.ref||0)/300000)]); }
 function renderGoogleView(auto){
   const el=$("#googleView"), stEl=$("#gStatus"), G=S.g; if(!el) return;
   if(auto&&gSig()===S.gSigLast&&el.firstChild) return;                  // nothing changed: do not touch the page
@@ -2167,7 +2226,7 @@ function renderGoogleView(auto){
   const st=G.status||{}, {apps,shown}=googleShown(), f=S.gf, so=gSortState(), on=gFiltering(f), more=S.gmore||!!(f.min||f.active||f.isNew||(f.person||"").trim());
   stEl.innerHTML= G.demo? '<span class="cpill">Sample data</span>' : '<span title="Google reports these events a couple of hours after they happen, so the newest can never be newer than that">'+(st.newest? 'Newest event '+esc(ago(Math.max(0,S.ref-st.newest))) : st.catchingUp? 'Reading the newest events from Google…' : 'No events yet')+'</span> · '+
     (st.catchingUp? '<b>older history still loading'+(st.loadedBack? ' (back to '+esc(new Date(st.loadedBack).toLocaleDateString())+')' : '')+'</b> · ' : '')+'grants and revokes for the last '+(st.lookbackDays||30)+' days'+(st.activityDays===undefined||st.activityDays>=(st.lookbackDays||30)? "" : st.activityDays===0? ", API usage not read" : ", API usage for the last "+st.activityDays+" day"+(st.activityDays===1?"":"s"))+', read as '+esc(st.admin||"")+' · read-only';
-  if(!S.gopen) S.gopen=new Set(); if(S.gfocus){ S.gopen.add(S.gfocus); const ix=shown.findIndex(a=>a.key===S.gfocus); if(ix>=cap){ cap=Math.ceil((ix+1)/25)*25; S.gcap=cap; } }
+  if(S.gfocus){ const ix=shown.findIndex(a=>a.key===S.gfocus); if(ix>=cap){ cap=Math.ceil((ix+1)/25)*25; S.gcap=cap; } const a=apps.find(x=>x.key===S.gfocus); if(a){ S.idKind="app"; S.idKey=a.key; } }
   const recent=G.events.slice().reverse().filter(e=>S.gonlyhi? e.scopes.some(x=>scopeInfo(x).risk==="high") : true).slice(0,40);
   const chip=(attr,val,label,cur,n)=>'<button type="button" class="chipbtn'+(cur?" on":"")+'" '+attr+'="'+val+'" aria-pressed="'+cur+'">'+label+(n!==undefined?' <i>'+fmtN(n)+'</i>':"")+'</button>';
   const hasN=apps.filter(a=>a.people.length).length, opt=(v,l,cur)=>'<option value="'+v+'"'+(+cur===v?" selected":"")+'>'+l+'</option>';
@@ -2189,28 +2248,41 @@ function renderGoogleView(auto){
       (shown.length>25? '<div class="gmorebar">Showing '+fmtN(Math.min(cap,shown.length))+' of '+fmtN(shown.length)+' apps'+(cap<shown.length? ' · <button type="button" class="ghost" data-grows="1">Show '+Math.min(25,shown.length-cap)+' more</button> <button type="button" class="ghost" data-gall="1">Show all</button>' : "")+(cap>25? ' <button type="button" class="ghost" data-gless="1">Show fewer</button>' : "")+'</div>' : "") : '<div class="empty">'+(apps.length? 'No apps match these filters. <button type="button" class="ghost" data-gclear="1">Clear filters</button>' : (st.catchingUp? "Reading the first events from Google. Apps appear here as soon as they arrive, newest first. Older history keeps loading after that." : "No app authorizations in the loaded logs yet."))+'</div>')+'</div>'+
     '<div class="card"><h2>Recent activity</h2><div class="fb-row" style="margin-bottom:8px"><label class="ctl"><input type="checkbox" id="ghi"'+(S.gonlyhi?" checked":"")+'> only events with high-risk access</label></div>'+
     (recent.length? '<div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th><th>App</th><th>Access</th></tr>'+recent.map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td><span class="lnk" data-k="user" data-v="'+esc(e.actor)+'">'+esc(e.actor)+'</span></td><td><span class="pill '+(GACT[e.type]||["","o"])[1]+'">'+esc((GACT[e.type]||[e.type])[0])+'</span>'+(e.count>1?' <span class="gsub" title="This many identical events were summarised into this one line">×'+fmtN(e.count)+'</span>':"")+(e.rejection?' <span class="gsub">'+esc(e.rejection)+'</span>':"")+'</td><td>'+esc(e.app||"—")+'</td><td>'+e.scopes.slice(0,4).map(scopeChip).join("")+(e.scopes.length>4?'<span class="gsub">+'+(e.scopes.length-4)+'</span>':"")+'</td></tr>').join("")+'</table></div>' : '<div class="empty">Nothing to show.</div>')+'</div>';
-  if(S.gfocus){ const row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===S.gfocus); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60); S.gfocus=""; }
+  if(S.gfocus){ const key=S.gfocus, row=[...document.querySelectorAll("#gTbl tr.urow")].find(r=>r.dataset.gk===key); if(row) setTimeout(()=>{ try{ row.scrollIntoView({behavior:"smooth",block:"center"}); }catch(_){} },60);
+    const a=apps.find(x=>x.key===key); if(a) openItemDrawer("app",key,a.name,"",googleDetailBody(a)); S.gfocus=""; }
   if(keep){ const i=$("#"+keep.id); if(i){ try{ i.focus({preventScroll:true}); i.setSelectionRange(keep.pos,keep.pos); }catch(_){} } }     // put the cursor back WITHOUT scrolling to it
   if(!hadFocus&&Math.abs(window.scrollY-y0)>2){ try{ window.scrollTo(0,y0); }catch(_){} }                                                              // and never lose your place
+  if(S.idKind==="app"&&S.idKey) renderGoogleDrawerBody(S.idKey);      // keep the open drawer's content fresh
 }
-function googleRow(a){
-  const open=S.gopen.has(a.key), sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
-  const detail='<div class="xhead"><span>Client ID <code>'+esc(a.clientId||"—")+'</code></span><span><button class="ghost" data-gask="'+esc(a.key)+'">Is this app safe?</button></span></div>'+
+function googleDetailBody(a){
+  const sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
+  return '<div class="xhead"><span>Client ID <code>'+esc(a.clientId||"—")+'</code></span><span><button class="ghost" data-gask="'+esc(a.key)+'">Is this app safe?</button></span></div>'+
     '<div class="gsec"><b>What it can do</b>'+sc.map(x=>{ const i=scopeInfo(x); return '<div class="gscope"><span class="rk '+i.risk+'">'+RISK_TEXT[i.risk].replace(" risk","")+'</span><span>'+esc(i.label)+'<br><code>'+esc(x)+'</code></span></div>'; }).join("")+'</div>'+
     '<div class="gsec"><b>People with access ('+fmtN(a.people.length)+')</b>'+(a.people.length? '<div class="gppl">'+a.people.slice(0,30).map(p=>'<span class="chip" data-k="user" data-v="'+esc(p.who)+'" title="Connected '+esc(new Date(p.time).toLocaleString())+'">'+esc(p.who)+'</span>').join("")+(a.people.length>30?'<span class="gsub">and '+(a.people.length-30)+' more</span>':"")+'</div>' : '<span class="gsub">Nobody currently (everyone revoked, or it was only requested or blocked).</span>')+'</div>'+
     '<div class="gsec"><b>Recent activity</b><div class="scroll"><table><tr><th>Time</th><th>Person</th><th>What happened</th></tr>'+a.events.slice(-8).reverse().map(e=>'<tr><td class="mono">'+esc(new Date(e.time).toLocaleString())+'</td><td>'+esc(e.actor)+'</td><td>'+esc((GACT[e.type]||[e.type])[0])+(e.count>1?' ×'+fmtN(e.count):"")+(e.rejection?' ('+esc(e.rejection)+')':"")+'</td></tr>').join("")+'</table></div></div>'+
     reviewSection(a)+'<p class="gsub">To allow, limit or block this app, use the Google Admin console (Security &gt; API controls). This dashboard is read-only.</p>';
-  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+approvalBadge(a)+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+(!a.people.length&&a.calls? '<span class="tiny" title="The app made API calls on someone\'s behalf, but their consent is older than the part of the log that was read">in use</span>' : "")+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>'+
-    '<tr class="udet"><td colspan="6"><div class="xbody"><div class="xinner"><div class="xpad">'+detail+'</div></div></div></td></tr>';
+}
+function renderGoogleDrawerBody(key){
+  if(S.idKind!=="app"||S.idKey!==key) return;      // the drawer has already moved on to something else
+  const a=googleApps().find(x=>x.key===key);
+  if(!a){ updateItemDrawer("app",key,null,null,'<div class="empty">This app is no longer in the loaded data.</div>'); return; }
+  updateItemDrawer("app",key,a.name,"",googleDetailBody(a));
+}
+function openGoogleDrawer(key){
+  if(S.idKind==="app"&&S.idKey===key){ closeItemDrawer(); return; }
+  const a=googleApps().find(x=>x.key===key); if(!a) return;
+  openItemDrawer("app",key,a.name,"",googleDetailBody(a));
+  renderGoogleView();      // highlights this row
+}
+function googleRow(a){
+  const open=S.idKind==="app"&&S.idKey===a.key, sc=[...a.scopes].sort((x,y)=>RISK_RANK[scopeInfo(y).risk]-RISK_RANK[scopeInfo(x).risk]);
+  return '<tr class="urow'+(open?" open":"")+'" data-gk="'+esc(a.key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(a.name)+(gIsNew(a)?'<span class="gnew">NEW</span>':"")+approvalBadge(a)+'</td><td><span class="rk '+a.riskName+'">'+esc(RISK_TEXT[a.riskName])+'</span></td><td>'+sc.slice(0,3).map(scopeChip).join("")+(sc.length>3?'<span class="gsub">+'+(sc.length-3)+' more</span>':"")+'</td><td>'+fmtN(a.people.length)+(!a.people.length&&a.calls? '<span class="tiny" title="The app made API calls on someone\'s behalf, but their consent is older than the part of the log that was read">in use</span>' : "")+'</td><td>'+esc(ago(S.ref-a.first))+'</td><td>'+esc(ago(S.ref-a.last))+'</td></tr>';
 }
 $("#googleView").addEventListener("click",ev=>{
   const sh=ev.target.closest("th[data-gsort]"); if(sh){ setGoogleSort(sh.dataset.gsort); return; }
   const kp=ev.target.closest("[data-gkpi]"); if(kp){ gApplyKpi(kp.dataset.gkpi); return; }
   const rf=ev.target.closest("[data-grisk]"); if(rf){ S.gf.risk=rf.dataset.grisk; S.gcap=25; renderGoogleView(); return; }
   const gr=ev.target.closest("[data-greview]"); if(gr){ S.gf.review=gr.dataset.greview; S.gcap=25; renderGoogleView(); return; }
-  const gap=ev.target.closest("[data-gapprove]"); if(gap){ const a=googleApps().find(x=>x.key===gap.dataset.gapprove); if(a) openApprovalEditor(a,"approved"); return; }
-  const gfl=ev.target.closest("[data-gflagapp]"); if(gfl){ const a=googleApps().find(x=>x.key===gfl.dataset.gflagapp); if(a) openApprovalEditor(a,"flagged"); return; }
-  const gun=ev.target.closest("[data-gunreview]"); if(gun){ const a=googleApps().find(x=>x.key===gun.dataset.gunreview); if(a) openConfirm("Remove this decision?","“"+a.name+"” goes back to “not reviewed”. The decision stays in the audit log.","Remove decision",()=>policyCall("DELETE","/approvals/"+encodeURIComponent(a.key)+"?v="+polV()+"&why="+encodeURIComponent("Removed the review decision for \u201c"+a.name+"\u201d"))); return; }
   const ac=ev.target.closest("[data-gaccess]"); if(ac){ S.gf.access=ac.dataset.gaccess; S.gcap=25; renderGoogleView(); return; }
   const ar=ev.target.closest("[data-garea]"); if(ar){ const k=ar.dataset.garea, i=S.gf.areas.indexOf(k); if(i<0) S.gf.areas.push(k); else S.gf.areas.splice(i,1); S.gcap=25; renderGoogleView(); return; }
   if(ev.target.closest("[data-gmore]")){ S.gmore=!S.gmore; renderGoogleView(); return; }
@@ -2218,9 +2290,15 @@ $("#googleView").addEventListener("click",ev=>{
   if(ev.target.closest("[data-grows]")){ S.gcap=(S.gcap||25)+25; renderGoogleView(); return; }
   if(ev.target.closest("[data-gall]")){ S.gcap=1e9; renderGoogleView(); return; }
   if(ev.target.closest("[data-gless]")){ S.gcap=25; renderGoogleView(); return; }
+  if(ev.target.closest("[data-k]")) return;
+  const row=ev.target.closest("#gTbl tr.urow"); if(row) openGoogleDrawer(row.dataset.gk);
+});
+$("#itemDrawer").addEventListener("click",ev=>{
+  if(S.idKind!=="app") return;
+  const gap=ev.target.closest("[data-gapprove]"); if(gap){ const a=googleApps().find(x=>x.key===gap.dataset.gapprove); if(a) openApprovalEditor(a,"approved"); return; }
+  const gfl=ev.target.closest("[data-gflagapp]"); if(gfl){ const a=googleApps().find(x=>x.key===gfl.dataset.gflagapp); if(a) openApprovalEditor(a,"flagged"); return; }
+  const gun=ev.target.closest("[data-gunreview]"); if(gun){ const a=googleApps().find(x=>x.key===gun.dataset.gunreview); if(a) openConfirm("Remove this decision?","“"+a.name+"” goes back to “not reviewed”. The decision stays in the audit log.","Remove decision",()=>policyCall("DELETE","/approvals/"+encodeURIComponent(a.key)+"?v="+polV()+"&why="+encodeURIComponent("Removed the review decision for \u201c"+a.name+"\u201d"))); return; }
   const ga=ev.target.closest("[data-gask]"); if(ga){ const a=googleApps().find(x=>x.key===ga.dataset.gask); if(a) ask("Is the Google app “"+a.name+"” (client ID "+a.clientId+") safe for our people to use? It was granted: "+[...a.scopes].map(shortScope).join(", ")+", by "+a.people.length+" people. What does that access allow, what are the risks, and what should I check in the Google Admin console before deciding to allow or block it?"); return; }
-  if(ev.target.closest("[data-k]")||ev.target.closest("tr.udet")) return;
-  const row=ev.target.closest("#gTbl tr.urow"); if(row){ const k=row.dataset.gk, open=!S.gopen.has(k); if(open) S.gopen.add(k); else S.gopen.delete(k); row.classList.toggle("open",open); row.setAttribute("aria-expanded",String(open)); }
 });
 $("#googleView").addEventListener("input",ev=>{ const id=ev.target.id; if(id==="gq"||id==="gPerson"){ if(id==="gq") S.gf.q=ev.target.value; else S.gf.person=ev.target.value; S.gcap=25; clearTimeout(S.gqT); S.gqT=setTimeout(()=>renderGoogleView(),200); } });
 $("#googleView").addEventListener("change",ev=>{
@@ -2262,13 +2340,14 @@ function ensureGoogleRules(){
 }
 
 /* ---------- Device health (osctrl) ---------- */
-S.d={configured:null,list:null,q:"",open:new Set(),detail:{},loading:false,error:null,loadedAt:0};
+S.d={configured:null,list:null,q:"",detail:{},loading:false,error:null,loadedAt:0};
 const D_BAND_RK={healthy:"low",monitor:"medium",action:"high"}, D_BAND_TEXT={healthy:"Healthy",monitor:"Monitor",action:"Action recommended"};
 // osctrl's configured/not state comes from the status poll everyone already fetches every tick (cheap); only the
 // device list itself is fetched on demand. A change here (set up, or taken down) always starts a fresh load.
 function setDeviceConfigured(on){
   on=!!on; if(S.d.configured===on) return;
-  S.d.configured=on; S.d.list=null; S.d.detail={}; S.d.open.clear(); S.d.error=null;
+  S.d.configured=on; S.d.list=null; S.d.detail={}; S.d.error=null;
+  if(S.idKind==="device") closeItemDrawer();
   if(S.view==="devices") renderDevicesView();
 }
 async function loadDevices(){
@@ -2281,13 +2360,26 @@ async function loadDevices(){
   }catch(err){ S.d.error=err.message; }
   S.d.loading=false; S.d.loadedAt=Date.now(); renderDevicesView();
 }
+function renderDeviceDrawerBody(key){
+  if(S.idKind!=="device"||S.idKey!==key) return;      // the drawer has already moved on to something else
+  const det=S.d.detail[key];
+  const body= !det||det.loading? '<div class="empty">Loading…</div>' : det.error? '<div class="gwarn"><b>Could not load this device:</b> '+esc(det.error)+'</div>' : deviceDetailHTML(det.data);
+  updateItemDrawer("device",key,null,null,body);
+}
 async function loadDeviceDetail(key){
-  S.d.detail[key]={loading:true}; renderDevicesView();
+  S.d.detail[key]={loading:true}; renderDeviceDrawerBody(key);
   try{
     const r=await fetch("api/osctrl/devices/"+encodeURIComponent(key)), j=await r.json().catch(()=>({}));
     S.d.detail[key]= r.ok? {data:j} : {error:j.error||("HTTP "+r.status)};
   }catch(err){ S.d.detail[key]={error:err.message}; }
-  renderDevicesView();
+  renderDeviceDrawerBody(key);
+}
+function openDeviceDrawer(key){
+  if(S.idKind==="device"&&S.idKey===key){ closeItemDrawer(); return; }
+  const d=(S.d.list||[]).find(x=>(x.hostname||x.serial||x.uuid)===key);
+  openItemDrawer("device",key,(d&&d.hostname)||key,"Device health","");
+  renderDevicesView();                       // highlights this row in the list
+  const det=S.d.detail[key]; if(det) renderDeviceDrawerBody(key); else loadDeviceDetail(key);
 }
 function deviceSetupHTML(){
   return '<div class="card"><h2>Device health</h2><p class="hint">Connect osctrl to see OS, battery, disk, uptime and installed apps for every enrolled Mac, with a 0-100 health score, and give Iris six live troubleshooting checks. Set <code>OSCTRL_API_URL</code>, <code>OSCTRL_API_USER</code> and <code>OSCTRL_API_PASSWORD</code> and redeploy. This dashboard only ever reads: the account it signs in as cannot write, carve or remediate anything.</p></div>';
@@ -2301,16 +2393,8 @@ function renderDevicesView(auto){
   stEl.innerHTML= S.d.loading&&!S.d.list? "" : '<span>'+(S.d.list?fmtN(S.d.list.length):0)+' enrolled device'+(S.d.list&&S.d.list.length===1?"":"s")+' · read-only</span>'+(S.d.loadedAt?' · updated '+esc(new Date(S.d.loadedAt).toLocaleTimeString()):"")+' <button type="button" class="ghost" id="dRefresh">Refresh</button>';
   const list=S.d.list||[], q=esc(S.d.q||"");
   const rows=list.map(d=>{
-    const key=d.hostname||d.serial||d.uuid, open=S.d.open.has(key), band=d.healthBand||"monitor";
-    const det=S.d.detail[key];
-    let body="";
-    if(open){
-      if(!det) loadDeviceDetail(key);
-      body = !det||det.loading? '<div class="empty">Loading…</div>' : det.error? '<div class="gwarn"><b>Could not load this device:</b> '+esc(det.error)+'</div>' : deviceDetailHTML(det.data);
-    }
-    return '<tr class="urow'+(open?" open":"")+'" data-dk="'+esc(key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(d.hostname||"(no hostname)")+'</td><td class="mono">'+esc(d.serial||"—")+'</td><td>'+esc(d.platformVersion||"—")+'</td><td>'+(d.lastSeen?esc(ago(S.ref-Date.parse(d.lastSeen))):"—")+'</td><td><span class="rk '+D_BAND_RK[band]+'">'+(d.healthScore==null?"—":d.healthScore)+' · '+D_BAND_TEXT[band]+'</span></td></tr>'+
-      '<tr class="udet"><td colspan="5"><div class="xbody"><div class="xinner"><div class="xpad">'+body+'</div></div></div></td></tr>';
-  }).join("");
+    const key=d.hostname||d.serial||d.uuid, open=S.idKind==="device"&&S.idKey===key, band=d.healthBand||"monitor";
+    return '<tr class="urow'+(open?" open":"")+'" data-dk="'+esc(key)+'" tabindex="0" role="button" aria-expanded="'+open+'"><td><span class="uchev" aria-hidden="true">▸</span>'+esc(d.hostname||"(no hostname)")+'</td><td class="mono">'+esc(d.serial||"—")+'</td><td>'+esc(d.platformVersion||"—")+'</td><td>'+(d.lastSeen?esc(ago(S.ref-Date.parse(d.lastSeen))):"—")+'</td><td><span class="rk '+D_BAND_RK[band]+'">'+(d.healthScore==null?"—":d.healthScore)+' · '+D_BAND_TEXT[band]+'</span></td></tr>'; }).join("");
   el.innerHTML = (S.d.error? '<div class="gwarn"><b>Device health problem:</b> '+esc(S.d.error)+'</div>':"")+
     '<div class="card"><h2>Devices</h2><p class="hint">Click a device for the full picture: OS, agent, battery, storage, uptime and installed apps.</p>'+
     '<div class="ulrow"><input type="text" id="dsearch" placeholder="Search a hostname, serial or device name…" autocomplete="off" value="'+q+'"></div>'+
@@ -2334,12 +2418,11 @@ function deviceDetailHTML(d){
     '<div class="gsec"><b>Health score: '+h.score+' · '+D_BAND_TEXT[h.band]+'</b>'+Object.entries(h.parts).map(([k,p])=>'<div class="gscope"><span class="rk '+(p.points>=p.weight*0.85?"low":p.points>=p.weight*0.5?"medium":"high")+'">'+p.points+'/'+p.weight+'</span><span>'+esc(k.replace(/([A-Z])/g," $1").toLowerCase())+(p.partial?' <span class="gsub">(no scheduled query configured yet; not held against it)</span>':"")+'</span></div>').join("")+'</div>'+
     '<p class="gsub">Read-only: this dashboard and the account it signs in as cannot change, carve or remediate anything on this device.</p>';
 }
-$("#dStatus").addEventListener("click",ev=>{ if(ev.target.closest("#dRefresh")){ S.d.detail={}; S.d.open.clear(); loadDevices(); } });
+$("#dStatus").addEventListener("click",ev=>{ if(ev.target.closest("#dRefresh")){ S.d.detail={}; loadDevices(); if(S.idKind==="device"&&S.idKey) loadDeviceDetail(S.idKey); } });
 $("#devicesView").addEventListener("click",ev=>{
-  if(ev.target.closest("tr.udet")) return;
-  const row=ev.target.closest("tr.urow[data-dk]"); if(row){ const k=row.dataset.dk, open=!S.d.open.has(k); if(open) S.d.open.add(k); else S.d.open.delete(k); renderDevicesView(); }
+  const row=ev.target.closest("tr.urow[data-dk]"); if(row) openDeviceDrawer(row.dataset.dk);
 });
-$("#devicesView").addEventListener("input",ev=>{ if(ev.target.id==="dsearch"){ S.d.q=ev.target.value; clearTimeout(S.d.qT); S.d.qT=setTimeout(()=>{ S.d.list=null; S.d.detail={}; renderDevicesView(); },250); } });
+$("#devicesView").addEventListener("input",ev=>{ if(ev.target.id==="dsearch"){ S.d.q=ev.target.value; clearTimeout(S.d.qT); S.d.qT=setTimeout(()=>{ S.d.list=null; S.d.detail={}; renderDevicesView(); if(S.idKind==="device"&&S.idKey) loadDeviceDetail(S.idKey); },250); } });
 $("#devicesView").addEventListener("keydown",ev=>{ if((ev.key==="Enter"||ev.key===" ")&&ev.target.matches&&ev.target.matches("tr.urow[data-dk]")){ ev.preventDefault(); ev.target.click(); } });
 
 /* ---------- who is signed in, and what they may do ---------- */

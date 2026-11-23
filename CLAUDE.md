@@ -35,7 +35,7 @@ node test/alerts-unit.js | tail -1                 # the shared alert checks and
 node test/osctrl-unit.js | tail -1                 # device health score logic, plus the client against a mock osctrl server
 bash test/smoke-alerts.sh | tail -1                # shared alerts on the server with sign-in on, routed to Slack; about 6 minutes, run it detached
 bash test/smoke-geo.sh | tail -1                   # location alerts and Slack end to end; takes 2 to 5 minutes, so run it detached if your tool has a time limit
-# baseline on the current main: 84, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (34, no FAIL); geo-unit 69; smoke-geo 73; alerts-unit 43; smoke-alerts 36; osctrl-unit 26
+# baseline on the current main: 84, 149, 68, 32, 26, 11 passed; google-load prints PASS lines (34, no FAIL); geo-unit 73; smoke-geo 73; alerts-unit 45; smoke-alerts 36; osctrl-unit 26
 # the suites share fixed ports (4010 and others), so run them one after another, never at the same time
 
 # syntax check, including the page's inline script
@@ -81,6 +81,7 @@ The older UI tests lived outside the repo and were lost: see "Rebuild the browse
 - **The Slack setup guide** (`openSlackGuide` in `public/index.html`) is a six-step dialog with simplified SVG pictures built by small helpers (`sg*`). The pictures are drawings of the steps, not copies of Slack's screens, and say so; if Slack changes its wording, update the text and `SG_ART`. It reads the live status from `GET /api/slack` when it opens and every 5 seconds, so the last step turns green by itself.
 - **A notification's `type` must not start with "g"**: the page treats those as Google alerts (and offers an Explain button that asks about a Google app). Location alerts use `"location"`.
 - localStorage keys keep the old `okta.*` names on purpose.
+- **One shared item-detail drawer, not per-row accordions.** Clicking a device, a person or a Google app opens `#itemDrawer` (`openItemDrawer`/`updateItemDrawer`/`closeItemDrawer` in `public/index.html`) instead of expanding a row in place. `S.idKind`/`S.idKey` say what's currently shown; a section's render function (`renderUsersTable`, `renderGoogleView`, `renderDevicesView`) checks them to highlight the open row and to refresh the drawer's content when the underlying data changes. The drawer has **no backdrop and does not intercept clicks**: the whole point is that the list stays clickable underneath it, so picking a different row swaps the drawer instead of closing it first — a backdrop would silently break that. Buttons rendered inside the drawer (explain/ask-Iris/mark-known for a person, approve/flag/ask-Iris for an app) are handled by click listeners on `#itemDrawer`, not on the list's own container, since that content no longer lives inside the list's DOM. If you add a fourth kind of detail view, follow this pattern rather than adding another per-row accordion.
 
 ## Working style
 
