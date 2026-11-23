@@ -62,7 +62,7 @@ function createOsctrl(env, log) {
   };
   const configured = !!(cfg.apiUrl && cfg.user && cfg.password);
   const st = { token: "", tokenExp: 0, authScheme: "bearer", lastOk: null, lastError: "", loginFailures: 0 };
-  const resultsCache = new Map();   // scheduled query name -> {at, rows}
+  const resultsCache = new Map();   // "queryName|uuid" -> {at, rows}
 
   async function login() {
     const r = await fetch(cfg.apiUrl + "/api/v1/login", {
@@ -101,9 +101,10 @@ function createOsctrl(env, log) {
     const path = "/api/v1/nodes/" + encodeURIComponent(cfg.envName) + (q ? "?q=" + encodeURIComponent(q) : "");
     return asList(await okJson(path)).map(normalizeNode);
   }
+  // Field mapping verified against osctrl v0.7.x's own frontend source (frontend/src/api/nodes.ts, types.ts)
+  // and the live API: memory and cpu are top-level, model lives under system_info.system, not system_info.
   function normalizeNode(raw) {
     raw = raw || {};
-    const si = raw.system_info || {};
     return {
       raw,
       uuid: firstOf(raw, "uuid", "node_key", "id"),
@@ -111,9 +112,9 @@ function createOsctrl(env, log) {
       serial: firstOf(raw, "hardware_serial", "serial_number", "serial") || "",
       platform: firstOf(raw, "platform", "system_info.platform") || "",
       platformVersion: firstOf(raw, "platform_version", "os_version", "os_version.version") || "",
-      model: firstOf(raw, "hardware_model", "system_info.hardware_model") || si.model || "",
-      cpuBrand: firstOf(raw, "cpu_brand", "system_info.cpu_brand") || "",
-      memoryBytes: num(firstOf(raw, "physical_memory", "system_info.physical_memory")),
+      model: firstOf(raw, "system_info.system.hardware_model", "hardware_model", "system_info.hardware_model") || "",
+      cpuBrand: firstOf(raw, "cpu", "system_info.system.cpu_brand", "cpu_brand", "system_info.cpu_brand") || "",
+      memoryBytes: num(firstOf(raw, "memory", "system_info.system.physical_memory", "physical_memory", "system_info.physical_memory")),
       osqueryVersion: firstOf(raw, "osquery_version") || "",
       lastSeenMs: toMs(firstOf(raw, "last_seen", "last_status_log", "updated_at")),
       enrolledMs: toMs(firstOf(raw, "enrolled", "created_at", "raw_enrolled")),
@@ -137,18 +138,27 @@ function createOsctrl(env, log) {
   }
 
   /* ----------------------------------------------------- scheduled query results (the always-fresh panel) */
-  async function resultsOf(queryName) {
-    const hit = resultsCache.get(queryName);
+  // Scheduled-query results do NOT come from /api/v1/queries/<env>/results/<name> — that endpoint is for
+  // on-demand (distributed) query results only (verified against osctrl v0.7.x's frontend/src/api/nodes.ts
+  // and the live API). A scheduled query's results land in the node's own result logs, one entry per row per
+  // run, newest first: GET /api/v1/logs/result/<env>/<uuid>?q=<name>&limit=<n> -> {items:[{created_at,name,columns}]}.
+  // Each item already has the shape colsOf() expects, so callers that want a single current value (OS, disk,
+  // battery, uptime) pass limit 1; "apps" is a multi-row result (one row per installed app per run), so it asks
+  // for more and keeps only the items from the single newest run (same created_at as the newest item), so an
+  // older run's leftover rows never get mixed into the current app list.
+  async function resultsOf(queryName, uuid, limit) {
+    limit = limit || 1;
+    const cacheKey = queryName + "|" + uuid;
+    const hit = resultsCache.get(cacheKey);
     if (hit && Date.now() - hit.at < cfg.resultsCacheMs) return hit.rows;
-    const path = "/api/v1/queries/" + encodeURIComponent(cfg.envName) + "/results/" + encodeURIComponent(queryName);
+    const path = "/api/v1/logs/result/" + encodeURIComponent(cfg.envName) + "/" + encodeURIComponent(uuid) + "?q=" + encodeURIComponent(queryName) + "&limit=" + limit;
     let rows = [];
-    try { rows = asList(await okJson(path)); } catch (e) { if (e.status !== 404) throw e; }   // 404: nobody has configured this scheduled query yet
-    resultsCache.set(queryName, { at: Date.now(), rows });
+    try {
+      const items = (await okJson(path)).items || [];
+      rows = limit <= 1 ? items.slice(0, 1) : items.filter(it => it.created_at === (items[0] && items[0].created_at));
+    } catch (e) { if (e.status !== 404) throw e; }   // 404: nobody has configured this scheduled query yet
+    resultsCache.set(cacheKey, { at: Date.now(), rows });
     return rows;
-  }
-  function rowsForNode(rows, n) {
-    const keys = [n.uuid, n.hostname, n.serial].filter(Boolean).map(String).map(s => s.toLowerCase());
-    return rows.filter(r => { const rk = [firstOf(r, "uuid", "node_key", "host_identifier"), firstOf(r, "hostname", "localname"), firstOf(r, "hardware_serial", "serial_number")].filter(Boolean).map(String).map(s => s.toLowerCase()); return rk.some(k => keys.includes(k)); });
   }
   const colsOf = row => row && (row.columns || row.data || row);   // some osctrl versions nest the osquery row under "columns"
 
@@ -211,14 +221,20 @@ function createOsctrl(env, log) {
   // There is no external "latest macOS version" feed here, so "newest known" means the newest this read of the fleet saw.
   const versionRank = v => { const m = String(v || "").match(/(\d+)\.(\d+)/); return m ? +m[1] * 100 + +m[2] : -1; };
   function minorGap(v, newest) { const r = versionRank(newest) - versionRank(v); return Number.isFinite(r) ? Math.max(0, Math.min(6, r)) : 0; }
-  function newestVersionOf(rows) { let best = null, bestRank = -1; for (const r of rows) { const v = firstOf(colsOf(r) || {}, "version"); const rk = versionRank(v); if (v && rk > bestRank) { best = v; bestRank = rk; } } return best; }
+
+  // The newest platform version seen across the fleet, from the node list's own platform_version field — no
+  // scheduled-query call needed for this, since the per-node logs endpoint only answers for one uuid at a time.
+  async function fleetNewestPlatformVersion() {
+    const all = await nodes("").catch(() => []);
+    return all.map(n => n.platformVersion).reduce((best, v) => (versionRank(v) > versionRank(best) ? v : best), null);
+  }
 
   async function deviceSummaries(q) {
     const list = await nodes(q);
-    const osAll = await resultsOf(SCHEDULED.osVersion).catch(() => []);
-    const fleetNewestVersion = newestVersionOf(osAll) || list.map(n => n.platformVersion).reduce((best, v) => (versionRank(v) > versionRank(best) ? v : best), null);
+    const fleetNewestVersion = q ? await fleetNewestPlatformVersion() : list.map(n => n.platformVersion).reduce((best, v) => (versionRank(v) > versionRank(best) ? v : best), null);
     return list.map(n => {
-      const score = scoreDevice(n, { os: rowsForNode(osAll, n), disk: [], battery: [], uptime: [], fleetNewestVersion });
+      const osRow = n.platformVersion ? [{ columns: { version: n.platformVersion } }] : [];
+      const score = scoreDevice(n, { os: osRow, disk: [], battery: [], uptime: [], fleetNewestVersion });
       return { uuid: n.uuid, hostname: n.hostname, serial: n.serial, platform: n.platform, platformVersion: n.platformVersion, lastSeen: n.lastSeenMs ? new Date(n.lastSeenMs).toISOString() : null, healthScore: score.score, healthBand: score.band };
     });
   }
@@ -226,9 +242,15 @@ function createOsctrl(env, log) {
   async function deviceDetail(q) {
     const r = await resolveDevice(q); if (r.error) return r;
     const n = r.node;
-    const [osR, diskR, battR, upR, appsR] = await Promise.all([SCHEDULED.osVersion, SCHEDULED.disk, SCHEDULED.battery, SCHEDULED.uptime, SCHEDULED.apps].map(name => resultsOf(name).catch(() => [])));
-    const mine = { os: rowsForNode(osR, n), disk: rowsForNode(diskR, n), battery: rowsForNode(battR, n), uptime: rowsForNode(upR, n), apps: rowsForNode(appsR, n) };
-    const fleetNewestVersion = newestVersionOf(osR);
+    const [osR, diskR, battR, upR, appsR] = await Promise.all([
+      resultsOf(SCHEDULED.osVersion, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.disk, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.battery, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.uptime, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.apps, n.uuid, 200).catch(() => [])
+    ]);
+    const mine = { os: osR, disk: diskR, battery: battR, uptime: upR, apps: appsR };
+    const fleetNewestVersion = await fleetNewestPlatformVersion();
     const score = scoreDevice(n, { ...mine, fleetNewestVersion });
     const appRows = mine.apps.map(colsOf).filter(Boolean);
     return {
@@ -242,7 +264,7 @@ function createOsctrl(env, log) {
       health: score
     };
   }
-  function toMsOf(row) { const c = colsOf(row) || {}; const t = toMs(firstOf(c, "hour", "unix_time", "calendar_time")); return t ? new Date(t).toISOString() : null; }
+  function toMsOf(row) { const c = colsOf(row) || {}; const t = toMs((row && row.created_at) || firstOf(c, "hour", "unix_time", "calendar_time")); return t ? new Date(t).toISOString() : null; }
 
   /* --------------------------------------------------------- on-demand recipes */
   async function submitQuery(n, sql) {

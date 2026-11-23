@@ -33,8 +33,8 @@ console.log("--- health score: pure logic, no network ---");
     ok("components with no data at all (no scheduled query yet) are marked partial, not penalized", s.parts.memoryHeadroom.partial && s.parts.crashIndicators.partial && s.parts.battery.points === 15);
   }
   {
-    const n = o._normalizeNode({ uuid: "x", hostname: "mac1", hardware_serial: "ABC", platform: "darwin", platform_version: "14.5", system_info: { hardware_model: "MacBook Pro" }, osquery_version: "5.1", last_seen: Math.floor(Date.now() / 1000) });
-    ok("normalizeNode reads the plausible real-world field names", n.hostname === "mac1" && n.serial === "ABC" && n.model === "MacBook Pro" && n.lastSeenMs !== null);
+    const n = o._normalizeNode({ uuid: "x", hostname: "mac1", hardware_serial: "ABC", platform: "darwin", platform_version: "14.5", memory: "17179869184", cpu: "Apple M4", system_info: { system: { hardware_model: "MacBook Pro" } }, osquery_version: "5.1", last_seen: Math.floor(Date.now() / 1000) });
+    ok("normalizeNode reads the real osctrl v0.7.x node shape (memory/cpu top-level, model under system_info.system)", n.hostname === "mac1" && n.serial === "ABC" && n.model === "MacBook Pro" && n.cpuBrand === "Apple M4" && n.memoryBytes === 17179869184 && n.lastSeenMs !== null);
   }
 }
 
@@ -52,6 +52,8 @@ console.log("\n--- against the mock server ---");
       ok("auth mode '" + mode + "': nodes() returns the fleet through whichever header style the server needs", list.length === 2 && list.some(n => n.hostname === "jdoe-mbp.corp.local"));
       const detail = await o.deviceDetail("jdoe-mbp");
       ok("auth mode '" + mode + "': deviceDetail resolves by a partial hostname and fills in OS/disk/battery/uptime", !detail.error && detail.os.version === "14.5" && detail.battery.health === "Good" && detail.health.score > 0);
+      ok("auth mode '" + mode + "': identity reads the real memory/cpu/model fields", detail.identity.memoryBytes === 17179869184 && detail.identity.cpuBrand === "Apple M3" && detail.identity.model === "MacBook Pro");
+      ok("auth mode '" + mode + "': apps only shows the newest run, not an older run's leftover rows", detail.apps.count === 2 && detail.apps.items.some(a => a.name === "Slack") && !detail.apps.items.some(a => a.name === "OldApp"));
       const bad = await o.resolveDevice("nope-does-not-exist");
       ok("auth mode '" + mode + "': an unknown device is a plain error, not a throw", !!bad.error);
     } finally { mock.server.close(); }
