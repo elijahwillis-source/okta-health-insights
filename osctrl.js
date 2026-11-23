@@ -169,26 +169,54 @@ function createOsctrl(env, log) {
   // Scheduled-query results do NOT come from /api/v1/queries/<env>/results/<name> — that endpoint is for
   // on-demand (distributed) query results only (verified against osctrl v0.7.x's frontend/src/api/nodes.ts
   // and the live API). A scheduled query's results land in the node's own result logs, one entry per row per
-  // run, newest first: GET /api/v1/logs/result/<env>/<uuid>?q=<name>&limit=<n> -> {items:[{created_at,name,columns}]}.
-  // Each item already has the shape colsOf() expects, so callers that want a single current value (OS, disk,
-  // battery, uptime) pass limit 1; "apps" is a multi-row result (one row per installed app per run), so it asks
-  // for more and keeps only the items from the single newest run (same created_at as the newest item), so an
-  // older run's leftover rows never get mixed into the current app list.
+  // run, newest first: GET /api/v1/logs/result/<env>/<uuid>?q=<name>&limit=<n> -> {items:[{created_at,action,
+  // name,columns}]}. Two things the live API does that the spec didn't mention: `columns` is a JSON-ENCODED
+  // STRING, not an object (parseColumnsField below handles that for every caller, on-demand recipe rows
+  // included); and when it decodes, it can itself be an ARRAY of rows (osquery snapshot-mode logs can carry
+  // several rows in one log item) — rowsFromItem() expands that into one normalized row per array element.
+  // Differential logs also emit "removed" rows (the row's value just before it changed or disappeared), which
+  // carry stale data, so picking the row to use prefers "added"/"snapshot" action over "removed", and only
+  // breaks ties by recency (sortRows) rather than trusting the API's own array order.
+  function parseColumnsField(v) {
+    if (v == null) return null;
+    if (typeof v === "object") return v;   // already an object on some osctrl versions/endpoints
+    if (typeof v !== "string") return null;
+    try { return JSON.parse(v); } catch { return null; }
+  }
+  const colsOf = row => parseColumnsField(row && (row.columns || row.data || row));
+  function rowsFromItem(item) {
+    const parsed = colsOf(item);
+    if (parsed == null) return [];   // not valid JSON: no usable row, not a crash
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    return list.map(cols => ({ created_at: item.created_at, action: item.action, name: item.name, columns: cols }));
+  }
+  const ACTION_RANK = { added: 2, snapshot: 2, removed: 0 };
+  const rankAction = a => Object.prototype.hasOwnProperty.call(ACTION_RANK, a) ? ACTION_RANK[a] : 1;   // no action field at all (e.g. older osctrl): treat as neutral
+  function sortRows(rows) {
+    return rows.slice().sort((a, b) => rankAction(b.action) - rankAction(a.action) || (toMs(b.created_at) || 0) - (toMs(a.created_at) || 0));
+  }
   async function resultsOf(queryName, uuid, limit) {
     limit = limit || 1;
+    // Fetch a few more raw log entries than a "single value" caller asked for, even when they only want one row
+    // back: picking the right row needs something to prefer "added" over a "removed" row that may be newer by
+    // itself, and to sort by created_at instead of trusting the API's own order. With a raw limit of 1 there is
+    // nothing to pick among.
+    const rawLimit = limit <= 1 ? 5 : limit;
     const cacheKey = queryName + "|" + uuid;
     const hit = resultsCache.get(cacheKey);
     if (hit && Date.now() - hit.at < cfg.resultsCacheMs) return hit.rows;
-    const path = "/api/v1/logs/result/" + encodeURIComponent(cfg.envName) + "/" + encodeURIComponent(uuid) + "?q=" + encodeURIComponent(queryName) + "&limit=" + limit;
+    const path = "/api/v1/logs/result/" + encodeURIComponent(cfg.envName) + "/" + encodeURIComponent(uuid) + "?q=" + encodeURIComponent(queryName) + "&limit=" + rawLimit;
     let rows = [];
     try {
       const items = (await okJson(path)).items || [];
-      rows = limit <= 1 ? items.slice(0, 1) : items.filter(it => it.created_at === (items[0] && items[0].created_at));
+      const parsed = sortRows(items.flatMap(rowsFromItem));
+      // single-value metrics (OS, disk, battery, uptime): the one best row. "apps" (limit > 1): every row from
+      // that same run, excluding any "removed" rows mixed into that run's batch, so a stale leftover never shows.
+      rows = limit <= 1 ? parsed.slice(0, 1) : parsed.filter(r => r.created_at === (parsed[0] && parsed[0].created_at) && rankAction(r.action) > 0);
     } catch (e) { if (e.status !== 404) throw e; }   // 404: nobody has configured this scheduled query yet
     resultsCache.set(cacheKey, { at: Date.now(), rows });
     return rows;
   }
-  const colsOf = row => row && (row.columns || row.data || row);   // some osctrl versions nest the osquery row under "columns"
 
   /* ------------------------------------------------------------- health score */
   // Weights and bands from the integration spec. Two components (memory headroom, crash indicators) need
@@ -330,7 +358,7 @@ function createOsctrl(env, log) {
     configured, RECIPES,
     status() { return { configured, env: cfg.envName, lastOk: st.lastOk, lastError: st.lastError, loginFailures: st.loginFailures }; },
     nodes, resolveDevice, deviceSummaries, deviceDetail, runRecipe,
-    _state: st, _scoreDevice: scoreDevice, _normalizeNode: normalizeNode
+    _state: st, _scoreDevice: scoreDevice, _normalizeNode: normalizeNode, _resultsOf: resultsOf
   };
 }
 module.exports = { createOsctrl, RECIPES, SCHEDULED };

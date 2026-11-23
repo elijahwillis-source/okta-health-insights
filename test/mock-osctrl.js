@@ -20,20 +20,34 @@ const NODES = [
   { uuid: "u-1", hostname: "jdoe-mbp.corp.local", hardware_serial: "C02ABCDEFG", platform: "darwin", platform_version: "14.5", memory: "17179869184", cpu: "Apple M3", system_info: { system: { hardware_model: "MacBook Pro" } }, osquery_version: "5.12.1", last_seen: Math.floor(Date.now() / 1000) - 120 },
   { uuid: "u-2", hostname: "asmith-air.corp.local", hardware_serial: "C02HIJKLMN", platform: "darwin", platform_version: "13.2", memory: "8589934592", cpu: "Apple M2", system_info: { system: { hardware_model: "MacBook Air" } }, osquery_version: "5.12.1", last_seen: Math.floor(Date.now() / 1000) - 7200 }
 ];
-// per-node result logs, newest item first: GET /api/v1/logs/result/<env>/<uuid>?q=<name>&limit=<n> -> {items:[...]}
+// per-node result logs: GET /api/v1/logs/result/<env>/<uuid>?q=<name>&limit=<n> -> {items:[...]}. columns is a
+// JSON-ENCODED STRING on the real API, not an object, and items are not guaranteed to arrive newest-first or
+// "added" before "removed" -- these fixtures reflect that on purpose, to exercise osctrl.js's own parsing,
+// flattening and sorting rather than relying on this mock to hand back already-clean data.
+const col = o => JSON.stringify(o);
 const LOGS = {
   "u-1": {
-    macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", name: "macos_os_version", columns: { name: "macOS", version: "14.5", build: "23F79" } }],
-    macos_root_disk: [{ created_at: "2025-01-01T00:00:00Z", name: "macos_root_disk", columns: { path: "/", blocks: "1000000", blocks_size: "4096", blocks_available: "300000", blocks_free: "320000" } }],
-    macos_battery: [{ created_at: "2025-01-01T00:00:00Z", name: "macos_battery", columns: { health: "Good", cycle_count: "120", max_capacity: "92" } }],
-    macos_uptime: [{ created_at: "2025-01-01T00:00:00Z", name: "macos_uptime", columns: { days: "2", total_seconds: "190000" } }],
+    macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_os_version", columns: col({ name: "macOS", version: "14.5", build: "23F79" }) }],
+    macos_root_disk: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_root_disk", columns: col({ path: "/", blocks: "1000000", blocks_size: "4096", blocks_available: "300000", blocks_free: "320000" }) }],
+    // a differential pair at the same timestamp, "removed" (stale) listed FIRST: picking must prefer "added", not array order
+    macos_battery: [
+      { created_at: "2025-01-01T00:00:00Z", action: "removed", name: "macos_battery", columns: col({ health: "Fair", cycle_count: "119", max_capacity: "93" }) },
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_battery", columns: col({ health: "Good", cycle_count: "120", max_capacity: "92" }) }
+    ],
+    // the older run listed FIRST: picking must sort by created_at, not just take the first item
+    macos_uptime: [
+      { created_at: "2024-06-01T00:00:00Z", action: "added", name: "macos_uptime", columns: col({ days: "40", total_seconds: "3456000" }) },
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_uptime", columns: col({ days: "2", total_seconds: "190000" }) }
+    ],
     macos_apps: [
-      { created_at: "2025-01-01T00:00:00Z", name: "macos_apps", columns: { name: "Slack", version: "4.39.0", last_opened_at: "1700000000" } },
-      { created_at: "2025-01-01T00:00:00Z", name: "macos_apps", columns: { name: "Chrome", version: "131.0", last_opened_at: "1700001000" } },
-      { created_at: "2024-01-01T00:00:00Z", name: "macos_apps", columns: { name: "OldApp", version: "1.0", last_opened_at: "1600000000" } }   // an older run: must not leak into the current list
-    ]
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Slack", version: "4.39.0", last_opened_at: "1700000000" }) },
+      { created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "Chrome", version: "131.0", last_opened_at: "1700001000" }) },
+      { created_at: "2024-01-01T00:00:00Z", action: "added", name: "macos_apps", columns: col({ name: "OldApp", version: "1.0", last_opened_at: "1600000000" }) }   // an older run: must not leak into the current list
+    ],
+    // a snapshot-mode item whose decoded columns is itself an ARRAY of rows, not one object -- must expand into separate rows
+    macos_memory: [{ created_at: "2025-01-01T00:00:00Z", action: "snapshot", name: "macos_memory", columns: col([{ total_bytes: "17179869184", used_approx_bytes: "12792086528" }, { total_bytes: "17179869184", used_approx_bytes: "9000000000" }]) }]
   },
-  "u-2": { macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", name: "macos_os_version", columns: { name: "macOS", version: "13.2", build: "22D49" } }] }
+  "u-2": { macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_os_version", columns: col({ name: "macOS", version: "13.2", build: "22D49" }) }] }
 };
 
 function json(res, status, body) { const b = Buffer.from(JSON.stringify(body)); res.writeHead(status, { "content-type": "application/json", "content-length": b.length }); res.end(b); }

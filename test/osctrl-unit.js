@@ -54,6 +54,12 @@ console.log("\n--- against the mock server ---");
       ok("auth mode '" + mode + "': deviceDetail resolves by a partial hostname and fills in OS/disk/battery/uptime", !detail.error && detail.os.version === "14.5" && detail.battery.health === "Good" && detail.health.score > 0);
       ok("auth mode '" + mode + "': identity reads the real memory/cpu/model fields", detail.identity.memoryBytes === 17179869184 && detail.identity.cpuBrand === "Apple M3" && detail.identity.model === "MacBook Pro");
       ok("auth mode '" + mode + "': apps only shows the newest run, not an older run's leftover rows", detail.apps.count === 2 && detail.apps.items.some(a => a.name === "Slack") && !detail.apps.items.some(a => a.name === "OldApp"));
+      const battRows = await o._resultsOf("macos_battery", "u-1", 1);
+      ok("auth mode '" + mode + "': a differential 'removed' row (stale value) loses to 'added', regardless of array order", battRows.length === 1 && battRows[0].columns.health === "Good" && battRows[0].action === "added");
+      const upRows = await o._resultsOf("macos_uptime", "u-1", 5);
+      ok("auth mode '" + mode + "': picking a row sorts by created_at, not array order (the older row was listed first)", upRows.length > 0 && upRows[0].columns.days === "2");
+      const memRows = await o._resultsOf("macos_memory", "u-1", 5);
+      ok("auth mode '" + mode + "': a snapshot-mode row whose columns decode to an array expands into separate rows", memRows.length === 2 && memRows.every(r => r.columns && r.columns.total_bytes === "17179869184"));
       const bad = await o.resolveDevice("nope-does-not-exist");
       ok("auth mode '" + mode + "': an unknown device is a plain error, not a throw", !!bad.error);
     } finally { mock.server.close(); }
