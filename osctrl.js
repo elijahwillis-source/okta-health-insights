@@ -312,30 +312,35 @@ function createOsctrl(env, log) {
     return all.map(n => n.platformVersion).reduce((best, v) => (versionRank(v) > versionRank(best) ? v : best), null);
   }
 
+  // The exact inputs scoreDevice needs, shared by the list and the detail view so the same device can never
+  // show two different scores at the same refresh: both call this, both go through resultsOf's own cache
+  // (OSCTRL_RESULTS_CACHE_MS), so computing the list first and then opening a device's detail re-scores from
+  // the same cached rows instead of refetching. This does mean the list now costs 4 extra osctrl calls per
+  // device shown (cached afterward), not 0 — a deliberate trade for the two views never disagreeing.
+  async function scoreInputsFor(n) {
+    const [os, disk, battery, uptime] = await Promise.all([
+      resultsOf(SCHEDULED.osVersion, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.disk, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.battery, n.uuid, 1).catch(() => []),
+      resultsOf(SCHEDULED.uptime, n.uuid, 1).catch(() => [])
+    ]);
+    return { os, disk, battery, uptime };
+  }
+
   async function deviceSummaries(q) {
     const list = await nodes(q);
     const fleetNewestVersion = q ? await fleetNewestPlatformVersion() : list.map(n => n.platformVersion).reduce((best, v) => (versionRank(v) > versionRank(best) ? v : best), null);
-    return list.map(n => {
-      const osRow = n.platformVersion ? [{ columns: { version: n.platformVersion } }] : [];
-      const score = scoreDevice(n, { os: osRow, disk: [], battery: [], uptime: [], fleetNewestVersion });
-      return { uuid: n.uuid, hostname: n.hostname, serial: n.serial, platform: n.platform, platformVersion: n.platformVersion, lastSeen: n.lastSeenMs ? new Date(n.lastSeenMs).toISOString() : null, healthScore: score.score, healthBand: score.band };
-    });
+    const scores = await Promise.all(list.map(n => scoreInputsFor(n).then(inputs => scoreDevice(n, { ...inputs, fleetNewestVersion }))));
+    return list.map((n, i) => ({ uuid: n.uuid, hostname: n.hostname, serial: n.serial, platform: n.platform, platformVersion: n.platformVersion, lastSeen: n.lastSeenMs ? new Date(n.lastSeenMs).toISOString() : null, healthScore: scores[i].score, healthBand: scores[i].band }));
   }
 
   async function deviceDetail(q) {
     const r = await resolveDevice(q); if (r.error) return r;
     const n = r.node;
-    const [osR, diskR, battR, upR, appsR] = await Promise.all([
-      resultsOf(SCHEDULED.osVersion, n.uuid, 1).catch(() => []),
-      resultsOf(SCHEDULED.disk, n.uuid, 1).catch(() => []),
-      resultsOf(SCHEDULED.battery, n.uuid, 1).catch(() => []),
-      resultsOf(SCHEDULED.uptime, n.uuid, 1).catch(() => []),
-      resultsOf(SCHEDULED.apps, n.uuid, 200).catch(() => [])
-    ]);
-    const mine = { os: osR, disk: diskR, battery: battR, uptime: upR, apps: appsR };
+    const [mine, appsR] = await Promise.all([scoreInputsFor(n), resultsOf(SCHEDULED.apps, n.uuid, 200).catch(() => [])]);
     const fleetNewestVersion = await fleetNewestPlatformVersion();
     const score = scoreDevice(n, { ...mine, fleetNewestVersion });
-    const appRows = mine.apps.map(colsOf).filter(Boolean);
+    const appRows = appsR.map(colsOf).filter(Boolean);
     return {
       identity: { hostname: n.hostname, serial: n.serial, uuid: n.uuid, platform: n.platform, model: n.model, cpuBrand: n.cpuBrand, memoryBytes: n.memoryBytes },
       os: { version: (mine.os[0] && firstOf(colsOf(mine.os[0]), "version")) || n.platformVersion || null, reportedAt: mine.os.length ? toMsOf(mine.os[0]) : null },

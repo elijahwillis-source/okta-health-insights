@@ -68,6 +68,10 @@ console.log("\n--- against the mock server ---");
       ok("auth mode '" + mode + "': a serial resolves even though the server's own q= search never looks at hardware_serial", !bySerial.error && !!bySerial.node && bySerial.node.hostname === "jdoe-mbp.corp.local");
       const ambiguousSerial = await o.resolveDevice("C02");
       ok("auth mode '" + mode + "': an ambiguous serial prefix matching more than one device is reported, not silently resolved", !!ambiguousSerial.error && Array.isArray(ambiguousSerial.matches) && ambiguousSerial.matches.length === 2);
+      const summaries = await o.deviceSummaries("");
+      const asmithSummary = summaries.find(s => s.hostname === "asmith-air.corp.local");
+      const asmithDetail = await o.deviceDetail("asmith-air");
+      ok("auth mode '" + mode + "': the list score and the detail score for the same device never disagree", !!asmithSummary && !asmithDetail.error && asmithSummary.healthScore === asmithDetail.health.score && asmithSummary.healthBand === asmithDetail.health.band && asmithSummary.healthScore < 100, "list=" + (asmithSummary && asmithSummary.healthScore) + " detail=" + (asmithDetail && asmithDetail.health && asmithDetail.health.score));
     } finally { mock.server.close(); }
   }
 

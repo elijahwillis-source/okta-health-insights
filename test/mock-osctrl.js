@@ -50,7 +50,12 @@ const LOGS = {
     // a snapshot-mode item whose decoded columns is itself an ARRAY of rows, not one object -- must expand into separate rows
     macos_memory: [{ created_at: "2025-01-01T00:00:00Z", action: "snapshot", name: "macos_memory", columns: col([{ total_bytes: "17179869184", used_approx_bytes: "12792086528" }, { total_bytes: "17179869184", used_approx_bytes: "9000000000" }]) }]
   },
-  "u-2": { macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_os_version", columns: col({ name: "macOS", version: "13.2", build: "22D49" }) }] }
+  // battery is deliberately imperfect (Fair, not Good): the list's health score must come out exactly the
+  // same as the detail's, not full marks for a component the list never actually looked at.
+  "u-2": {
+    macos_os_version: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_os_version", columns: col({ name: "macOS", version: "13.2", build: "22D49" }) }],
+    macos_battery: [{ created_at: "2025-01-01T00:00:00Z", action: "added", name: "macos_battery", columns: col({ health: "Fair", cycle_count: "400", max_capacity: "71" }) }]
+  }
 };
 
 function json(res, status, body) { const b = Buffer.from(JSON.stringify(body)); res.writeHead(status, { "content-type": "application/json", "content-length": b.length }); res.end(b); }
