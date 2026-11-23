@@ -129,6 +129,23 @@ function createOsctrl(env, log) {
     const path = "/api/v1/nodes/" + encodeURIComponent(cfg.envName) + (q ? "?q=" + encodeURIComponent(q) : "");
     return asList(await okJson(path)).map(normalizeNode);
   }
+  // The whole fleet, walking pages if the API hands them out (verified live: GET /api/v1/nodes/<env>?q=
+  // searches only hostname/localname/uuid/ip, never hardware_serial, so this is also the fallback resolveDevice
+  // needs for a serial lookup). Tries the common offset/limit paging convention; if the API ignores it and just
+  // returns everything every time (or there is only one page to begin with), the dedupe-by-identity check below
+  // stops after that first request instead of looping.
+  async function allNodes() {
+    const seen = new Map(); const limit = 500;
+    for (let offset = 0, page = 0; page < 50; page++, offset += limit) {
+      const path = "/api/v1/nodes/" + encodeURIComponent(cfg.envName) + "?limit=" + limit + "&offset=" + offset;
+      const batch = asList(await okJson(path)).map(normalizeNode);
+      if (!batch.length) break;
+      const before = seen.size;
+      for (const n of batch) seen.set(identify(n) || JSON.stringify(n.raw), n);
+      if (seen.size === before || batch.length < limit) break;   // nothing new (API ignored paging) or that was the last page
+    }
+    return [...seen.values()];
+  }
   // Field mapping verified against osctrl v0.7.x's own frontend source (frontend/src/api/nodes.ts, types.ts)
   // and the live API: memory and cpu are top-level, model lives under system_info.system, not system_info.
   function normalizeNode(raw) {
@@ -154,12 +171,22 @@ function createOsctrl(env, log) {
     const ql = String(q || "").toLowerCase(); if (!ql) return false;
     return [n.uuid, n.hostname, n.serial].some(v => String(v || "").toLowerCase() === ql);
   }
-  // resolve one device by serial, hostname or node UUID — exact match first, then "contains"
+  // resolve one device by serial, hostname or node UUID — exact match first, then "contains". osctrl's own
+  // q= search only looks at hostname/localname/uuid/ip (verified live): it never matches hardware_serial, so a
+  // serial lookup can come back empty, or with only unrelated loose matches, even though the device exists.
+  // When the server-side search finds no exact match, fall back to the full (paged) node list and match
+  // client-side before giving up.
   async function resolveDevice(q) {
     const query = String(q || "").trim(); if (query.length < 2) return { error: "Provide a device name, hostname or serial number (at least 2 characters)." };
-    const all = await nodes(query);
-    const exact = all.filter(n => matchesNode(n, query));
-    const pool = exact.length ? exact : all;
+    const serverSide = await nodes(query);
+    let exact = serverSide.filter(n => matchesNode(n, query));
+    let pool = exact.length ? exact : serverSide;
+    if (!exact.length) {
+      const full = await allNodes();
+      const fullExact = full.filter(n => matchesNode(n, query));
+      if (fullExact.length) { exact = fullExact; pool = fullExact; }
+      else if (!serverSide.length) { const ql = query.toLowerCase(); pool = full.filter(n => [n.uuid, n.hostname, n.serial].some(v => String(v || "").toLowerCase().includes(ql))); }
+    }
     if (!pool.length) return { error: `No enrolled device matching "${query}" was found.` };
     if (pool.length > 1) return { error: "Several devices match that. Ask which one is meant (hostname or serial is unambiguous).", matches: pool.slice(0, 10).map(n => n.hostname || n.serial || n.uuid) };
     return { node: pool[0] };

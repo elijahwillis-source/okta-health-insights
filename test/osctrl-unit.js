@@ -64,6 +64,10 @@ console.log("\n--- against the mock server ---");
       ok("auth mode '" + mode + "': a snapshot-mode row whose columns decode to an array expands into separate rows", memRows.length === 2 && memRows.every(r => r.columns && r.columns.total_bytes === "17179869184"));
       const bad = await o.resolveDevice("nope-does-not-exist");
       ok("auth mode '" + mode + "': an unknown device is a plain error, not a throw", !!bad.error);
+      const bySerial = await o.resolveDevice("C02ABCDEFG");
+      ok("auth mode '" + mode + "': a serial resolves even though the server's own q= search never looks at hardware_serial", !bySerial.error && !!bySerial.node && bySerial.node.hostname === "jdoe-mbp.corp.local");
+      const ambiguousSerial = await o.resolveDevice("C02");
+      ok("auth mode '" + mode + "': an ambiguous serial prefix matching more than one device is reported, not silently resolved", !!ambiguousSerial.error && Array.isArray(ambiguousSerial.matches) && ambiguousSerial.matches.length === 2);
     } finally { mock.server.close(); }
   }
 

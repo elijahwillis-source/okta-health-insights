@@ -86,8 +86,12 @@ const server = http.createServer(async (req, res) => {
   const envM = /^\/api\/v1\/nodes\/([^/]+)$/.exec(url.pathname);
   if (req.method === "GET" && envM) {
     const q = (url.searchParams.get("q") || "").toLowerCase();
-    const list = q ? NODES.filter(n => [n.hostname, n.hardware_serial, n.uuid].some(v => String(v).toLowerCase().includes(q))) : NODES;
-    return json(res, 200, { nodes: list });
+    // real osctrl's q= only looks at hostname/localname/uuid/ip -- never hardware_serial -- so a serial search
+    // must come back empty here too, the same as live, to actually exercise resolveDevice's fallback.
+    if (q) return json(res, 200, { nodes: NODES.filter(n => [n.hostname, n.uuid].some(v => String(v).toLowerCase().includes(q))) });
+    const limit = +(url.searchParams.get("limit") || 0), offset = +(url.searchParams.get("offset") || 0);
+    const page = limit ? NODES.slice(offset, offset + limit) : NODES;
+    return json(res, 200, { nodes: page });
   }
   const logM = /^\/api\/v1\/logs\/result\/([^/]+)\/([^/]+)$/.exec(url.pathname);
   if (req.method === "GET" && logM) {
